@@ -3,6 +3,7 @@ add_executable(emikit_tests
     loop_test.cpp
     masks_test.cpp
     analysis_test.cpp
+    calibration_test.cpp
 )
 target_link_libraries(emikit_tests PRIVATE
     emikit_emi
