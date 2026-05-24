@@ -289,4 +289,111 @@ TdrResult tdt_step_response(const std::vector<double>& freqs,
     return r;
 }
 
+
+// --------------------------- De-embedding (Tier 3.18) -------------------
+
+namespace {
+
+// Frequency-grid match check shared with cascade(). Allows a relative
+// tolerance of 1e-9 (the same tolerance cascade() uses) so a Touchstone
+// captured at 1.000 000 001 GHz still pairs with a fixture file at
+// 1.000 000 000 GHz.
+void require_matching_grid(const touchstone::TouchstoneFile& a,
+                            const touchstone::TouchstoneFile& b,
+                            const char* what) {
+    if (a.frequencies.size() != b.frequencies.size()) {
+        throw SParamError(std::format(
+            "{}: frequency grid size mismatch ({} vs {})",
+            what, a.frequencies.size(), b.frequencies.size()));
+    }
+    for (std::size_t i = 0; i < a.frequencies.size(); ++i) {
+        const double ref = std::max(std::abs(a.frequencies[i]),
+                                      std::abs(b.frequencies[i]));
+        if (std::abs(a.frequencies[i] - b.frequencies[i]) > 1e-9 * ref) {
+            throw SParamError(std::format(
+                "{}: frequency mismatch at point {}: {} vs {} Hz",
+                what, i, a.frequencies[i], b.frequencies[i]));
+        }
+    }
+}
+
+}  // namespace
+
+Eigen::Matrix2cd invert_t(const Eigen::Matrix2cd& t) {
+    const Complex det = t(0, 0) * t(1, 1) - t(0, 1) * t(1, 0);
+    if (std::abs(det) < kEpsZero) {
+        throw SParamError(
+            "invert_t: T-matrix is singular (det near zero); the source "
+            "network is likely a perfect block (S21 = 0) and cannot be "
+            "de-embedded.");
+    }
+    Eigen::Matrix2cd inv;
+    inv(0, 0) =  t(1, 1) / det;
+    inv(0, 1) = -t(0, 1) / det;
+    inv(1, 0) = -t(1, 0) / det;
+    inv(1, 1) =  t(0, 0) / det;
+    return inv;
+}
+
+touchstone::TouchstoneFile deembed(
+    const touchstone::TouchstoneFile& measured,
+    const touchstone::TouchstoneFile& fixture_left,
+    const touchstone::TouchstoneFile& fixture_right) {
+    if (measured.num_ports != 2 || fixture_left.num_ports != 2 ||
+        fixture_right.num_ports != 2) {
+        throw SParamError(std::format(
+            "deembed requires all 2-port files; got measured={}, "
+            "fixture_left={}, fixture_right={}",
+            measured.num_ports, fixture_left.num_ports,
+            fixture_right.num_ports));
+    }
+    require_matching_grid(measured, fixture_left,  "deembed");
+    require_matching_grid(measured, fixture_right, "deembed");
+
+    touchstone::TouchstoneFile out;
+    out.num_ports = 2;
+    out.format = measured.format;
+    out.reference_impedance = measured.reference_impedance;
+    out.frequency_scale = measured.frequency_scale;
+    out.frequencies = measured.frequencies;
+    out.s_matrices.reserve(measured.frequencies.size());
+
+    for (std::size_t k = 0; k < measured.frequencies.size(); ++k) {
+        // Pull each 2-port out of the column-major flat storage.
+        auto unpack = [&](const std::vector<Complex>& flat) {
+            Eigen::Matrix2cd M;
+            M(0, 0) = flat[0];   // S11
+            M(1, 0) = flat[1];   // S21
+            M(0, 1) = flat[2];   // S12
+            M(1, 1) = flat[3];   // S22
+            return M;
+        };
+        const Eigen::Matrix2cd S_meas  = unpack(measured.s_matrices[k]);
+        const Eigen::Matrix2cd S_left  = unpack(fixture_left.s_matrices[k]);
+        const Eigen::Matrix2cd S_right = unpack(fixture_right.s_matrices[k]);
+
+        const Eigen::Matrix2cd T_meas  = s_to_t(S_meas);
+        const Eigen::Matrix2cd T_left  = s_to_t(S_left);
+        const Eigen::Matrix2cd T_right = s_to_t(S_right);
+
+        const Eigen::Matrix2cd T_dut =
+            invert_t(T_left) * T_meas * invert_t(T_right);
+        const Eigen::Matrix2cd S_dut = t_to_s(T_dut);
+
+        std::vector<Complex> flat(4);
+        flat[0] = S_dut(0, 0);
+        flat[1] = S_dut(1, 0);
+        flat[2] = S_dut(0, 1);
+        flat[3] = S_dut(1, 1);
+        out.s_matrices.push_back(std::move(flat));
+    }
+    return out;
+}
+
+touchstone::TouchstoneFile deembed_symmetric(
+    const touchstone::TouchstoneFile& measured,
+    const touchstone::TouchstoneFile& fixture) {
+    return deembed(measured, fixture, fixture);
+}
+
 }  // namespace sikit::sparam

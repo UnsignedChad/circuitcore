@@ -54,6 +54,10 @@ int spice_op(const circuitcore::board::Board& board,
 int compliance_op(const std::filesystem::path& touchstone_in,
                   const std::string& spec_name);
 
+int deembed_op(const std::filesystem::path& measured_in,
+                const std::filesystem::path& fixture_in,
+                const std::filesystem::path& out_path);
+
 int list_specs_op();
 
 int list_nets_op(const circuitcore::board::Board& board);
