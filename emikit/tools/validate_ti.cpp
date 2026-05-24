@@ -1,38 +1,29 @@
-// Run emikit against a reconstruction of the TI ADS8686S EMC test board
-// and compare the predicted E-field envelope to the chamber measurements
-// published in TI app note SBAA548A (April 2022, rev May 2022).
+// Run emikit against TI's published ADS8686SEVM-PDK chamber data
+// (SBAA548A, April 2022). With the cable common-mode model added,
+// see if predicted emissions land within pre-compliance accuracy of
+// the chamber numbers across all three test conditions.
 //
-// TI's chamber data, summarized:
-//   Test 1: SCLK = 10 MHz, peak emission at 600.05 MHz, margin 22.83 dB
-//           under the CISPR 11 Class A 57.5 dBuV/m line -> 34.67 dBuV/m.
-//   Test 2: SCLK = 50 MHz, peak emission at 479.96 MHz, margin  2.77 dB
-//           -> 54.73 dBuV/m.
-//   Test 3: SCLK = 10 MHz, peak emission at 479.83 MHz, margin  6.44 dB
-//           -> 51.06 dBuV/m.
+// Two contributions are summed in power:
+//   1. Differential-mode loop radiation from the SCLK trace (existing
+//      LoopEmissions code; small-loop magnetic-dipole far-field).
+//   2. Common-mode radiation from the USB cable connecting the PHI
+//      controller to the host PC (new CableCommonMode; short electric
+//      dipole over a ground plane, per Hockanson 1996).
 //
-// Geometry was estimated from the EVM layout figures in TI SBAU319
-// (ADS8686SEVM-PDK User's Guide, Section 7.2, Figures 21-25):
-//   * 4-layer FR-4 stackup, GND solid on Layer 2 below the top signal layer.
-//   * SCLK trace ~30 mm from the PHI controller connector to the ADC pin
-//     (midpoint estimate; visible route on Layer 1 spans 25-40 mm).
-//   * Top-to-L2 dielectric ~0.2 mm prepreg (typical for TI 4-layer EVMs).
-//   * Trace width ~0.15 mm.
-//
-// Drive parameters were estimated from the PHI controller's MSP430-class
-// 3.3V CMOS output stage:
-//   * I_peak ~ 6 mA (8 mA pin drive strength derated for the actual edge).
-//   * Rise/fall time ~ 2 ns nominal.
-//
-// This is a reconstructed approximation -- 0.1 mm of trace length or a
-// changed via stitching pattern can shift the peak by a few dB. Aim is
-// order-of-magnitude agreement, not chamber-grade accuracy.
+// A single CM-current estimate is used across all three test cases --
+// 10 uA, representative of "moderately noisy digital ground" on a USB
+// cable. This is the parameter to defend in real validation work; for
+// this comparison we want to see how much of the gap closes with a
+// single, non-tuned value.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <vector>
 
 #include "circuitcore/board/Board.h"
 #include "emi/BoardAnalysis.h"
+#include "emi/CableCommonMode.h"
 #include "emi/Masks.h"
 
 namespace cb = circuitcore::board;
@@ -53,10 +44,20 @@ cb::Board sclk_board(double length_m) {
     return b;
 }
 
+// Power-sum two dBuV/m contributions: E_total^2 = E_loop^2 + E_cable^2.
+double sum_dbuv(double a_dbuv, double b_dbuv) {
+    const double a_v = std::pow(10.0, a_dbuv / 20.0);
+    const double b_v = std::pow(10.0, b_dbuv / 20.0);
+    const double s   = std::sqrt(a_v * a_v + b_v * b_v);
+    return 20.0 * std::log10(s);
+}
+
 void run_test(const char* label,
               double sclk_hz,
               double measured_freq_hz,
-              double measured_dbuv) {
+              double measured_dbuv,
+              double cable_length_m,
+              double cm_current_a) {
     auto board = sclk_board(30.0e-3);
 
     ee::AnalysisConfig cfg;
@@ -64,54 +65,65 @@ void run_test(const char* label,
     cfg.drive.rise_time_s = 2.0e-9;
     cfg.drive.period_s    = 1.0 / sclk_hz;
     cfg.loop_height_m     = 0.2e-3;
-    cfg.test_distance_m   = 10.0;             // TI tested at 10 m
+    cfg.test_distance_m   = 10.0;
     cfg.freq_hz           = ee::default_cispr_freq_grid(200);
 
     auto R = ee::analyze_board(board, ee::cispr32_class_a(), cfg);
 
-    // Find emikit's predicted value at the measurement frequency.
-    double best_df = 1e30, predicted_at_peak = 0.0;
-    double envelope_max = -1000.0;
-    double envelope_max_freq = 0.0;
+    // Find the analyzer's predicted loop-only value at the chamber's
+    // measured peak frequency.
+    double best_df = 1e30;
+    double loop_dbuv_at_peak = -1000.0;
     for (std::size_t k = 0; k < cfg.freq_hz.size(); ++k) {
         const double df = std::abs(cfg.freq_hz[k] - measured_freq_hz);
         if (df < best_df) {
             best_df = df;
-            predicted_at_peak = R.worst_case_dbuv[k];
-        }
-        if (R.worst_case_dbuv[k] > envelope_max) {
-            envelope_max = R.worst_case_dbuv[k];
-            envelope_max_freq = cfg.freq_hz[k];
+            loop_dbuv_at_peak = R.worst_case_dbuv[k];
         }
     }
 
+    // Cable contribution at the same frequency.
+    const ee::CableSpec cable{cable_length_m, cm_current_a};
+    const double cable_dbuv_at_peak =
+        ee::cable_cm_e_field_dbuv(cable, measured_freq_hz, cfg.test_distance_m);
+
+    // Combined.
+    const double total_dbuv = sum_dbuv(loop_dbuv_at_peak, cable_dbuv_at_peak);
+
     std::printf("\n== %s (SCLK=%.1f MHz) ==\n", label, sclk_hz / 1e6);
-    std::printf("  measured peak:  %.2f dBuV/m at %.2f MHz\n",
+    std::printf("  measured chamber:       %6.2f dBuV/m at %.1f MHz\n",
                   measured_dbuv, measured_freq_hz / 1e6);
-    std::printf("  emikit at meas: %.2f dBuV/m  (delta %+.2f dB)\n",
-                  predicted_at_peak, predicted_at_peak - measured_dbuv);
-    std::printf("  emikit max:     %.2f dBuV/m at %.2f MHz\n",
-                  envelope_max, envelope_max_freq / 1e6);
+    std::printf("  emikit loop only:       %6.2f dBuV/m (gap %+.2f dB)\n",
+                  loop_dbuv_at_peak, loop_dbuv_at_peak - measured_dbuv);
+    std::printf("  cable CM (%4.1f uA):     %6.2f dBuV/m\n",
+                  cm_current_a * 1e6, cable_dbuv_at_peak);
+    std::printf("  combined (power-sum):   %6.2f dBuV/m (gap %+.2f dB)\n",
+                  total_dbuv, total_dbuv - measured_dbuv);
 }
 
 }  // namespace
 
 int main() {
-    std::printf("emikit TI ADS8686S validation\n");
-    std::printf("------------------------------\n");
-    std::printf("Reference: TI SBAA548A 'EMC Compliance Testing for Precision ADC Systems'\n");
-    std::printf("Geometry:  30 mm SCLK, 0.15 mm wide, 0.2 mm above GND, I=6 mA, tr=2 ns\n");
+    std::printf("emikit TI ADS8686S validation -- loop + cable CM\n");
+    std::printf("------------------------------------------------\n");
+    std::printf("Reference: TI SBAA548A 'EMC Compliance Testing for "
+                  "Precision ADC Systems'\n");
+    std::printf("Loop:      30 mm SCLK trace, 0.15 mm wide, 0.2 mm above GND,\n");
+    std::printf("           I = 6 mA peak, rise time 2 ns\n");
+    std::printf("Cable:     30 cm USB cable, CM current 10 uA assumed\n");
+    std::printf("           (single value across all three tests)\n");
 
-    run_test("Test 1", 10.0e6, 600.05e6, 34.67);
-    run_test("Test 2", 50.0e6, 479.96e6, 54.73);
-    run_test("Test 3", 10.0e6, 479.83e6, 51.06);
+    // PHI USB cable length ~30 cm, CM current ~10 uA estimated from a
+    // few mV of ground bounce on the EVM divided by ~200 ohm typical
+    // cable CM impedance. Same value used across all tests so we are
+    // not fitting -- showing what one physically motivated estimate
+    // does to the prediction.
+    const double cable_L  = 0.30;
+    const double cable_I  = 10.0e-6;
 
-    std::printf("\nNote: peak frequencies in TI's report do not all land on SCLK\n");
-    std::printf("harmonics (e.g. Test 1's 600 MHz is the 60th harmonic of 10 MHz;\n");
-    std::printf("Test 3's 480 MHz is the 48th).  emikit's small-loop-dipole model\n");
-    std::printf("predicts a smooth f^2 envelope multiplied by the trapezoidal\n");
-    std::printf("sinc; the comb structure visible in the chamber plots comes from\n");
-    std::printf("the EMI receiver's narrow IF bandwidth picking out individual\n");
-    std::printf("harmonics, not a feature emikit reproduces.\n");
+    run_test("Test 1", 10.0e6, 600.05e6, 34.67, cable_L, cable_I);
+    run_test("Test 2", 50.0e6, 479.96e6, 54.73, cable_L, cable_I);
+    run_test("Test 3", 10.0e6, 479.83e6, 51.06, cable_L, cable_I);
+
     return 0;
 }
