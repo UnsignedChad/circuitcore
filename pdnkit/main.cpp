@@ -21,6 +21,7 @@
 #include "MainWindow.h"
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
+#include "pi/PowerDrc.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -404,6 +405,48 @@ int run_headless_transient(const std::string& pcb_path,
 
 }  // namespace
 
+int run_headless_drc(const std::string& pcb_path,
+                     const std::string& net_name,
+                     double current_amps,
+                     double temp_rise_c) {
+    circuitcore::board::Board board;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
+    }
+
+    const auto* net = board.find_net_by_name(net_name);
+    if (!net) {
+        std::fprintf(stderr, "pdnkit: no net named '%s'\n", net_name.c_str());
+        return 3;
+    }
+
+    pdnkit::pi::DrcRule rule;
+    rule.net_id = net->id;
+    rule.current_amps = current_amps;
+    rule.temp_rise_c = temp_rise_c;
+
+    auto report = pdnkit::pi::check_ipc2152(board, {rule});
+
+    std::printf("pdnkit IPC-2152 DRC  net=%s  I=%.3f A  dT=%.1f C\n",
+                net_name.c_str(), current_amps, temp_rise_c);
+    std::printf("  %d segment(s) checked\n", report.segments_checked);
+    if (report.violations.empty()) {
+        std::printf("  OK -- no violations.\n");
+        return 0;
+    }
+    std::printf("  %zu violation(s):\n", report.violations.size());
+    for (const auto& v : report.violations) {
+        std::printf("    [seg %d] %s\n", v.segment_index, v.message.c_str());
+    }
+    return 4;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -466,6 +509,18 @@ int main(int argc, char** argv) {
                  "on --net at --layer. 1 A injection.");
     cli.add_option("--pad-a", probe_pad_a, "Source pad name for --probe-r");
     cli.add_option("--pad-b", probe_pad_b, "Sink pad name for --probe-r");
+
+    bool drc = false;
+    double drc_current = 1.0;
+    double drc_temp_rise = 10.0;
+    cli.add_flag("--drc", drc,
+                 "IPC-2152 power-aware DRC: flag segments on --net too "
+                 "narrow to carry --drc-current at --drc-temp-rise without "
+                 "exceeding the IPC-2221 closed-form limit.");
+    cli.add_option("--drc-current", drc_current,
+                   "Current carried by --net for --drc (A, default 1.0)");
+    cli.add_option("--drc-temp-rise", drc_temp_rise,
+                   "Allowable temperature rise for --drc (C, default 10)");
 
     bool transient = false;
     double trn_dt_ns = 10.0;
@@ -544,6 +599,15 @@ int main(int argc, char** argv) {
         }
         return run_headless_probe_r(pcb_path, analyze_net, analyze_layer,
                                      probe_pad_a, probe_pad_b, analyze_cell_mm);
+    }
+    if (drc) {
+        if (pcb_path.empty() || analyze_net.empty()) {
+            std::fprintf(stderr,
+                         "pdnkit: --drc requires --net and a board file\n");
+            return 1;
+        }
+        return run_headless_drc(pcb_path, analyze_net, drc_current,
+                                 drc_temp_rise);
     }
     if (transient) {
         if (pcb_path.empty()) {
