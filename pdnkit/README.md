@@ -67,6 +67,12 @@ pdnkit --eps-f --frequency 1e9 --eps-inf 3.8 --delta-eps 1.0
 ```
 Prints eps_r' / eps_r" / tan(delta) at one frequency under the causal Djordjevic-Sarkar fit. Defaults are a generic FR-4 (eps_inf=3.8, delta=1.0, f1=1 kHz, f2=1 GHz).
 
+### VRM output impedance
+```
+pdnkit --vrm-z --vrm-r 5 --vrm-l 1 --vrm-f 1e6
+```
+R + j*omega*L model for a switching regulator. Useful to overlay on the cavity Z(f) plot and see where the VRM dominates vs the cap network vs the cavity itself.
+
 ### Target impedance from load spec
 ```
 pdnkit --target-z --v-nom 0.9 --v-tol 0.03 --i-step 50

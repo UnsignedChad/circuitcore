@@ -27,6 +27,7 @@
 #include "pi/ViaInductance.h"
 #include "pi/Dielectric.h"
 #include "pi/Touchstone.h"
+#include "pi/Vrm.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -657,6 +658,22 @@ int run_headless_touchstone(const std::string& pcb_path,
     return 0;
 }
 
+int run_headless_vrm_z(double r_mohm, double l_uH, double f_hz) {
+    pdnkit::pi::VrmModel m{r_mohm * 1.0e-3, l_uH * 1.0e-6};
+    const double w = 2.0 * 3.14159265358979323846 * f_hz;
+    auto z = pdnkit::pi::vrm_impedance(m, w);
+    const double mag = std::abs(z);
+    const double phase_deg = std::atan2(z.imag(), z.real()) * 180.0
+                              / 3.14159265358979323846;
+    std::printf("VRM model  R_droop=%.3f mOhm  L_out=%.3f uH\n",
+                r_mohm, l_uH);
+    std::printf("  at f = %.3e Hz:\n", f_hz);
+    std::printf("    Z      = %.4e + j*%.4e ohm\n", z.real(), z.imag());
+    std::printf("    |Z|    = %.4e ohm  (%.3f mOhm)\n", mag, mag * 1000.0);
+    std::printf("    phase  = %.2f deg\n", phase_deg);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -764,6 +781,20 @@ int main(int argc, char** argv) {
     cli.add_option("--i-step", tz_i_step,
                    "Peak step current the load demands for --target-z "
                    "(A, default 1.0)");
+
+    bool vrm_z = false;
+    double vrm_r_mohm = 5.0;
+    double vrm_l_uH = 1.0;
+    double vrm_f_hz = 1.0e6;
+    cli.add_flag("--vrm-z", vrm_z,
+                 "Evaluate the VRM output impedance Z = R + j*w*L at "
+                 "--frequency. Defaults are 5 mOhm droop, 1 uH inductor.");
+    cli.add_option("--vrm-r", vrm_r_mohm,
+                   "VRM droop resistance (mOhm, default 5.0)");
+    cli.add_option("--vrm-l", vrm_l_uH,
+                   "VRM output inductance (uH, default 1.0)");
+    cli.add_option("--vrm-f", vrm_f_hz,
+                   "Frequency for --vrm-z (Hz, default 1e6)");
 
     bool via_l = false;
     double via_d_mm = 0.3;
@@ -912,6 +943,9 @@ int main(int argc, char** argv) {
     }
     if (target_z) {
         return run_headless_target_z(tz_v_nom, tz_v_tol, tz_i_step);
+    }
+    if (vrm_z) {
+        return run_headless_vrm_z(vrm_r_mohm, vrm_l_uH, vrm_f_hz);
     }
     if (via_l) {
         return run_headless_via_l(via_d_mm, via_h_mm, via_s_mm);
