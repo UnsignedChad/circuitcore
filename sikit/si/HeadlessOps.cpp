@@ -12,6 +12,8 @@
 #include "si/SpiceExport.h"
 #include "si/SParam.h"
 #include "si/Overlay.h"
+#include "si/BusGroup.h"
+#include "si/ReturnPath.h"
 #include "si/Touchstone.h"
 #include "si/TouchstoneWriter.h"
 #include "si/TraceImpedance.h"
@@ -433,6 +435,58 @@ int skew_op(const circuitcore::board::Board& board,
     std::printf("\n%zu pair(s) checked, %d over the %.2f ps budget\n",
                   rows.size(), over, budget_ps);
     return over == 0 ? 0 : 1;
+}
+
+
+int bus_skew_op(const circuitcore::board::Board& board,
+                 const sikit::si::SiStackup& sis,
+                 double budget_ps) {
+    const auto stackup =
+        sikit::analysis::AnalysisStackup::from_board(board, sis);
+    const auto groups = sikit::si::compute_bus_groups(board, stackup, budget_ps);
+    if (groups.empty()) {
+        std::printf("sikit: no multi-bit buses detected on this board\n");
+        return 3;
+    }
+    std::printf("%-20s  %5s  %8s  %8s  %7s  %6s\n",
+                  "bus", "N", "min(mm)", "max(mm)", "skew_ps", "budget");
+    int over = 0;
+    for (const auto& g : groups) {
+        std::printf("%-20s  %5zu  %8.3f  %8.3f  %+7.2f  %s\n",
+                      g.base_name.c_str(), g.members.size(),
+                      g.min_length_m * 1e3, g.max_length_m * 1e3,
+                      g.skew_ps,
+                      g.exceeds_budget ? "FAIL" : "PASS");
+        if (g.exceeds_budget) ++over;
+    }
+    std::printf("\n%zu bus(es) checked, %d over the %.2f ps budget\n",
+                  groups.size(), over, budget_ps);
+    return over == 0 ? 0 : 1;
+}
+
+int return_path_op(const circuitcore::board::Board& board,
+                    int samples_per_segment,
+                    double off_plane_threshold) {
+    const auto v = sikit::si::detect_return_path_violations(
+        board, samples_per_segment, off_plane_threshold);
+    if (v.empty()) {
+        std::printf("sikit: no return-path violations on this board\n");
+        return 0;
+    }
+    std::printf("%-5s  %-12s  %-8s  %-8s  %-12s  %-10s\n",
+                  "rank", "net", "sig_lyr", "ref_lyr",
+                  "off-plane", "severity_mm");
+    int rank = 0;
+    for (const auto& r : v) {
+        const auto* net = board.find_net(r.net_id);
+        const std::string nm = net ? net->name : std::to_string(r.net_id);
+        std::printf("%-5d  %-12s  %-8d  %-8d  %7.1f%%       %8.2f\n",
+                      ++rank, nm.c_str(), r.signal_layer, r.reference_layer,
+                      r.off_plane_fraction * 100.0,
+                      r.severity_m * 1e3);
+    }
+    std::printf("\n%zu segment(s) flagged\n", v.size());
+    return 1;
 }
 
 }  // namespace sikit::cli

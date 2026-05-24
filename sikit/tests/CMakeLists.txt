@@ -38,6 +38,7 @@ add_executable(sikit_tests
     skew_test.cpp
     via_model_test.cpp
     return_path_test.cpp
+    example_test.cpp
     roughness_test.cpp
     channel_test.cpp
     channel_synthesis_test.cpp
@@ -67,6 +68,7 @@ target_link_libraries(sikit_tests PRIVATE
     ${CMAKE_DL_LIBS}
 )
 target_compile_definitions(sikit_tests PRIVATE
+    SIKIT_EXAMPLES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../examples"
     SIKIT_TEST_STUB_AMI_PATH="$<TARGET_FILE:stub_ami_sikit>"
 )
 add_dependencies(sikit_tests stub_ami_sikit)

@@ -211,6 +211,31 @@ int main(int argc, char** argv) {
     skew_cmd->add_option("--budget", skew_budget,
                           "Skew budget in ps (default 5)");
 
+    // -------- bus-skew --------
+    auto* bus_cmd = app.add_subcommand(
+        "bus-skew",
+        "Multi-bit bus length skew report (headless)");
+    std::string bus_pcb;
+    double bus_budget = 10.0;
+    bus_cmd->add_option("pcb", bus_pcb, ".kicad_pcb file")
+        ->required()->check(CLI::ExistingFile);
+    bus_cmd->add_option("--budget", bus_budget,
+                          "Skew budget in ps (default 10)");
+
+    // -------- return-path --------
+    auto* rp_cmd = app.add_subcommand(
+        "return-path",
+        "Detect signal segments that lack a continuous reference plane");
+    std::string rp_pcb;
+    int rp_samples = 20;
+    double rp_threshold = 0.05;
+    rp_cmd->add_option("pcb", rp_pcb, ".kicad_pcb file")
+        ->required()->check(CLI::ExistingFile);
+    rp_cmd->add_option("--samples", rp_samples,
+                         "Path samples per segment (default 20)");
+    rp_cmd->add_option("--threshold", rp_threshold,
+                         "Off-plane fraction threshold (default 0.05)");
+
     // -------- list-specs --------
     auto* list_specs_cmd = app.add_subcommand(
         "list-specs", "List all built-in compliance specifications");
@@ -260,6 +285,16 @@ int main(int argc, char** argv) {
         circuitcore::board::Board b; sikit::si::SiStackup sis;
         if (!load_board(skew_pcb, b, sis)) return 2;
         return sikit::cli::skew_op(b, sis, skew_budget);
+    }
+    if (bus_cmd->parsed()) {
+        circuitcore::board::Board b; sikit::si::SiStackup sis;
+        if (!load_board(bus_pcb, b, sis)) return 2;
+        return sikit::cli::bus_skew_op(b, sis, bus_budget);
+    }
+    if (rp_cmd->parsed()) {
+        circuitcore::board::Board b; sikit::si::SiStackup sis;
+        if (!load_board(rp_pcb, b, sis)) return 2;
+        return sikit::cli::return_path_op(b, rp_samples, rp_threshold);
     }
     if (list_specs_cmd->parsed()) {
         return sikit::cli::list_specs_op();
