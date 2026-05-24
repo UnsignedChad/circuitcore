@@ -67,7 +67,6 @@ AnalysisResult analyze_board(
     R.worst_case_dbuv.assign(freqs.size(), -1000.0);
     std::string worst_overall_net;
     double worst_overall_value = -1000.0;
-    double worst_overall_freq = 0.0;
 
     for (const auto& [net_id, total_length] : length_by_net) {
         if (total_length <= 0.0) continue;
@@ -90,11 +89,16 @@ AnalysisResult analyze_board(
             }
             if (ne.e_dbuv[k] > worst_overall_value) {
                 worst_overall_value = ne.e_dbuv[k];
-                worst_overall_freq  = freqs[k];
                 worst_overall_net   = name;
             }
         }
         R.nets.push_back(std::move(ne));
+    }
+
+    if (R.nets.empty()) {
+        // Nothing matched -- absence of routed nets is not a PASS.
+        R.verdict.status = Verdict::Status::NoData;
+        return R;
     }
 
     // Score vs mask: smallest margin across the worst-case envelope.

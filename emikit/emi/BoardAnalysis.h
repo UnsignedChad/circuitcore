@@ -57,7 +57,10 @@ struct NetEmission {
 };
 
 struct Verdict {
-    enum class Status { Pass, Fail };
+    // NoData: no routed nets matched the filter, so nothing was scored.
+    // Distinct from Pass -- absence of emissions data is not the same
+    // as proving compliance.
+    enum class Status { Pass, Fail, NoData };
     Status status = Status::Pass;
     double worst_freq_hz = 0.0;
     double worst_margin_db = 0.0;       // positive -> headroom; negative -> over limit

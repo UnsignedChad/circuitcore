@@ -102,12 +102,17 @@ int main(int argc, char** argv) {
         std::printf("Board:   %s\n", pcb_path.c_str());
         std::printf("Mask:    %s\n", mask->name.c_str());
         std::printf("Nets:    %zu evaluated\n", R.nets.size());
+        if (R.verdict.status == emikit::emi::Verdict::Status::NoData) {
+            std::printf("Worst:   nothing to score -- no routed nets matched\n");
+            return 4;
+        }
+        const char* tag =
+            R.verdict.status == emikit::emi::Verdict::Status::Pass ? "PASS" : "FAIL";
         std::printf("Worst:   %s at %.1f MHz, margin %+.1f dB  -> %s\n",
                       R.verdict.worst_net.c_str(),
                       R.verdict.worst_freq_hz / 1e6,
                       R.verdict.worst_margin_db,
-                      R.verdict.status == emikit::emi::Verdict::Status::Pass
-                          ? "PASS" : "FAIL");
+                      tag);
         return R.verdict.status == emikit::emi::Verdict::Status::Pass ? 0 : 1;
     }
 

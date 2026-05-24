@@ -31,13 +31,23 @@ circuitcore::board::Board one_trace_board(double length_m) {
 
 }  // namespace
 
-TEST_CASE("analysis: empty board produces empty net list, PASS",
+TEST_CASE("analysis: empty board returns NoData, not PASS",
           "[emi]") {
     circuitcore::board::Board b;
     AnalysisConfig cfg;
     auto R = analyze_board(b, cispr32_class_b(), cfg);
     REQUIRE(R.nets.empty());
-    REQUIRE(R.verdict.status == Verdict::Status::Pass);
+    REQUIRE(R.verdict.status == Verdict::Status::NoData);
+}
+
+TEST_CASE("analysis: filter that matches nothing returns NoData",
+          "[emi]") {
+    auto b = one_trace_board(50e-3);
+    AnalysisConfig cfg;
+    cfg.net_filter = {"DOES_NOT_EXIST"};
+    auto R = analyze_board(b, cispr32_class_b(), cfg);
+    REQUIRE(R.nets.empty());
+    REQUIRE(R.verdict.status == Verdict::Status::NoData);
 }
 
 TEST_CASE("analysis: one trace produces one NetEmission record",
