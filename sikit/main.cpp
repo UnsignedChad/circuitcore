@@ -200,6 +200,17 @@ int main(int argc, char** argv) {
     cmp_cmd->add_option("--max-db", cmp_budget,
                           "|dB| delta budget (default 1.0)");
 
+    // -------- skew --------
+    auto* skew_cmd = app.add_subcommand(
+        "skew",
+        "Diff-pair length skew report (headless)");
+    std::string skew_pcb;
+    double skew_budget = 5.0;
+    skew_cmd->add_option("pcb", skew_pcb, ".kicad_pcb file")
+        ->required()->check(CLI::ExistingFile);
+    skew_cmd->add_option("--budget", skew_budget,
+                          "Skew budget in ps (default 5)");
+
     // -------- list-specs --------
     auto* list_specs_cmd = app.add_subcommand(
         "list-specs", "List all built-in compliance specifications");
@@ -244,6 +255,11 @@ int main(int argc, char** argv) {
     }
     if (cmp_cmd->parsed()) {
         return sikit::cli::compare_op(cmp_a, cmp_b, cmp_idx, cmp_budget);
+    }
+    if (skew_cmd->parsed()) {
+        circuitcore::board::Board b; sikit::si::SiStackup sis;
+        if (!load_board(skew_pcb, b, sis)) return 2;
+        return sikit::cli::skew_op(b, sis, skew_budget);
     }
     if (list_specs_cmd->parsed()) {
         return sikit::cli::list_specs_op();

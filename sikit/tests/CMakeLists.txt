@@ -35,6 +35,7 @@ add_executable(sikit_tests
     deembed_test.cpp
     bus_group_test.cpp
     overlay_test.cpp
+    skew_test.cpp
     via_model_test.cpp
     roughness_test.cpp
     channel_test.cpp
