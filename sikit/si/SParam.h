@@ -110,6 +110,43 @@ TdrResult tdr_step_response(const std::vector<double>& freqs,
 TdrResult tdt_step_response(const std::vector<double>& freqs,
                              const std::vector<Complex>& s_ij);
 
+// ------------- De-embedding (Tier 3.18) -----------------------------
+//
+// Strip a known fixture network from a measured Touchstone file. The
+// VNA captured the cascade of fixture_left + DUT + fixture_right; we
+// want just the DUT.
+//
+// In T-parameter space the cascade is a product (s_to_t chain), so the
+// inverse extraction is a matrix-inversion sandwich:
+//
+//     T_meas = T_left * T_DUT * T_right
+//     T_DUT  = T_left^-1 * T_meas * T_right^-1
+//
+// Done per frequency. All three files must be 2-port, share the same
+// frequency grid (within a 1e-9 tolerance), and have the same reference
+// impedance -- the cascade math assumes a consistent Z_ref throughout.
+//
+// Reference: Pozar, Microwave Engineering, Ch. 4 (T-parameter cascade
+// + inversion); Agilent Application Note AN 1364-1 "De-embedding and
+// Embedding S-parameter Networks Using a Vector Network Analyzer".
+//
+// The symmetric helper is the common case: SMA test fixture identical
+// on both sides of the DUT.
+
+touchstone::TouchstoneFile deembed(
+    const touchstone::TouchstoneFile& measured,
+    const touchstone::TouchstoneFile& fixture_left,
+    const touchstone::TouchstoneFile& fixture_right);
+
+touchstone::TouchstoneFile deembed_symmetric(
+    const touchstone::TouchstoneFile& measured,
+    const touchstone::TouchstoneFile& fixture);
+
+// Inverse of a 2-port T-matrix. Exposed for callers who want to
+// verify a fixture file by checking that T * T^-1 ~= I. Throws if T
+// is singular (det T ~ 0).
+Eigen::Matrix2cd invert_t(const Eigen::Matrix2cd& t);
+
 struct SParamError : std::runtime_error {
     using std::runtime_error::runtime_error;
 };

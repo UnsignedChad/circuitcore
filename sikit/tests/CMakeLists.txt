@@ -32,6 +32,7 @@ add_executable(sikit_tests
     compliance_test.cpp
     topology_test.cpp
     headless_test.cpp
+    deembed_test.cpp
     via_model_test.cpp
     roughness_test.cpp
     channel_test.cpp

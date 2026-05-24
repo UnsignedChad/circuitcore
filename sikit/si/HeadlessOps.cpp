@@ -10,6 +10,7 @@
 #include "si/Compliance.h"
 #include "si/EyeMask.h"
 #include "si/SpiceExport.h"
+#include "si/SParam.h"
 #include "si/Touchstone.h"
 #include "si/TouchstoneWriter.h"
 #include "si/TraceImpedance.h"
@@ -335,6 +336,43 @@ int list_nets_op(const circuitcore::board::Board& board) {
     for (const auto& n : board.nets) {
         std::printf("%4d  %s\n", n.id, n.name.c_str());
     }
+    return 0;
+}
+
+
+int deembed_op(const std::filesystem::path& measured_in,
+                const std::filesystem::path& fixture_in,
+                const std::filesystem::path& out_path) {
+    sikit::touchstone::TouchstoneFile meas, fix;
+    try {
+        meas = sikit::touchstone::TouchstoneReader::read_file(measured_in);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "sikit: failed to load %s: %s\n",
+                      measured_in.string().c_str(), e.what());
+        return 2;
+    }
+    try {
+        fix = sikit::touchstone::TouchstoneReader::read_file(fixture_in);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "sikit: failed to load %s: %s\n",
+                      fixture_in.string().c_str(), e.what());
+        return 2;
+    }
+    sikit::touchstone::TouchstoneFile dut;
+    try {
+        dut = sikit::sparam::deembed_symmetric(meas, fix);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "sikit: deembed failed: %s\n", e.what());
+        return 5;
+    }
+    try {
+        sikit::touchstone::TouchstoneWriter::write_file(dut, out_path);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "sikit: write failed: %s\n", e.what());
+        return 6;
+    }
+    std::printf("De-embedded DUT written to %s  (%zu freq points)\n",
+                 out_path.string().c_str(), dut.frequencies.size());
     return 0;
 }
 

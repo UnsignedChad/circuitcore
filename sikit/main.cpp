@@ -172,6 +172,18 @@ int main(int argc, char** argv) {
                           "Compliance spec name (see list-specs)")
         ->required();
 
+    // -------- deembed --------
+    auto* deemb_cmd = app.add_subcommand(
+        "deembed",
+        "Strip a symmetric fixture from a measured Touchstone (headless)");
+    std::string deemb_in, deemb_fix, deemb_out;
+    deemb_cmd->add_option("-i,--in", deemb_in, "Measured Touchstone")
+        ->required()->check(CLI::ExistingFile);
+    deemb_cmd->add_option("--fixture", deemb_fix, "Fixture Touchstone (same on both sides)")
+        ->required()->check(CLI::ExistingFile);
+    deemb_cmd->add_option("-o,--out", deemb_out, "Output DUT Touchstone path")
+        ->required();
+
     // -------- list-specs --------
     auto* list_specs_cmd = app.add_subcommand(
         "list-specs", "List all built-in compliance specifications");
@@ -210,6 +222,9 @@ int main(int argc, char** argv) {
     }
     if (comp_cmd->parsed()) {
         return sikit::cli::compliance_op(comp_in, comp_spec);
+    }
+    if (deemb_cmd->parsed()) {
+        return sikit::cli::deembed_op(deemb_in, deemb_fix, deemb_out);
     }
     if (list_specs_cmd->parsed()) {
         return sikit::cli::list_specs_op();
