@@ -61,6 +61,11 @@ pdnkit --probe-r --net +3V3 --layer F.Cu \
 pdnkit --via-l --via-diameter 0.3 --via-length 1.6 --via-spacing 0.5
 ```
 Self / mutual / loop inductance of a cylindrical via barrel (Grover/Ruehli closed form). Useful for sanity-checking decap mounting inductance or stitching-via arrays. Without `--via-spacing`, prints self-L only.
+### Dielectric model (Djordjevic-Sarkar)
+```
+pdnkit --eps-f --frequency 1e9 --eps-inf 3.8 --delta-eps 1.0
+```
+Prints eps_r' / eps_r" / tan(delta) at one frequency under the causal Djordjevic-Sarkar fit. Defaults are a generic FR-4 (eps_inf=3.8, delta=1.0, f1=1 kHz, f2=1 GHz).
 
 ### Target impedance from load spec
 ```
