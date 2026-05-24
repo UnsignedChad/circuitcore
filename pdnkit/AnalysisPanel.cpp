@@ -105,6 +105,37 @@ AnalysisPanel::AnalysisPanel(QWidget* parent) : QWidget(parent) {
         "where current crowds. Toggles without re-solving.");
     outer->addWidget(current_density_check_);
 
+    thermal_check_ = new QCheckBox("With thermal coupling");
+    thermal_check_->setToolTip(
+        "Iterate the IR solve and copper resistivity until steady-state "
+        "delta-T converges (alpha = 0.00393/C). Captures the fact that "
+        "high-current rails heat up and copper resistance climbs.");
+    outer->addWidget(thermal_check_);
+
+    auto* th_form = new QFormLayout();
+    th_form->setContentsMargins(0, 0, 0, 0);
+    th_form->setSpacing(4);
+    thermal_r_theta_spin_ = new QDoubleSpinBox();
+    thermal_r_theta_spin_->setRange(1.0, 10000.0);
+    thermal_r_theta_spin_->setDecimals(0);
+    thermal_r_theta_spin_->setValue(100.0);
+    thermal_r_theta_spin_->setSuffix(" K/W");
+    thermal_r_theta_spin_->setEnabled(false);
+    thermal_t_ambient_spin_ = new QDoubleSpinBox();
+    thermal_t_ambient_spin_->setRange(-40.0, 200.0);
+    thermal_t_ambient_spin_->setDecimals(1);
+    thermal_t_ambient_spin_->setValue(25.0);
+    thermal_t_ambient_spin_->setSuffix(" Â°""C");
+    thermal_t_ambient_spin_->setEnabled(false);
+    th_form->addRow("R_theta:",  thermal_r_theta_spin_);
+    th_form->addRow("T_ambient:", thermal_t_ambient_spin_);
+    outer->addLayout(th_form);
+
+    connect(thermal_check_, &QCheckBox::toggled, this, [this](bool on) {
+        thermal_r_theta_spin_->setEnabled(on);
+        thermal_t_ambient_spin_->setEnabled(on);
+    });
+
     auto* btn_row = new QHBoxLayout();
     run_btn_ = new QPushButton("Run");
     clear_btn_ = new QPushButton("Clear");
@@ -323,3 +354,16 @@ void AnalysisPanel::setNetById(int net_id) {
         }
     }
 }
+
+bool AnalysisPanel::thermalEnabled() const {
+    return thermal_check_ && thermal_check_->isChecked();
+}
+
+double AnalysisPanel::thermalRThetaKw() const {
+    return thermal_r_theta_spin_ ? thermal_r_theta_spin_->value() : 100.0;
+}
+
+double AnalysisPanel::thermalTAmbientC() const {
+    return thermal_t_ambient_spin_ ? thermal_t_ambient_spin_->value() : 25.0;
+}
+
