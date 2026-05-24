@@ -11,6 +11,8 @@ add_library(pdnkit_pi STATIC
     pi/Transient.cpp
     pi/PowerDrc.cpp
     pi/SpiceExport.cpp
+    pi/TargetZ.cpp
+    pi/ViaInductance.cpp
     render/Camera2D.cpp
     render/ZoneMesher.cpp
     render/IrResultMesh.cpp

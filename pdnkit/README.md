@@ -56,6 +56,18 @@ pdnkit --probe-r --net +3V3 --layer F.Cu \
        --pad-a U1.1 --pad-b U2.1 board.kicad_pcb
 ```
 
+### Via partial inductance
+```
+pdnkit --via-l --via-diameter 0.3 --via-length 1.6 --via-spacing 0.5
+```
+Self / mutual / loop inductance of a cylindrical via barrel (Grover/Ruehli closed form). Useful for sanity-checking decap mounting inductance or stitching-via arrays. Without `--via-spacing`, prints self-L only.
+
+### Target impedance from load spec
+```
+pdnkit --target-z --v-nom 0.9 --v-tol 0.03 --i-step 50
+```
+Computes the Larry Smith flat target `Z = V_nom * V_tol / I_step`. Use the result as the target line in the Plane Z(f) plot.
+
 ### Export SPICE netlist
 ```
 pdnkit --spice --net +3V3 --layer F.Cu --current 2.0 \
