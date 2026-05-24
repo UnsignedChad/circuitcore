@@ -37,6 +37,7 @@ add_executable(sikit_tests
     overlay_test.cpp
     skew_test.cpp
     via_model_test.cpp
+    return_path_test.cpp
     roughness_test.cpp
     channel_test.cpp
     channel_synthesis_test.cpp
