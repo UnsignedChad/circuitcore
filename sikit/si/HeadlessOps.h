@@ -58,6 +58,11 @@ int deembed_op(const std::filesystem::path& measured_in,
                 const std::filesystem::path& fixture_in,
                 const std::filesystem::path& out_path);
 
+int compare_op(const std::filesystem::path& a,
+                const std::filesystem::path& b,
+                int s_param_index,
+                double max_abs_db);
+
 int list_specs_op();
 
 int list_nets_op(const circuitcore::board::Board& board);

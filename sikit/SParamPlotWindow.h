@@ -36,6 +36,15 @@ public:
     explicit SParamPlotWindow(QWidget* parent = nullptr);
 
     void setData(const sikit::touchstone::TouchstoneFile& ts);
+
+    // Load a second Touchstone file to plot alongside the primary as
+    // dashed traces. Use for measured-vs-simulated visual comparison.
+    // Pass an empty TouchstoneFile or call clearOverlay() to remove.
+    // The overlay does not have to share the primary's freq grid;
+    // each trace is plotted on its own X positions.
+    void setOverlay(const sikit::touchstone::TouchstoneFile& ts,
+                     const std::string& label);
+    void clearOverlay();
     void setTitleSubtext(const QString& text);
 
     // For a 4-port file (.s4p only), set whether the conversion to mixed-
@@ -71,6 +80,8 @@ private:
     class QCheckBox* mixed_mode_check_ = nullptr;
     MixedModeAvailability mm_avail_ = MixedModeAvailability::Unavailable;
     sikit::touchstone::TouchstoneFile ts_se_;  // original single-ended (if any)
+    sikit::touchstone::TouchstoneFile overlay_ts_;
+    std::string overlay_label_;
     QWidget* curves_holder_ = nullptr;
     QGridLayout* curves_grid_ = nullptr;
     QLabel* caption_ = nullptr;
