@@ -26,6 +26,7 @@
 #include "ColorLegend.h"
 #include "CavityPanel.h"
 #include "TransientPanel.h"
+#include "DrcPanel.h"
 #include "NetStatsPanel.h"
 #include "LayerPanel.h"
 #include "PcbCanvas.h"
@@ -148,6 +149,19 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     addDockWidget(Qt::RightDockWidgetArea, trn_dock);
     tabifyDockWidget(an_dock, trn_dock);
 
+    drc_panel_ = new DrcPanel(this);
+    auto* drc_scroll = new QScrollArea(this);
+    drc_scroll->setWidget(drc_panel_);
+    drc_scroll->setWidgetResizable(true);
+    drc_scroll->setFrameShape(QFrame::NoFrame);
+    auto* drc_dock = new QDockWidget("DRC", this);
+    drc_dock->setWidget(drc_scroll);
+    drc_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::RightDockWidgetArea, drc_dock);
+    tabifyDockWidget(an_dock, drc_dock);
+    connect(netstats_panel_, &NetStatsPanel::netSelected,
+            drc_panel_, &DrcPanel::setNetById);
+
     auto* fileMenu = menuBar()->addMenu("&File");
     auto* openAct = fileMenu->addAction("&Open KiCad PCB...");
     openAct->setShortcut(QKeySequence::Open);
@@ -178,6 +192,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     viewMenu->addAction(nets_dock->toggleViewAction());
     viewMenu->addAction(cav_dock->toggleViewAction());
     viewMenu->addAction(trn_dock->toggleViewAction());
+    viewMenu->addAction(drc_dock->toggleViewAction());
 
     auto* analyzeMenu = menuBar()->addMenu("&Analyze");
     auto* irAct = analyzeMenu->addAction("Static &IR drop on F.Cu");
@@ -433,6 +448,7 @@ bool MainWindow::loadKicadPcb(const QString& path) {
         netstats_panel_->setBoard(board_.get());
         cavity_panel_->setBoard(board_.get());
         transient_panel_->setBoard(board_.get());
+        drc_panel_->setBoard(board_.get());
 
         // Restore per-board last-selected net for the Analysis panel.
         QSettings settings("pdnkit", "pdnkit");
