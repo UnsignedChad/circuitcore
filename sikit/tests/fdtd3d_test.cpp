@@ -258,3 +258,125 @@ TEST_CASE("fdtd3d: switching boundary mode is observable",
     s.set_boundary(Boundary::Mur1stOrder);
     REQUIRE(s.boundary() == Boundary::Mur1stOrder);
 }
+
+TEST_CASE("fdtd3d: default material is vacuum",
+          "[fdtd3d][material]") {
+    FDTD3D s(GridSpec{4, 4, 4, 1e-3, 1e-3, 1e-3});
+    REQUIRE(s.epsr_x(0, 0, 0)  == 1.0);
+    REQUIRE(s.epsr_y(2, 2, 2)  == 1.0);
+    REQUIRE(s.epsr_z(1, 1, 1)  == 1.0);
+    REQUIRE(s.sigma_x(0, 0, 0) == 0.0);
+}
+
+TEST_CASE("fdtd3d: set_uniform_material fills every E component",
+          "[fdtd3d][material]") {
+    FDTD3D s(GridSpec{4, 4, 4, 1e-3, 1e-3, 1e-3});
+    s.set_uniform_material(4.2, 0.07);
+    REQUIRE(s.epsr_x(0, 0, 0)  == 4.2);
+    REQUIRE(s.epsr_y(3, 2, 2)  == 4.2);
+    REQUIRE(s.epsr_z(2, 4, 3)  == 4.2);
+    REQUIRE(s.sigma_x(1, 1, 1) == Approx(0.07));
+}
+
+TEST_CASE("fdtd3d: set_material_box scopes the change to inside the box",
+          "[fdtd3d][material]") {
+    FDTD3D s(GridSpec{8, 8, 8, 1e-3, 1e-3, 1e-3});
+    s.set_material_box(2, 2, 2, 5, 5, 5, 9.8, 0.0);
+    REQUIRE(s.epsr_z(0, 0, 0) == 1.0);   // outside the box
+    REQUIRE(s.epsr_z(3, 3, 3) == 9.8);   // inside
+    REQUIRE(s.epsr_z(7, 7, 7) == 1.0);   // outside
+}
+
+TEST_CASE("fdtd3d: causality is slower inside a dielectric",
+          "[fdtd3d][material]") {
+    // Two identical solves, one in vacuum and one filled with
+    // eps_r = 4 throughout. In the eps_r=4 box, waves travel at
+    // c / sqrt(4) = c/2. A probe 10 cells from the source therefore
+    // stays at machine zero for roughly *twice* as many steps as in
+    // the vacuum case. We don't measure the slowdown analytically;
+    // we just verify the dielectric box is "still quiet" at a step
+    // where vacuum would already have lit up.
+    const int nx = 24, ny = 24, nz = 24;
+    const double dx = 1e-3;
+    const GridSpec g{nx, ny, nz, dx, dx, dx};
+
+    auto run = [&](double eps_r) {
+        FDTD3D s(g);
+        s.set_dt_from_cfl();
+        s.set_uniform_material(eps_r);
+        // Step source: zero before step 5, +1.0 thereafter.
+        FDTD3D::HardESource src;
+        src.i = 12; src.j = 12; src.k = 12;
+        src.comp = FDTD3D::HardESource::Comp::Ez;
+        const int N_steps = 100;
+        src.samples.assign(N_steps, 0.0);
+        for (int n = 5; n < N_steps; ++n) src.samples[n] = 1.0;
+        s.add_hard_e_source(src);
+
+        const int probe_i = src.i + 10;
+        std::vector<double> probe(N_steps, 0.0);
+        for (int n = 0; n < N_steps; ++n) {
+            s.step();
+            probe[n] = s.ez(probe_i, src.j, src.k);
+        }
+        return probe;
+    };
+
+    const auto vac = run(1.0);
+    const auto die = run(4.0);
+
+    // At step ~25 in vacuum (well past 10 cells / 0.57 cells-per-step
+    // = 17.5 steps) the probe is lit. The eps_r=4 box should still be
+    // ~quiet at step 25 because the half-speed front hasn't arrived
+    // (10 cells / 0.285 cells-per-step = 35 steps minimum).
+    REQUIRE(std::abs(vac[25]) > 1e-9);
+    REQUIRE(std::abs(die[25]) < std::abs(vac[25]) * 0.01);
+}
+
+TEST_CASE("fdtd3d: conductivity dissipates stored energy",
+          "[fdtd3d][material]") {
+    // Pulse-excite a PEC box, let the wave bounce; the lossless box
+    // stores roughly all the injected energy after the source goes
+    // silent, the lossy box has dissipated a meaningful fraction.
+    // We compare the SUM of squared Ez across the volume, a proxy for
+    // electric-field energy. The lossy run must be measurably less.
+    //
+    // Probing a single point ends up at the mercy of standing-wave
+    // node positions, which shift with sigma -- a volumetric integral
+    // is the right invariant.
+    const int nx = 12, ny = 12, nz = 12;
+    const GridSpec g{nx, ny, nz, 1e-3, 1e-3, 1e-3};
+    const double dt = cfl_dt(g);
+
+    auto run = [&](double sigma) {
+        FDTD3D s(g);
+        s.set_dt(dt);
+        s.set_uniform_material(1.0, sigma);
+        FDTD3D::HardESource src;
+        src.i = nx / 2; src.j = ny / 2; src.k = nz / 2;
+        src.comp = FDTD3D::HardESource::Comp::Ez;
+        const int N_steps = 220;
+        src.samples.resize(N_steps);
+        for (int n = 0; n < N_steps; ++n) {
+            src.samples[n] = gaussian_pulse(n * dt, 30 * dt, 8 * dt);
+        }
+        for (int n = 60; n < N_steps; ++n) src.samples[n] = 0.0;
+        s.add_hard_e_source(src);
+        for (int n = 0; n < N_steps; ++n) s.step();
+        double e2 = 0.0;
+        for (int k = 0; k < nz; ++k) {
+            for (int j = 1; j < ny; ++j) {
+                for (int i = 1; i < nx; ++i) {
+                    const double v = s.ez(i, j, k);
+                    e2 += v * v;
+                }
+            }
+        }
+        return e2;
+    };
+
+    const double e_lossless = run(0.0);
+    const double e_lossy    = run(5.0);
+    REQUIRE(e_lossless > 0.0);
+    REQUIRE(e_lossy < 0.6 * e_lossless);
+}
