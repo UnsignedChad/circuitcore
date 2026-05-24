@@ -164,3 +164,97 @@ TEST_CASE("fdtd3d: causal propagation -- probe is quiet before wave-front "
     // nonzero field. Use the final sample.
     REQUIRE(std::abs(probe.back()) > 1e-9);
 }
+
+TEST_CASE("fdtd3d: Mur ABC absorbs the wave -- much smaller residual "
+          "energy than the PEC reflector",
+          "[fdtd3d][mur]") {
+    // Two identical runs side-by-side: one with PEC boundary, one with
+    // Mur 1st-order. Drive an Ez pulse at the center, let it propagate
+    // out, wait long enough for the PEC version to bounce. The Mur
+    // box should hold far less stored energy at that late time --
+    // most of the energy has left through the absorber.
+    const int nx = 30, ny = 30, nz = 30;
+    const double dx = 1e-3;
+    const GridSpec g{nx, ny, nz, dx, dx, dx};
+    const double dt = cfl_dt(g);
+
+    // Wide-ish Gaussian pulse that fits comfortably below the grid's
+    // dispersion limit. Pulse peaks at step 30, finishes by step ~60.
+    const int N_steps    = 220;  // long enough for a PEC reflection
+    const int src_step   = 30;
+    const int src_spread = 8;
+
+    auto build_src = [&](int /*not used*/) {
+        FDTD3D::HardESource s;
+        s.i = nx / 2; s.j = ny / 2; s.k = nz / 2;
+        s.comp = FDTD3D::HardESource::Comp::Ez;
+        s.samples.resize(N_steps);
+        for (int n = 0; n < N_steps; ++n) {
+            s.samples[n] = gaussian_pulse(n * dt, src_step * dt,
+                                              src_spread * dt);
+        }
+        // Source goes silent after step ~60 -- past that point, any
+        // energy in the box is a wave still bouncing around (PEC) or
+        // residual ringdown (Mur).
+        for (int n = 60; n < N_steps; ++n) s.samples[n] = 0.0;
+        return s;
+    };
+
+    auto run = [&](Boundary b) {
+        FDTD3D s(g);
+        s.set_dt(dt);
+        s.set_boundary(b);
+        s.add_hard_e_source(build_src(0));
+        for (int n = 0; n < N_steps; ++n) s.step();
+        // Sum of squared Ez across the volume -- a proxy for stored
+        // electric-field energy.
+        double e2 = 0.0;
+        for (int k = 0; k < nz; ++k) {
+            for (int j = 1; j < ny; ++j) {
+                for (int i = 1; i < nx; ++i) {
+                    const double v = s.ez(i, j, k);
+                    e2 += v * v;
+                }
+            }
+        }
+        return e2;
+    };
+
+    const double e_pec = run(Boundary::PEC);
+    const double e_mur = run(Boundary::Mur1stOrder);
+
+    // The Mur box should have shed most of the wave through the walls
+    // by step 220; the PEC box still holds the reflected pulse.
+    REQUIRE(e_pec > 0.0);
+    REQUIRE(e_mur < 0.20 * e_pec);
+}
+
+TEST_CASE("fdtd3d: Mur ABC remains numerically stable for a long run",
+          "[fdtd3d][mur]") {
+    // Empty box, no source, run for many steps. Ez everywhere should
+    // stay machine-zero. (Catches the classic 1st-order Mur late-time
+    // instability bug where the boundary equation amplifies its own
+    // round-off.)
+    GridSpec g{12, 12, 12, 1e-3, 1e-3, 1e-3};
+    FDTD3D s(g);
+    s.set_dt_from_cfl();
+    s.set_boundary(Boundary::Mur1stOrder);
+    for (int n = 0; n < 500; ++n) s.step();
+    double max_abs = 0.0;
+    for (int k = 0; k < g.nz; ++k) {
+        for (int j = 0; j <= g.ny; ++j) {
+            for (int i = 0; i <= g.nx; ++i) {
+                max_abs = std::max(max_abs, std::abs(s.ez(i, j, k)));
+            }
+        }
+    }
+    REQUIRE(max_abs == 0.0);
+}
+
+TEST_CASE("fdtd3d: switching boundary mode is observable",
+          "[fdtd3d][mur]") {
+    FDTD3D s(GridSpec{6, 6, 6, 1e-3, 1e-3, 1e-3});
+    REQUIRE(s.boundary() == Boundary::PEC);
+    s.set_boundary(Boundary::Mur1stOrder);
+    REQUIRE(s.boundary() == Boundary::Mur1stOrder);
+}

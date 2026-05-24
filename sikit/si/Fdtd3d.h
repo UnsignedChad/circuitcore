@@ -1,13 +1,12 @@
-// Full-wave 3D FDTD solver (scaffolding).
+// Full-wave 3D FDTD solver.
 //
 // What this is
 //
-//   The first slice of sikit's "moat" full-wave solver. Implements the
-//   bare-minimum Yee-grid Maxwell update with a PEC outer boundary
-//   and a hard E-field source. No PML, no dielectric, no lossy
-//   materials, no PCB integration -- that's the rest of the 3.15
-//   epic. This module just has to step Maxwell's equations correctly
-//   so the validation tests below pass; everything else bolts on.
+//   The "moat" full-wave solver for sikit. Implements a Yee-grid
+//   Maxwell update with selectable outer-boundary behaviour (PEC or
+//   1st-order Mur ABC) and a hard E-field source. No PML, no
+//   dielectric, no PCB integration yet -- that's the rest of the
+//   3.15 epic.
 //
 // Why FDTD and not FEM / MoM
 //
@@ -23,9 +22,9 @@
 //   less than e.g. a chassis with curved seams.
 //
 //   References: Taflove & Hagness, "Computational Electrodynamics",
-//   chs. 3-4 (Yee grid, CFL stability) and Sullivan, "Electromagnetic
-//   Simulation Using the FDTD Method", ch. 3 (the 3D update written
-//   out cell-by-cell).
+//   chs. 3-4 (Yee grid, CFL stability), ch. 7 (Mur ABC), and
+//   Sullivan, "Electromagnetic Simulation Using the FDTD Method",
+//   ch. 3 (the 3D update written out cell-by-cell).
 //
 // Grid layout (Yee staggered)
 //
@@ -108,15 +107,29 @@ private:
     std::vector<double> data_;
 };
 
-// Lossless free-space FDTD3D solver with PEC outer boundary.
+// Outer-boundary behaviour for the FDTD3D solver.
+//
+//   PEC          - tangential E pinned to zero at every outer face.
+//                  Waves bounce; useful for closed cavities.
+//   Mur1stOrder  - one-way wave equation absorber. ~95% absorption at
+//                  normal incidence, falling off at grazing. The
+//                  pragmatic default for axial port-fed SI runs. CPML
+//                  upgrade lives in a follow-up.
+enum class Boundary {
+    PEC,
+    Mur1stOrder,
+};
+
+// Lossless free-space FDTD3D solver.
 //
 // Usage:
 //   FDTD3D s(GridSpec{nx, ny, nz, dx, dy, dz});
-//   s.set_dt_from_cfl();           // or s.dt(...) manually
-//   s.add_hard_e_source(...);      // optional excitations
+//   s.set_dt_from_cfl();
+//   s.set_boundary(Boundary::Mur1stOrder);  // optional
+//   s.add_hard_e_source(...);
 //   for (int n = 0; n < N; ++n) {
 //       s.step();
-//       double v = s.ez(probe_i, probe_j, probe_k);  // record probe
+//       double v = s.ez(probe_i, probe_j, probe_k);
 //   }
 class FDTD3D {
 public:
@@ -127,32 +140,23 @@ public:
     double dt() const { return dt_; }
     double sim_time() const { return n_steps_ * dt_; }
 
-    // Set the time step from the CFL limit (safety 0.99). The solver
-    // refuses to step if dt is unset or non-positive.
     void set_dt_from_cfl(double safety = 0.99);
     void set_dt(double dt);
 
-    // Hard E-field source: at every time step, overwrite Ez(i,j,k)
-    // with f(t). Multiple sources can be added; the last one to
-    // overwrite a given cell wins.
-    //
-    // (Hard sources reflect incident waves -- they're the simplest
-    // injection model. PR B will add total-field / scattered-field
-    // separation so we can do clean broadband port excitation.)
+    // Default boundary is PEC. Call set_boundary(Boundary::Mur1stOrder)
+    // before the first step() to switch to absorbing.
+    void set_boundary(Boundary b);
+    Boundary boundary() const { return boundary_; }
+
     struct HardESource {
         int i, j, k;
         enum class Comp { Ex, Ey, Ez } comp = Comp::Ez;
-        // Caller supplies a sample value at simulation time t (seconds).
-        std::vector<double> samples;  // pre-computed waveform over Nsteps
+        std::vector<double> samples;  // pre-computed waveform
     };
     void add_hard_e_source(HardESource src);
 
-    // Single time step: H half-step, then E full step, then re-apply
-    // hard sources at the new time level.
     void step();
 
-    // Field accessors. PEC boundary: tangential E is zero at the outer
-    // walls of the box, so reading there is meaningful (it will be 0).
     double ex(int i, int j, int k) const { return ex_.at(i, j, k); }
     double ey(int i, int j, int k) const { return ey_.at(i, j, k); }
     double ez(int i, int j, int k) const { return ez_.at(i, j, k); }
@@ -160,33 +164,55 @@ public:
     double hy(int i, int j, int k) const { return hy_.at(i, j, k); }
     double hz(int i, int j, int k) const { return hz_.at(i, j, k); }
 
-    // Memory footprint of the six Yee field arrays, in bytes. Useful
-    // for the CLI "fdtd info" command (PR D) to flag oversized grids
-    // before they OOM the box.
     std::size_t bytes() const;
 
 private:
     GridSpec g_;
     double dt_ = 0.0;
     int n_steps_ = 0;
+    Boundary boundary_ = Boundary::PEC;
     Field3D ex_, ey_, ez_;
     Field3D hx_, hy_, hz_;
     std::vector<HardESource> sources_;
 
+    // Mur ABC: store E at the boundary cell + the cell one step in,
+    // both at the *previous* time step. Each face needs the two
+    // tangential components.
+    //
+    // The data layout: a small 2D slab per face per tangential
+    // component, indexed by the two coordinates along the face.
+    struct MurFace {
+        // For each face we store two tangential E components at the
+        // boundary slab (t0) and the slab one cell inward (t1), both
+        // captured at the previous time step.
+        // The two tangential components have *different* sizes on the
+        // Yee grid, so each gets its own na/nb stride pair.
+        //   x-face: comp A = Ey (na_a=ny, nb_a=nz+1)
+        //           comp B = Ez (na_b=ny+1, nb_b=nz)
+        //   y-face: comp A = Ex (na_a=nx, nb_a=nz+1)
+        //           comp B = Ez (na_b=nx+1, nb_b=nz)
+        //   z-face: comp A = Ex (na_a=nx, nb_a=ny+1)
+        //           comp B = Ey (na_b=nx+1, nb_b=ny)
+        std::vector<double> prev_t0_a, prev_t1_a;
+        std::vector<double> prev_t0_b, prev_t1_b;
+        int na_a = 0, nb_a = 0;
+        int na_b = 0, nb_b = 0;
+    };
+    MurFace mur_xlo_, mur_xhi_, mur_ylo_, mur_yhi_, mur_zlo_, mur_zhi_;
+    bool mur_buffers_ready_ = false;
+
     void update_h();
     void update_e();
     void apply_sources();
+    void allocate_mur_buffers();
+    void apply_mur_abc();
 };
 
 // Helper: Gaussian pulse  exp(-((t - t0) / spread)^2) at time t.
-// spread sets the half-width; t0 should be >= 3*spread so the pulse
-// starts near zero at t=0.
 double gaussian_pulse(double t, double t0, double spread);
 
 // Analytic resonance frequency of a rectangular PEC cavity of inner
 // dimensions (a, b, d) in metres. (m, n, p) are the mode indices.
-// Used by the cavity test to verify the FDTD update converges to
-// known eigenfrequencies.
 //   TE_mnp / TM_mnp: f = c/2 * sqrt((m/a)^2 + (n/b)^2 + (p/d)^2)
 double cavity_mode_freq(double a, double b, double d,
                           int m, int n, int p);
