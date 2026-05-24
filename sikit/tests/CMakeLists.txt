@@ -26,6 +26,7 @@ add_executable(sikit_tests
     trace_impedance_test.cpp
     diff_pair_test.cpp
     diff_synth_test.cpp
+    crosstalk_test.cpp
     via_model_test.cpp
     roughness_test.cpp
     channel_test.cpp
