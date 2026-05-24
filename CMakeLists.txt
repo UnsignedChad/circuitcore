@@ -34,11 +34,13 @@ if(CIRCUITCORE_BUILD_TESTS)
 endif()
 
 # --- Layer 1: format-independent core ---
-add_subdirectory(board)    # circuitcore::board   -- canonical model
-add_subdirectory(sexpr)    # circuitcore::sexpr   -- generic utility
+add_subdirectory(board)    # circuitcore::board    -- canonical model
+add_subdirectory(sexpr)    # circuitcore::sexpr    -- generic utility
+add_subdirectory(netlist)  # circuitcore::netlist  -- schematic-side data
 
 # --- Layer 2: format adapters (each produces a board::Board) ---
 add_subdirectory(formats/kicad)   # circuitcore::kicad -> board::Board
+add_subdirectory(intent)          # circuitcore::intent -- board vs schematic
 # add_subdirectory(formats/altium)  # future
 # add_subdirectory(formats/ipc2581) # future
 

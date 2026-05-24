@@ -437,6 +437,17 @@ private:
 
     void parse_footprints() {
         for (const Node* fp : find_children(root_, "footprint")) {
+            // Reference designator -- KiCad stores it as a (property "Reference" "C12" ...) child.
+            std::string fp_ref;
+            for (const Node* prop : find_children(*fp, "property")) {
+                if (prop->children.size() >= 3 &&
+                    (prop->children[1].is_string() || prop->children[1].is_symbol()) &&
+                    prop->children[1].text == "Reference" &&
+                    (prop->children[2].is_string() || prop->children[2].is_symbol())) {
+                    fp_ref = prop->children[2].text;
+                    break;
+                }
+            }
             // Footprint origin (mm) + rotation (deg), applied to each pad's local (at).
             circuitcore::board::Point2 fp_at{0, 0};
             double fp_rot = 0.0;
@@ -504,6 +515,7 @@ private:
                         p.net_id = net_id_(*netr);
                     }
                 }
+                p.parent_ref = fp_ref;
                 board_.pads.push_back(p);
             }
         }
