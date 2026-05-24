@@ -1,5 +1,6 @@
 #pragma once
 
+#include <complex>
 #include <QWidget>
 
 #include <vector>
@@ -25,6 +26,17 @@ public:
 
     void setBoard(const circuitcore::board::Board* board);
     void setNetById(int net_id);
+
+    // After the user runs a Z(f) sweep, these expose the complex sweep
+    // result so the main window can write it out as Touchstone. Empty
+    // until onRun() has fired at least once.
+    bool hasLastSweep() const { return !last_sweep_freqs_.empty(); }
+    const std::vector<double>& lastSweepFreqs() const {
+        return last_sweep_freqs_;
+    }
+    const std::vector<std::complex<double>>& lastSweepZ() const {
+        return last_sweep_z_;
+    }
 
 signals:
     // Fires whenever the decap list changes (add / remove / cell edit).
@@ -79,4 +91,9 @@ private:
     // Cache of the latest sweep for CSV export.
     std::vector<double> last_freqs_;
     std::vector<double> last_mags_;
+    // Cached complex Z(f) sweep from the most recent onRun(). Used by
+    // MainWindow::onExportTouchstone to dump a .s1p file.
+    std::vector<double> last_sweep_freqs_;
+    std::vector<std::complex<double>> last_sweep_z_;
+
 };

@@ -11,6 +11,7 @@
 #include "si/EyeMask.h"
 #include "si/SpiceExport.h"
 #include "si/SParam.h"
+#include "si/Overlay.h"
 #include "si/Touchstone.h"
 #include "si/TouchstoneWriter.h"
 #include "si/TraceImpedance.h"
@@ -374,6 +375,36 @@ int deembed_op(const std::filesystem::path& measured_in,
     std::printf("De-embedded DUT written to %s  (%zu freq points)\n",
                  out_path.string().c_str(), dut.frequencies.size());
     return 0;
+}
+
+
+int compare_op(const std::filesystem::path& a_path,
+                const std::filesystem::path& b_path,
+                int s_param_index, double max_abs_db) {
+    sikit::touchstone::TouchstoneFile a, b;
+    try {
+        a = sikit::touchstone::TouchstoneReader::read_file(a_path);
+        b = sikit::touchstone::TouchstoneReader::read_file(b_path);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "sikit: failed to load: %s\n", e.what());
+        return 2;
+    }
+    sikit::analysis::OverlayDelta d;
+    try {
+        d = sikit::analysis::overlay_delta(a, b, s_param_index);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "sikit: %s\n", e.what());
+        return 5;
+    }
+    std::printf("a         = %s\n", a_path.string().c_str());
+    std::printf("b         = %s\n", b_path.string().c_str());
+    std::printf("index     = %d\n", s_param_index);
+    std::printf("max |dB|  = %.3f dB  at %.3e Hz\n",
+                  d.max_abs_db, d.max_freq_hz);
+    std::printf("budget    = %.3f dB\n", max_abs_db);
+    const bool pass = d.max_abs_db <= max_abs_db;
+    std::printf("verdict   = %s\n", pass ? "PASS" : "FAIL");
+    return pass ? 0 : 1;
 }
 
 }  // namespace sikit::cli
