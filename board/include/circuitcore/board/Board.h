@@ -89,6 +89,7 @@ struct Pad {
     std::vector<int> layer_ordinals;
     int net_id = 0;
     std::string name;          // KiCad pad designator ("1", "+", etc.)
+    std::string parent_ref;    // footprint reference ("C12", "U1", ...)
 };
 
 // A closed polygon, possibly with holes (interior cutouts).

@@ -3,6 +3,7 @@
 # Uses sexpr internally; PRIVATE link is enough.
 add_library(circuitcore_kicad STATIC
     src/PcbParser.cpp
+    src/NetlistParser.cpp
 )
 add_library(circuitcore::kicad ALIAS circuitcore_kicad)
 
@@ -11,6 +12,7 @@ target_include_directories(circuitcore_kicad PUBLIC
 )
 target_link_libraries(circuitcore_kicad
     PUBLIC  circuitcore::board
+            circuitcore::netlist
     PRIVATE circuitcore::sexpr
 )
 target_compile_options(circuitcore_kicad PRIVATE -Wall -Wextra -Wpedantic)
