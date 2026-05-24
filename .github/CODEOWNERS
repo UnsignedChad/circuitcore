@@ -1,0 +1,11 @@
+# See .github/POLICY.md
+/board/             @UnsignedChad
+/sexpr/             @UnsignedChad
+/formats/           @UnsignedChad
+/CMakeLists.txt     @UnsignedChad
+/.clang-format      @UnsignedChad
+/.gitignore         @UnsignedChad
+/README.md          @UnsignedChad
+/CONTRIBUTING.md    @UnsignedChad
+/LICENSE            @UnsignedChad
+/.github/           @UnsignedChad
