@@ -25,6 +25,7 @@
 #include "pi/SpiceExport.h"
 #include "pi/TargetZ.h"
 #include "pi/ViaInductance.h"
+#include "pi/Dielectric.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -544,6 +545,20 @@ int run_headless_via_l(double diameter_mm, double length_mm,
     return 0;
 }
 
+int run_headless_eps_f(double f_hz, double eps_inf, double delta_eps,
+                       double f1_hz, double f2_hz) {
+    pdnkit::pi::DjordjevicSarkar m{eps_inf, delta_eps, f1_hz, f2_hz};
+    auto s = pdnkit::pi::dj_sarkar_at(m, f_hz);
+    std::printf("Djordjevic-Sarkar  eps_inf=%.3f  delta_eps=%.3f  "
+                "f1=%.1e Hz  f2=%.1e Hz\n",
+                eps_inf, delta_eps, f1_hz, f2_hz);
+    std::printf("  at f = %.3e Hz:\n", f_hz);
+    std::printf("    eps_r'  = %.4f\n", s.eps_r_real);
+    std::printf("    eps_r\" = %.4e\n", s.eps_r_imag);
+    std::printf("    tan(d)  = %.5f\n", s.tan_delta);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -659,6 +674,25 @@ int main(int argc, char** argv) {
     cli.add_option("--via-spacing",  via_s_mm,
                    "Center-to-center spacing to a return via for loop-L "
                    "calc (mm, default 0 = self only)");
+    bool eps_f = false;
+    double eps_f_hz = 1.0e9;
+    double eps_inf = 3.8;
+    double eps_delta = 1.0;
+    double eps_f1 = 1.0e3;
+    double eps_f2 = 1.0e9;
+    cli.add_flag("--eps-f", eps_f,
+                 "Evaluate Djordjevic-Sarkar dielectric model "
+                 "at --frequency Hz, print eps_r' / eps_r\" / tan(delta).");
+    cli.add_option("--frequency", eps_f_hz,
+                   "Frequency for --eps-f (Hz, default 1e9)");
+    cli.add_option("--eps-inf",   eps_inf,
+                   "Dielectric eps_inf (high-freq limit, default 3.8 FR-4)");
+    cli.add_option("--delta-eps", eps_delta,
+                   "Dispersion magnitude (default 1.0)");
+    cli.add_option("--eps-f1",    eps_f1,
+                   "Low-frequency corner f1 (Hz, default 1e3)");
+    cli.add_option("--eps-f2",    eps_f2,
+                   "High-frequency corner f2 (Hz, default 1e9)");
 
     bool transient = false;
     double trn_dt_ns = 10.0;
@@ -762,6 +796,10 @@ int main(int argc, char** argv) {
     }
     if (via_l) {
         return run_headless_via_l(via_d_mm, via_h_mm, via_s_mm);
+    }
+    if (eps_f) {
+        return run_headless_eps_f(eps_f_hz, eps_inf, eps_delta,
+                                   eps_f1, eps_f2);
     }
     if (transient) {
         if (pcb_path.empty()) {
