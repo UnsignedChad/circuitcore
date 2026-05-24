@@ -46,6 +46,8 @@ constexpr auto kTinyBoard = R"(
 
     (footprint "Resistor_SMD:R_0402"
         (at 40 50 0)
+        (property "Reference" "R1" (at 40 48 0))
+        (property "Value" "10k" (at 40 52 0))
         (pad "1" smd rect
             (at -0.5 0)
             (size 0.5 0.5)
@@ -158,4 +160,12 @@ TEST_CASE("parser: pad shape and size extracted", "[parser]") {
     REQUIRE(b.pads[0].size.x == 0.0005);
     REQUIRE(b.pads[0].size.y == 0.0005);
     REQUIRE(b.pads[1].shape == circuitcore::board::PadShape::Rect);
+}
+
+TEST_CASE("parser: parent_ref populated from footprint Reference property",
+          "[parser]") {
+    auto b = PcbParser::parse_string(kTinyBoard).value();
+    REQUIRE(b.pads.size() == 2);
+    REQUIRE(b.pads[0].parent_ref == "R1");
+    REQUIRE(b.pads[1].parent_ref == "R1");
 }
