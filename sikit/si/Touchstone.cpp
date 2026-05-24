@@ -74,9 +74,241 @@ int infer_num_ports(const std::filesystem::path& path) {
         "cannot infer port count from filename '{}' (expected .sNp)", path.string()));
 }
 
+
+// ----- Touchstone v2 helpers --------------------------------------------
+
+// Strip leading/trailing whitespace.
+std::string trim(const std::string& s) {
+    std::size_t lo = 0, hi = s.size();
+    while (lo < hi && std::isspace(static_cast<unsigned char>(s[lo]))) ++lo;
+    while (hi > lo && std::isspace(static_cast<unsigned char>(s[hi - 1]))) --hi;
+    return s.substr(lo, hi - lo);
+}
+
+std::string upper(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::toupper(c); });
+    return s;
+}
+
+// Detect whether a Touchstone source string is in v2 form. The IBIS spec
+// requires v2 files to carry a "[Version] 2.0" line before any data.
+bool is_touchstone_v2(std::string_view src) {
+    std::istringstream in{std::string(src)};
+    std::string line;
+    while (std::getline(in, line)) {
+        // Strip ! comments.
+        auto bang = line.find('!');
+        if (bang != std::string::npos) line = line.substr(0, bang);
+        auto t = trim(line);
+        if (t.empty()) continue;
+        // Stop scanning at the first data line (anything not a keyword
+        // or option line). Don't want to walk a 1000-point .s4p body.
+        if (t[0] == '[') {
+            const auto u = upper(t);
+            if (u.rfind("[VERSION]", 0) == 0) return true;
+            // Other keywords without a Version line means v2-ish but
+            // technically non-conformant; treat as v1 with extra noise.
+            continue;
+        }
+        if (t[0] == '#') continue;
+        if (std::isdigit(static_cast<unsigned char>(t[0])) || t[0] == '-' ||
+            t[0] == '+') {
+            return false;   // hit a data line first
+        }
+    }
+    return false;
+}
+
+// Parse a [Reference] line's impedance list.
+std::vector<double> parse_reference_line(const std::string& tail) {
+    std::vector<double> out;
+    std::istringstream in(tail);
+    double z;
+    while (in >> z) out.push_back(z);
+    return out;
+}
+
+}  // namespace
+
+namespace {
+
+// v2 parser. Walks the input twice: first pass picks up [Version],
+// [Number of Ports], [Reference], [Two-Port Order], and [Matrix Format]
+// keywords; second pass extracts the # option line and numeric body
+// (same data layout the v1 parser produces).
+TouchstoneFile parse_v2(std::string_view src, int default_num_ports) {
+    TouchstoneFile out;
+    out.version = 2;
+    out.num_ports = default_num_ports;   // overridden by [Number of Ports]
+
+    // ----- Pass 1: walk lines, classify keywords + option + data -----
+    std::istringstream in{std::string(src)};
+    std::string line;
+    bool saw_options = false;
+    bool inside_network_data = false;
+    bool saw_end = false;
+    std::vector<double> values;
+    while (std::getline(in, line)) {
+        auto bang = line.find('!');
+        if (bang != std::string::npos) line = line.substr(0, bang);
+        auto t = trim(line);
+        if (t.empty()) continue;
+        if (saw_end) continue;
+
+        if (t[0] == '[') {
+            // Keyword section. Parse the bracketed name + tail.
+            auto close = t.find(']');
+            if (close == std::string::npos) {
+                throw TouchstoneParseError(std::format(
+                    "malformed v2 keyword line: '{}'", t));
+            }
+            std::string name = upper(trim(t.substr(1, close - 1)));
+            std::string tail = trim(t.substr(close + 1));
+
+            if (name == "VERSION") {
+                // Already detected; no-op but accept any 2.x string.
+                continue;
+            }
+            if (name == "NUMBER OF PORTS") {
+                std::istringstream is(tail);
+                int n = 0; is >> n;
+                if (n < 1) throw TouchstoneParseError(
+                    "v2: [Number of Ports] requires a positive integer");
+                out.num_ports = n;
+                continue;
+            }
+            if (name == "NUMBER OF FREQUENCIES") {
+                // Informational only -- we count freq points from data
+                // length. Accept and ignore.
+                continue;
+            }
+            if (name == "TWO-PORT ORDER") {
+                std::string u = upper(tail);
+                if (u == "12_21") {
+                    out.two_port_order = TwoPortOrder::RowMajor;
+                } else if (u == "21_12") {
+                    out.two_port_order = TwoPortOrder::LegacyColumnMajor;
+                } else {
+                    throw TouchstoneParseError(std::format(
+                        "v2: unknown [Two-Port Order] '{}'", tail));
+                }
+                continue;
+            }
+            if (name == "REFERENCE") {
+                out.port_impedances = parse_reference_line(tail);
+                if (!out.port_impedances.empty()) {
+                    out.reference_impedance = out.port_impedances.front();
+                }
+                continue;
+            }
+            if (name == "MATRIX FORMAT") {
+                std::string u = upper(tail);
+                if (u != "FULL") {
+                    throw TouchstoneParseError(std::format(
+                        "v2: only [Matrix Format] Full is supported in v1; "
+                        "got '{}'", tail));
+                }
+                continue;
+            }
+            if (name == "NETWORK DATA") {
+                inside_network_data = true;
+                continue;
+            }
+            if (name == "END") { saw_end = true; continue; }
+            // Unknown keyword (e.g. [Information], [Noise Data]) --
+            // skip silently so future spec extensions don't break us.
+            continue;
+        }
+
+        if (t[0] == '#') {
+            if (saw_options) continue;
+            // Reuse the v1 option-line parsing path inline.
+            std::istringstream opts(t.substr(1));
+            std::string unit, param, fmt, r_tok;
+            double zref = 50.0;
+            opts >> unit >> param >> fmt >> r_tok >> zref;
+            if (unit.empty() || param.empty() || fmt.empty()) {
+                throw TouchstoneParseError(std::format(
+                    "v2: malformed option line: '{}'", t));
+            }
+            param = upper(param);
+            if (param != "S") {
+                throw TouchstoneParseError(std::format(
+                    "v2: only S-parameters supported, got '{}'", param));
+            }
+            out.frequency_scale = freq_scale_for(unit);
+            out.format = format_for(fmt);
+            r_tok = upper(r_tok);
+            if (r_tok != "R") {
+                throw TouchstoneParseError(std::format(
+                    "v2: expected 'R' before reference impedance, got '{}'",
+                    r_tok));
+            }
+            if (out.port_impedances.empty()) {
+                out.reference_impedance = zref;
+            }
+            saw_options = true;
+            continue;
+        }
+
+        // Data line. If [Network Data] keyword has not been seen yet
+        // we still accept it -- some files emit the option line and
+        // numeric data without the explicit [Network Data] marker.
+        (void)inside_network_data;
+        std::istringstream data(t);
+        double v;
+        while (data >> v) values.push_back(v);
+    }
+
+    if (!saw_options) {
+        throw TouchstoneParseError("v2: missing option line");
+    }
+    if (out.num_ports < 1) {
+        throw TouchstoneParseError("v2: [Number of Ports] not set and no "
+                                     "filename hint available");
+    }
+
+    // Chunk the value stream into records.
+    const std::size_t N = static_cast<std::size_t>(out.num_ports);
+    const std::size_t per_record = 1 + 2 * N * N;
+    if (values.size() % per_record != 0) {
+        throw TouchstoneParseError(std::format(
+            "v2: data length {} not a multiple of (1 + 2*{}^2) = {}",
+            values.size(), N, per_record));
+    }
+    const std::size_t num_freqs = values.size() / per_record;
+    out.frequencies.reserve(num_freqs);
+    out.s_matrices.reserve(num_freqs);
+
+    for (std::size_t k = 0; k < num_freqs; ++k) {
+        const std::size_t base = k * per_record;
+        out.frequencies.push_back(values[base] * out.frequency_scale);
+        std::vector<std::complex<double>> mat(N * N);
+        for (std::size_t i = 0; i < N * N; ++i) {
+            const double a = values[base + 1 + 2 * i];
+            const double b = values[base + 2 + 2 * i];
+            mat[i] = to_complex(a, b, out.format);
+        }
+        // Reordering: for 2-port v1 / 12_21 v2, the on-disk order is
+        // S11 S12 S21 S22 (row-major), but our column-major storage
+        // wants S11 S21 S12 S22. The v1 path keeps the legacy
+        // 21_12 ordering literally (read = stored). For row-major
+        // we swap entries 1 and 2.
+        if (N == 2 && out.two_port_order == TwoPortOrder::RowMajor) {
+            std::swap(mat[1], mat[2]);
+        }
+        out.s_matrices.push_back(std::move(mat));
+    }
+    return out;
+}
+
 }  // namespace
 
 TouchstoneFile TouchstoneReader::read_string(std::string_view src, int num_ports) {
+    if (is_touchstone_v2(src)) {
+        return parse_v2(src, num_ports);
+    }
     if (num_ports < 1) {
         throw TouchstoneParseError(
             std::format("num_ports must be >= 1, got {}", num_ports));

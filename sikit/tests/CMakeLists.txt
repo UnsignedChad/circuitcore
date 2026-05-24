@@ -48,6 +48,7 @@ add_executable(sikit_tests
     bathtub_test.cpp
     stat_eye_test.cpp
     touchstone_test.cpp
+    touchstone_v2_test.cpp
     touchstone_writer_test.cpp
     touchstone_csv_test.cpp
     ibis_test.cpp
