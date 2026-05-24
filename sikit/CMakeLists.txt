@@ -13,6 +13,7 @@ add_library(sikit_si STATIC
     si/Bathtub.cpp
     si/ChannelResponse.cpp
     si/ChannelSynthesis.cpp
+    si/Crosstalk.cpp
     si/CrossSection.cpp
     si/DiffPair.cpp
     si/DiffSynth.cpp
