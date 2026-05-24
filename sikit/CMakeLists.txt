@@ -22,6 +22,7 @@ add_library(sikit_si STATIC
     si/DjordjevicSarkar.cpp
     si/Eye.cpp
     si/EyeMask.cpp
+    si/Compliance.cpp
     si/EyeMetrics.cpp
     si/FdmSolver.cpp
     si/Fft.cpp
