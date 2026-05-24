@@ -18,6 +18,7 @@
 #include <string>
 
 #include "circuitcore/board/Board.h"
+#include "circuitcore/netlist/Netlist.h"
 #include "si/SiStackup.h"
 
 namespace sikit::cli {
@@ -84,5 +85,13 @@ int return_path_op(const circuitcore::board::Board& board,
 int report_op(const circuitcore::board::Board& board,
                 const sikit::si::SiStackup& sis,
                 const std::filesystem::path& out_path);
+
+
+// Read a KiCad .net file, derive driver/receiver assignments per net,
+// and print a human-readable summary. When net_name is empty, every
+// non-power net is reported; otherwise only the named one. Exits 1 if
+// any net has a driver problem (zero or multiple drivers).
+int derive_topology_op(const circuitcore::netlist::Netlist& nl,
+                        const std::string& net_name);
 
 }  // namespace sikit::cli
