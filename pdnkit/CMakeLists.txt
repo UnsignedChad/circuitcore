@@ -10,6 +10,7 @@ add_library(pdnkit_pi STATIC
     pi/DecapOptimizer.cpp
     pi/Transient.cpp
     pi/PowerDrc.cpp
+    pi/SpiceExport.cpp
     render/Camera2D.cpp
     render/ZoneMesher.cpp
     render/IrResultMesh.cpp
