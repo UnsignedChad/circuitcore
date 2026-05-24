@@ -1,0 +1,53 @@
+(kicad_pcb
+    (version 20240108)
+    (generator "pdnkit-fixture")
+    (general
+        (thickness 1.6)
+    )
+    (paper "A4")
+    (layers
+        (0 "F.Cu" signal)
+        (31 "B.Cu" signal)
+        (44 "Edge.Cuts" user)
+    )
+    (net 0 "")
+    (net 1 "VRAIL")
+
+    (footprint "Test:SourcePad"
+        (at 5 5)
+        (pad "1" smd rect
+            (at 0 0)
+            (size 0.5 5)
+            (layers "F.Cu" "F.Mask")
+            (net 1 "VRAIL")
+        )
+    )
+
+    (footprint "Test:SinkPad"
+        (at 95 5)
+        (pad "1" smd rect
+            (at 0 0)
+            (size 0.5 5)
+            (layers "F.Cu" "F.Mask")
+            (net 1 "VRAIL")
+        )
+    )
+
+    (zone
+        (net 1)
+        (net_name "VRAIL")
+        (layer "F.Cu")
+        (polygon
+            (pts (xy 0 0) (xy 100 0) (xy 100 10) (xy 0 10))
+        )
+        (filled_polygon
+            (layer "F.Cu")
+            (pts (xy 0 0) (xy 100 0) (xy 100 10) (xy 0 10))
+        )
+    )
+
+    (gr_line (start 0 0)   (end 100 0)  (layer "Edge.Cuts") (width 0.1))
+    (gr_line (start 100 0) (end 100 10) (layer "Edge.Cuts") (width 0.1))
+    (gr_line (start 100 10)(end 0 10)   (layer "Edge.Cuts") (width 0.1))
+    (gr_line (start 0 10)  (end 0 0)    (layer "Edge.Cuts") (width 0.1))
+)
