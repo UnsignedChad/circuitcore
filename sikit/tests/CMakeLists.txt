@@ -63,6 +63,7 @@ add_executable(sikit_tests
     project_test.cpp
     reference_data_test.cpp
     schematic_topology_test.cpp
+    fdtd3d_test.cpp
 )
 target_link_libraries(sikit_tests PRIVATE
     sikit_si
