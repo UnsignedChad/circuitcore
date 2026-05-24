@@ -34,6 +34,15 @@ struct CavityConfig {
     double mu_r = 1.0;         // relative permeability (~1 for PCB dielectrics)
     double tan_delta = 0.020;  // dielectric loss tangent (FR-4 default)
     int max_modes = 30;        // m, n each summed 0..max_modes inclusive
+
+    // Optional: replace the constant (eps_r, tan_delta) with the wideband
+    // Djordjevic-Sarkar fit so eps(f) ramps causally across the band. When
+    // off (default), the constant model above is used and nothing changes.
+    bool   wideband_dielectric = false;
+    double ds_eps_inf   = 3.8;
+    double ds_delta_eps = 1.0;
+    double ds_f1_hz     = 1.0e3;
+    double ds_f2_hz     = 1.0e9;
 };
 
 // Self/transfer impedance at angular frequency omega (rad/s) between ports

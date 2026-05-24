@@ -1,4 +1,5 @@
 #include "pi/CavityModel.h"
+#include "pi/Dielectric.h"
 
 #include <Eigen/Dense>
 
@@ -21,7 +22,19 @@ std::complex<double> cavity_impedance(
 
     const double mu  = cfg.mu_r * kMu0;
     // Complex permittivity: eps = eps_r eps_0 (1 - j tan_delta).
-    const cd eps = cfg.eps_r * kEps0 * cd(1.0, -cfg.tan_delta);
+    // Wideband path: pull eps_r' and eps_r" from the Djordjevic-Sarkar fit
+    // at this frequency. Equivalent to the constant form with
+    // tan_delta = eps_r"/eps_r' set per-frequency.
+    cd eps;
+    if (cfg.wideband_dielectric) {
+        const double f_hz = omega / (2.0 * std::numbers::pi);
+        DjordjevicSarkar ds{cfg.ds_eps_inf, cfg.ds_delta_eps,
+                            cfg.ds_f1_hz, cfg.ds_f2_hz};
+        auto sample = dj_sarkar_at(ds, f_hz);
+        eps = (sample.eps_r_real - cd(0.0, 1.0) * sample.eps_r_imag) * kEps0;
+    } else {
+        eps = cfg.eps_r * kEps0 * cd(1.0, -cfg.tan_delta);
+    }
     const cd k_squared = omega * omega * mu * eps;
 
     cd sum(0.0, 0.0);
