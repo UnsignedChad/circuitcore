@@ -40,6 +40,15 @@ FDTD3D::FDTD3D(const GridSpec& g) : g_(g) {
     hx_.resize(g.nx + 1, g.ny,     g.nz    );
     hy_.resize(g.nx,     g.ny + 1, g.nz    );
     hz_.resize(g.nx,     g.ny,     g.nz + 1);
+
+    // Material parameters collocated with each Yee E component.
+    epsr_x_.resize(ex_.nx(), ex_.ny(), ex_.nz());
+    epsr_y_.resize(ey_.nx(), ey_.ny(), ey_.nz());
+    epsr_z_.resize(ez_.nx(), ez_.ny(), ez_.nz());
+    sigma_x_.resize(ex_.nx(), ex_.ny(), ex_.nz());
+    sigma_y_.resize(ey_.nx(), ey_.ny(), ey_.nz());
+    sigma_z_.resize(ez_.nx(), ez_.ny(), ez_.nz());
+    set_uniform_material(1.0, 0.0);
 }
 
 void FDTD3D::set_dt_from_cfl(double safety) { dt_ = cfl_dt(g_, safety); }
@@ -64,6 +73,51 @@ std::size_t FDTD3D::bytes() const {
     return (ex_.size() + ey_.size() + ez_.size()
            + hx_.size() + hy_.size() + hz_.size()) * sizeof(double);
 }
+
+void FDTD3D::set_uniform_material(double eps_r, double sigma) {
+    epsr_x_.fill(eps_r);  epsr_y_.fill(eps_r);  epsr_z_.fill(eps_r);
+    sigma_x_.fill(sigma); sigma_y_.fill(sigma); sigma_z_.fill(sigma);
+}
+
+namespace {
+
+// Fill the cells of `f` (epsr or sigma) whose [i,j,k] position lies
+// inside the inclusive Yee-cell box [ilo..ihi] x [jlo..jhi] x [klo..khi].
+// "Inside" is interpreted permissively: any of f's index that falls in
+// the box gets the value. This means a 1-cell-thick slab fills both
+// E-cells on either side at the slab boundary, which is the conventional
+// staircase rasterisation behaviour.
+void fill_box(Field3D& f, int ilo, int jlo, int klo,
+                          int ihi, int jhi, int khi,
+                          double v) {
+    const int imin = std::max(ilo, 0);
+    const int jmin = std::max(jlo, 0);
+    const int kmin = std::max(klo, 0);
+    const int imax = std::min(ihi, f.nx() - 1);
+    const int jmax = std::min(jhi, f.ny() - 1);
+    const int kmax = std::min(khi, f.nz() - 1);
+    for (int k = kmin; k <= kmax; ++k) {
+        for (int j = jmin; j <= jmax; ++j) {
+            for (int i = imin; i <= imax; ++i) {
+                f.at(i, j, k) = v;
+            }
+        }
+    }
+}
+
+}  // namespace
+
+void FDTD3D::set_material_box(int ilo, int jlo, int klo,
+                                int ihi, int jhi, int khi,
+                                double eps_r, double sigma) {
+    fill_box(epsr_x_, ilo, jlo, klo, ihi, jhi, khi, eps_r);
+    fill_box(epsr_y_, ilo, jlo, klo, ihi, jhi, khi, eps_r);
+    fill_box(epsr_z_, ilo, jlo, klo, ihi, jhi, khi, eps_r);
+    fill_box(sigma_x_, ilo, jlo, klo, ihi, jhi, khi, sigma);
+    fill_box(sigma_y_, ilo, jlo, klo, ihi, jhi, khi, sigma);
+    fill_box(sigma_z_, ilo, jlo, klo, ihi, jhi, khi, sigma);
+}
+
 
 // --- core curl updates ---------------------------------------------------
 //
@@ -110,37 +164,65 @@ void FDTD3D::update_h() {
 }
 
 void FDTD3D::update_e() {
-    const double cx = dt_ / (kEps0 * g_.dx);
-    const double cy = dt_ / (kEps0 * g_.dy);
-    const double cz = dt_ / (kEps0 * g_.dz);
+    // Per-cell Ca/Cb derived inline from epsr and sigma. The base curl
+    // coefficients cx/cy/cz factor out the geometric pitch; the
+    // material correction folds in eps_r and the loss damping.
+    //
+    //   denom = 1 + s*dt / (2*e0*er)
+    //   Ca    = (1 - s*dt/(2*e0*er)) / denom
+    //   Cb    = (dt / (e0*er)) / denom  -- multiplied by 1/dx etc.
+    //
+    // For vacuum cells (er=1, s=0) this collapses to Ca=1, Cb=dt/e0.
+    const double half_dt = 0.5 * dt_;
+    const double bx = 1.0 / g_.dx;
+    const double by = 1.0 / g_.dy;
+    const double bz = 1.0 / g_.dz;
 
     for (int k = 1; k < g_.nz; ++k) {
         for (int j = 1; j < g_.ny; ++j) {
             for (int i = 0; i < g_.nx; ++i) {
+                const double er = epsr_x_.at(i, j, k);
+                const double s  = sigma_x_.at(i, j, k);
+                const double damp = s * half_dt / (kEps0 * er);
+                const double denom = 1.0 + damp;
+                const double Ca = (1.0 - damp) / denom;
+                const double base_cb = dt_ / (kEps0 * er) / denom;
                 const double curl_h =
-                    cy * (hz_.at(i, j, k) - hz_.at(i, j - 1, k))
-                  - cz * (hy_.at(i, j, k) - hy_.at(i, j, k - 1));
-                ex_.at(i, j, k) += curl_h;
+                    by * (hz_.at(i, j, k) - hz_.at(i, j - 1, k))
+                  - bz * (hy_.at(i, j, k) - hy_.at(i, j, k - 1));
+                ex_.at(i, j, k) = Ca * ex_.at(i, j, k) + base_cb * curl_h;
             }
         }
     }
     for (int k = 1; k < g_.nz; ++k) {
         for (int j = 0; j < g_.ny; ++j) {
             for (int i = 1; i < g_.nx; ++i) {
+                const double er = epsr_y_.at(i, j, k);
+                const double s  = sigma_y_.at(i, j, k);
+                const double damp = s * half_dt / (kEps0 * er);
+                const double denom = 1.0 + damp;
+                const double Ca = (1.0 - damp) / denom;
+                const double base_cb = dt_ / (kEps0 * er) / denom;
                 const double curl_h =
-                    cz * (hx_.at(i, j, k) - hx_.at(i, j, k - 1))
-                  - cx * (hz_.at(i, j, k) - hz_.at(i - 1, j, k));
-                ey_.at(i, j, k) += curl_h;
+                    bz * (hx_.at(i, j, k) - hx_.at(i, j, k - 1))
+                  - bx * (hz_.at(i, j, k) - hz_.at(i - 1, j, k));
+                ey_.at(i, j, k) = Ca * ey_.at(i, j, k) + base_cb * curl_h;
             }
         }
     }
     for (int k = 0; k < g_.nz; ++k) {
         for (int j = 1; j < g_.ny; ++j) {
             for (int i = 1; i < g_.nx; ++i) {
+                const double er = epsr_z_.at(i, j, k);
+                const double s  = sigma_z_.at(i, j, k);
+                const double damp = s * half_dt / (kEps0 * er);
+                const double denom = 1.0 + damp;
+                const double Ca = (1.0 - damp) / denom;
+                const double base_cb = dt_ / (kEps0 * er) / denom;
                 const double curl_h =
-                    cx * (hy_.at(i, j, k) - hy_.at(i - 1, j, k))
-                  - cy * (hx_.at(i, j, k) - hx_.at(i, j - 1, k));
-                ez_.at(i, j, k) += curl_h;
+                    bx * (hy_.at(i, j, k) - hy_.at(i - 1, j, k))
+                  - by * (hx_.at(i, j, k) - hx_.at(i, j - 1, k));
+                ez_.at(i, j, k) = Ca * ez_.at(i, j, k) + base_cb * curl_h;
             }
         }
     }

@@ -157,6 +157,40 @@ public:
 
     void step();
 
+    // Per-cell dielectric. Each E component on the Yee grid has its
+    // own (eps_r, sigma) collocated with it. Defaults are vacuum
+    // (eps_r = 1, sigma = 0).
+    //
+    // The conductivity is treated via the standard Yee-Hagness loss
+    // formulation (Taflove eq. 3.32): the E update gets a damping
+    // coefficient Ca and a curl coefficient Cb,
+    //   Ca = (1 - s*dt/(2*e0*er)) / (1 + s*dt/(2*e0*er))
+    //   Cb = (dt / (e0*er)) / (1 + s*dt/(2*e0*er))
+    // which collapse to (1, dt/(e0*er)) for sigma = 0.
+    //
+    // The CFL bound is set by the fastest wave speed in the grid,
+    // i.e. by the vacuum cells -- placing higher-eps_r material in
+    // some cells does NOT loosen the timestep.
+
+    void set_uniform_material(double eps_r, double sigma = 0.0);
+
+    // Inclusive index range. The box is described in Yee-cell space;
+    // each E component gets the value applied to the cells whose
+    // *position* falls inside the box. Convenient for slab tests and
+    // for the future PCB rasteriser.
+    void set_material_box(int ilo, int jlo, int klo,
+                          int ihi, int jhi, int khi,
+                          double eps_r, double sigma = 0.0);
+
+    // Free-cell accessors (read-only) for tests + tooling.
+    double epsr_x(int i, int j, int k) const { return epsr_x_.at(i, j, k); }
+    double epsr_y(int i, int j, int k) const { return epsr_y_.at(i, j, k); }
+    double epsr_z(int i, int j, int k) const { return epsr_z_.at(i, j, k); }
+    double sigma_x(int i, int j, int k) const { return sigma_x_.at(i, j, k); }
+    double sigma_y(int i, int j, int k) const { return sigma_y_.at(i, j, k); }
+    double sigma_z(int i, int j, int k) const { return sigma_z_.at(i, j, k); }
+
+
     double ex(int i, int j, int k) const { return ex_.at(i, j, k); }
     double ey(int i, int j, int k) const { return ey_.at(i, j, k); }
     double ez(int i, int j, int k) const { return ez_.at(i, j, k); }
@@ -173,6 +207,12 @@ private:
     Boundary boundary_ = Boundary::PEC;
     Field3D ex_, ey_, ez_;
     Field3D hx_, hy_, hz_;
+
+    // Per-cell material parameters. One epsr/sigma array per Yee E
+    // component (Ex/Ey/Ez), allocated at the same size as the
+    // corresponding field array. Default-initialised to (1.0, 0.0).
+    Field3D epsr_x_, epsr_y_, epsr_z_;
+    Field3D sigma_x_, sigma_y_, sigma_z_;
     std::vector<HardESource> sources_;
 
     // Mur ABC: store E at the boundary cell + the cell one step in,
