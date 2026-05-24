@@ -145,6 +145,20 @@ void SParamPlotWindow::setData(const sikit::touchstone::TouchstoneFile& ts) {
     plot_canvas_->update();
 }
 
+
+void SParamPlotWindow::setOverlay(const sikit::touchstone::TouchstoneFile& ts,
+                                    const std::string& label) {
+    overlay_ts_ = ts;
+    overlay_label_ = label;
+    plot_canvas_->update();
+}
+
+void SParamPlotWindow::clearOverlay() {
+    overlay_ts_ = {};
+    overlay_label_.clear();
+    plot_canvas_->update();
+}
+
 void SParamPlotWindow::setTitleSubtext(const QString& text) {
     setWindowTitle(QString("S-parameters — %1").arg(text));
 }
@@ -252,54 +266,60 @@ void SParamPlotWindow::paintPlotInto(QWidget* target) {
         int idx;            // r*N+c
         std::vector<double> y;
     };
-    std::vector<Curve> curves;
-    for (std::size_t i = 0; i < curve_checks_.size(); ++i) {
-        if (!curve_checks_[i] || !curve_checks_[i]->isChecked()) continue;
-        Curve cv;
-        cv.idx = static_cast<int>(i);
-        const int r = cv.idx / N;
-        const int c = cv.idx % N;
-        const std::size_t K = ts_.frequencies.size();
-        cv.y.reserve(K);
+    auto build_curves = [&](const sikit::touchstone::TouchstoneFile& src) {
+        std::vector<Curve> out;
+        if (src.num_ports != N || src.frequencies.empty()) return out;
+        for (std::size_t i = 0; i < curve_checks_.size(); ++i) {
+            if (!curve_checks_[i] || !curve_checks_[i]->isChecked()) continue;
+            Curve cv;
+            cv.idx = static_cast<int>(i);
+            const int r = cv.idx / N;
+            const int c = cv.idx % N;
+            const std::size_t K = src.frequencies.size();
+            cv.y.reserve(K);
 
-        if (mode_ == YMode::MagnitudeDb) {
-            for (std::size_t k = 0; k < K; ++k) {
-                const auto z = ts_.s_matrices[k][r + c * N];
-                const double m = std::abs(z);
-                cv.y.push_back(20.0 * std::log10(std::max(m, 1e-18)));
-            }
-        } else if (mode_ == YMode::PhaseDeg) {
-            std::vector<double> phase(K);
-            for (std::size_t k = 0; k < K; ++k) {
-                const auto z = ts_.s_matrices[k][r + c * N];
-                phase[k] = std::arg(z);
-            }
-            auto up = unwrap_phase(phase);
-            for (double v : up) cv.y.push_back(v * 180.0 / std::numbers::pi);
-        } else {
-            // Group delay τg = -dφ/dω.
-            std::vector<double> phase(K);
-            for (std::size_t k = 0; k < K; ++k) {
-                const auto z = ts_.s_matrices[k][r + c * N];
-                phase[k] = std::arg(z);
-            }
-            auto up = unwrap_phase(phase);
-            cv.y.assign(K, 0.0);
-            for (std::size_t k = 1; k + 1 < K; ++k) {
-                const double dphi = up[k + 1] - up[k - 1];
-                const double dw   = 2.0 * std::numbers::pi *
-                                    (ts_.frequencies[k + 1] - ts_.frequencies[k - 1]);
-                if (std::abs(dw) > 0.0) {
-                    cv.y[k] = -dphi / dw * 1e9;  // → ns
+            if (mode_ == YMode::MagnitudeDb) {
+                for (std::size_t k = 0; k < K; ++k) {
+                    const auto z = src.s_matrices[k][r + c * N];
+                    const double m = std::abs(z);
+                    cv.y.push_back(20.0 * std::log10(std::max(m, 1e-18)));
+                }
+            } else if (mode_ == YMode::PhaseDeg) {
+                std::vector<double> phase(K);
+                for (std::size_t k = 0; k < K; ++k) {
+                    const auto z = src.s_matrices[k][r + c * N];
+                    phase[k] = std::arg(z);
+                }
+                auto up = unwrap_phase(phase);
+                for (double v : up) cv.y.push_back(v * 180.0 / std::numbers::pi);
+            } else {
+                std::vector<double> phase(K);
+                for (std::size_t k = 0; k < K; ++k) {
+                    const auto z = src.s_matrices[k][r + c * N];
+                    phase[k] = std::arg(z);
+                }
+                auto up = unwrap_phase(phase);
+                cv.y.assign(K, 0.0);
+                for (std::size_t k = 1; k + 1 < K; ++k) {
+                    const double dphi = up[k + 1] - up[k - 1];
+                    const double dw   = 2.0 * std::numbers::pi *
+                                        (src.frequencies[k + 1] -
+                                          src.frequencies[k - 1]);
+                    if (std::abs(dw) > 0.0) {
+                        cv.y[k] = -dphi / dw * 1e9;
+                    }
+                }
+                if (K >= 2) {
+                    cv.y[0]     = cv.y[std::min<std::size_t>(1, K - 1)];
+                    cv.y[K - 1] = cv.y[K - 2];
                 }
             }
-            if (K >= 2) {
-                cv.y[0]     = cv.y[std::min<std::size_t>(1, K - 1)];
-                cv.y[K - 1] = cv.y[K - 2];
-            }
+            out.push_back(std::move(cv));
         }
-        curves.push_back(std::move(cv));
-    }
+        return out;
+    };
+    std::vector<Curve> curves = build_curves(ts_);
+    std::vector<Curve> overlay_curves = build_curves(overlay_ts_);
 
     if (curves.empty()) {
         p.setPen(QColor(140, 140, 150));
@@ -310,14 +330,19 @@ void SParamPlotWindow::paintPlotInto(QWidget* target) {
     // ----- Y axis: auto-range across selected curves, with a sensible
     //       floor for the dB view so a passive S21 never sinks to -200dB. ---
     double y_min = +1e300, y_max = -1e300;
-    for (const auto& cv : curves) {
-        for (double v : cv.y) {
-            if (!std::isfinite(v)) continue;
-            y_min = std::min(y_min, v);
-            y_max = std::max(y_max, v);
+    auto scan_for_range = [&](const std::vector<Curve>& cs) {
+        for (const auto& cv : cs) {
+            for (double v : cv.y) {
+                if (!std::isfinite(v)) continue;
+                y_min = std::min(y_min, v);
+                y_max = std::max(y_max, v);
+            }
         }
-    }
-    if (curves.empty() || !std::isfinite(y_min) || !std::isfinite(y_max) ||
+    };
+    scan_for_range(curves);
+    scan_for_range(overlay_curves);
+    if ((curves.empty() && overlay_curves.empty()) ||
+        !std::isfinite(y_min) || !std::isfinite(y_max) ||
         y_min == y_max) {
         // Default windows so the empty axes are still nicely labeled.
         if (mode_ == YMode::MagnitudeDb)  { y_min = -60; y_max = 0; }
@@ -398,21 +423,28 @@ void SParamPlotWindow::paintPlotInto(QWidget* target) {
     p.drawText(QRectF(-80, -8, 160, 16), Qt::AlignHCenter, y_title);
     p.restore();
 
-    // ----- Curves. -----
-    for (const auto& cv : curves) {
-        QPen pen(curve_color(cv.idx));
-        pen.setWidthF(1.6);
-        p.setPen(pen);
-        QPolygonF poly;
-        poly.reserve(static_cast<int>(cv.y.size()));
-        for (std::size_t k = 0; k < cv.y.size(); ++k) {
-            const double f = ts_.frequencies[k];
-            if (f <= 0.0) continue;
-            if (!std::isfinite(cv.y[k])) continue;
-            poly << QPointF(x_of(f), y_of(cv.y[k]));
+    // ----- Curves. Primary solid; overlay dashed in the same colors. -----
+    auto paint_curves = [&](const std::vector<Curve>& cs,
+                              const sikit::touchstone::TouchstoneFile& src,
+                              Qt::PenStyle style) {
+        for (const auto& cv : cs) {
+            QPen pen(curve_color(cv.idx));
+            pen.setWidthF(1.6);
+            pen.setStyle(style);
+            p.setPen(pen);
+            QPolygonF poly;
+            poly.reserve(static_cast<int>(cv.y.size()));
+            for (std::size_t k = 0; k < cv.y.size(); ++k) {
+                const double f = src.frequencies[k];
+                if (f <= 0.0) continue;
+                if (!std::isfinite(cv.y[k])) continue;
+                poly << QPointF(x_of(f), y_of(cv.y[k]));
+            }
+            if (poly.size() >= 2) p.drawPolyline(poly);
         }
-        if (poly.size() >= 2) p.drawPolyline(poly);
-    }
+    };
+    paint_curves(curves, ts_, Qt::SolidLine);
+    paint_curves(overlay_curves, overlay_ts_, Qt::DashLine);
 
     // ----- Caption: N ports, K frequencies, freq range, current Y range. ---
     QString cap = QString("%1-port, %2 freq pts, [%3 .. %4]")
@@ -422,6 +454,10 @@ void SParamPlotWindow::paintPlotInto(QWidget* target) {
                       .arg(freq_label(fmax));
     cap += QString("    Y ∈ [%1, %2] %3")
                .arg(y_min, 0, 'f', 2).arg(y_max, 0, 'f', 2).arg(y_title);
+    if (!overlay_label_.empty()) {
+        cap += QString("    overlay (dashed): %1")
+                   .arg(QString::fromStdString(overlay_label_));
+    }
     caption_->setText(cap);
 }
 
