@@ -96,4 +96,9 @@ private:
     std::vector<double> last_sweep_freqs_;
     std::vector<std::complex<double>> last_sweep_z_;
 
+    // VRM overlay on the Z(f) plot.
+    class QCheckBox*      vrm_check_;
+    class QDoubleSpinBox* vrm_r_mohm_spin_;
+    class QDoubleSpinBox* vrm_l_uH_spin_;
+
 };
