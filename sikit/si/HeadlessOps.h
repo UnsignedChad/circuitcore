@@ -80,4 +80,9 @@ int return_path_op(const circuitcore::board::Board& board,
                      int samples_per_segment,
                      double off_plane_threshold);
 
+
+int report_op(const circuitcore::board::Board& board,
+                const sikit::si::SiStackup& sis,
+                const std::filesystem::path& out_path);
+
 }  // namespace sikit::cli
