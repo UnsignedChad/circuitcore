@@ -34,7 +34,6 @@ FDTD3D::FDTD3D(const GridSpec& g) : g_(g) {
     if (g.dx <= 0 || g.dy <= 0 || g.dz <= 0) {
         throw std::invalid_argument("FDTD3D: non-positive cell size");
     }
-    // Yee allocation -- sizes documented in the header.
     ex_.resize(g.nx,     g.ny + 1, g.nz + 1);
     ey_.resize(g.nx + 1, g.ny,     g.nz + 1);
     ez_.resize(g.nx + 1, g.ny + 1, g.nz    );
@@ -43,13 +42,18 @@ FDTD3D::FDTD3D(const GridSpec& g) : g_(g) {
     hz_.resize(g.nx,     g.ny,     g.nz + 1);
 }
 
-void FDTD3D::set_dt_from_cfl(double safety) {
-    dt_ = cfl_dt(g_, safety);
-}
+void FDTD3D::set_dt_from_cfl(double safety) { dt_ = cfl_dt(g_, safety); }
 
 void FDTD3D::set_dt(double dt) {
     if (dt <= 0) throw std::invalid_argument("FDTD3D::set_dt: dt<=0");
     dt_ = dt;
+}
+
+void FDTD3D::set_boundary(Boundary b) {
+    boundary_ = b;
+    // Defer buffer allocation until step() so the dt is known (the
+    // Mur coefficient is dt-dependent).
+    mur_buffers_ready_ = false;
 }
 
 void FDTD3D::add_hard_e_source(HardESource src) {
@@ -61,21 +65,18 @@ std::size_t FDTD3D::bytes() const {
            + hx_.size() + hy_.size() + hz_.size()) * sizeof(double);
 }
 
-// --- update equations ----------------------------------------------------
+// --- core curl updates ---------------------------------------------------
 //
 // H curl is computed from E samples one cell apart -- the staggered grid
-// makes the centered difference free. PEC boundary means tangential E
-// on the outer faces is zero (we never write it), so H updates near the
-// boundary just read those zeros and produce a correct reflection.
+// makes the centered difference free. PEC boundary means tangential E on
+// the outer faces is zero and we never write it. Mur ABC writes the same
+// cells AFTER update_e, via apply_mur_abc().
 
 void FDTD3D::update_h() {
     const double cx = dt_ / (kMu0 * g_.dx);
     const double cy = dt_ / (kMu0 * g_.dy);
     const double cz = dt_ / (kMu0 * g_.dz);
 
-    // Hx[i, j, k] = Hx[i, j, k] - cy*(Ez[i, j+1, k] - Ez[i, j, k])
-    //                          + cz*(Ey[i, j, k+1] - Ey[i, j, k])
-    // index ranges follow the Yee allocation sizes.
     for (int k = 0; k < g_.nz; ++k) {
         for (int j = 0; j < g_.ny; ++j) {
             for (int i = 0; i <= g_.nx; ++i) {
@@ -86,8 +87,6 @@ void FDTD3D::update_h() {
             }
         }
     }
-    // Hy[i, j, k] = Hy[i, j, k] - cz*(Ex[i, j, k+1] - Ex[i, j, k])
-    //                          + cx*(Ez[i+1, j, k] - Ez[i, j, k])
     for (int k = 0; k < g_.nz; ++k) {
         for (int j = 0; j <= g_.ny; ++j) {
             for (int i = 0; i < g_.nx; ++i) {
@@ -98,8 +97,6 @@ void FDTD3D::update_h() {
             }
         }
     }
-    // Hz[i, j, k] = Hz[i, j, k] - cx*(Ey[i+1, j, k] - Ey[i, j, k])
-    //                          + cy*(Ex[i, j+1, k] - Ex[i, j, k])
     for (int k = 0; k <= g_.nz; ++k) {
         for (int j = 0; j < g_.ny; ++j) {
             for (int i = 0; i < g_.nx; ++i) {
@@ -117,9 +114,6 @@ void FDTD3D::update_e() {
     const double cy = dt_ / (kEps0 * g_.dy);
     const double cz = dt_ / (kEps0 * g_.dz);
 
-    // Ex[i, j, k] = Ex[i, j, k] + cy*(Hz[i, j, k] - Hz[i, j-1, k])
-    //                          - cz*(Hy[i, j, k] - Hy[i, j, k-1])
-    // j and k start at 1 because j=0/k=0 is the tangential-E PEC wall.
     for (int k = 1; k < g_.nz; ++k) {
         for (int j = 1; j < g_.ny; ++j) {
             for (int i = 0; i < g_.nx; ++i) {
@@ -130,7 +124,6 @@ void FDTD3D::update_e() {
             }
         }
     }
-    // Ey: tangential at i=0 / k=0
     for (int k = 1; k < g_.nz; ++k) {
         for (int j = 0; j < g_.ny; ++j) {
             for (int i = 1; i < g_.nx; ++i) {
@@ -141,7 +134,6 @@ void FDTD3D::update_e() {
             }
         }
     }
-    // Ez: tangential at i=0 / j=0
     for (int k = 0; k < g_.nz; ++k) {
         for (int j = 1; j < g_.ny; ++j) {
             for (int i = 1; i < g_.nx; ++i) {
@@ -152,9 +144,6 @@ void FDTD3D::update_e() {
             }
         }
     }
-    // Tangential-E PEC: i=nx, j=ny, k=nz faces are also clamped to 0.
-    // The loops above never write those cells (they were initialised to
-    // zero and stay zero), so we don't need an explicit zero pass.
 }
 
 void FDTD3D::apply_sources() {
@@ -171,13 +160,257 @@ void FDTD3D::apply_sources() {
     }
 }
 
+// --- Mur 1st-order ABC ---------------------------------------------------
+//
+// For a face perpendicular to x (here, the -x face at i=0), tangential
+// E components Ey and Ez are governed by the one-way wave equation
+// using a centred finite-difference discretisation from Taflove eq. 7.34:
+//
+//   E[0]^{n+1} = E[1]^n  +  k*(E[1]^{n+1} - E[0]^n)
+//   k = (c*dt - dx) / (c*dt + dx)
+//
+// We snapshot E[0] and E[1] BEFORE update_e (so they're the time-n
+// values), then after update_e the interior has the time-(n+1) values
+// at E[1]. Combine to get the new boundary value, then write it back.
+//
+// Note dx in this formula is the cell pitch perpendicular to the face;
+// for the y face we use dy, for the z face we use dz.
+
+namespace {
+
+inline double mur_k(double c_dt, double d) {
+    return (c_dt - d) / (c_dt + d);
+}
+
+// 2D buffer indexed by (a, b) with stride na.
+inline double& tap(std::vector<double>& v, int a, int b, int na) {
+    return v[static_cast<std::size_t>(a)
+            + static_cast<std::size_t>(b) * na];
+}
+
+}  // namespace
+
+void FDTD3D::allocate_mur_buffers() {
+    if (boundary_ != Boundary::Mur1stOrder) return;
+    const int nx = g_.nx, ny = g_.ny, nz = g_.nz;
+
+    auto alloc = [](MurFace& f, int na_a, int nb_a, int na_b, int nb_b) {
+        f.na_a = na_a; f.nb_a = nb_a;
+        f.na_b = na_b; f.nb_b = nb_b;
+        f.prev_t0_a.assign(static_cast<std::size_t>(na_a) * nb_a, 0.0);
+        f.prev_t1_a.assign(static_cast<std::size_t>(na_a) * nb_a, 0.0);
+        f.prev_t0_b.assign(static_cast<std::size_t>(na_b) * nb_b, 0.0);
+        f.prev_t1_b.assign(static_cast<std::size_t>(na_b) * nb_b, 0.0);
+    };
+    // x faces: tangential Ey (ny, nz+1), Ez (ny+1, nz).
+    alloc(mur_xlo_, ny,    nz + 1, ny + 1, nz);
+    alloc(mur_xhi_, ny,    nz + 1, ny + 1, nz);
+    // y faces: tangential Ex (nx, nz+1), Ez (nx+1, nz).
+    alloc(mur_ylo_, nx,    nz + 1, nx + 1, nz);
+    alloc(mur_yhi_, nx,    nz + 1, nx + 1, nz);
+    // z faces: tangential Ex (nx, ny+1), Ey (nx+1, ny).
+    alloc(mur_zlo_, nx,    ny + 1, nx + 1, ny);
+    alloc(mur_zhi_, nx,    ny + 1, nx + 1, ny);
+
+    mur_buffers_ready_ = true;
+}
+
+// MurFace::na_a etc. are protected; resolve via helper accessors below.
+//
+// "snapshot" reads E[boundary] and E[boundary+/-1] BEFORE update_e.
+// "close" computes the new boundary value from the snapshot + the
+// post-update interior, then writes back.
+
+void FDTD3D::apply_mur_abc() {
+    if (boundary_ != Boundary::Mur1stOrder) return;
+    if (!mur_buffers_ready_) return;
+
+    const int nx = g_.nx, ny = g_.ny, nz = g_.nz;
+    const double cdt = kC0 * dt_;
+    const double kx = mur_k(cdt, g_.dx);
+    const double ky = mur_k(cdt, g_.dy);
+    const double kz = mur_k(cdt, g_.dz);
+
+    // The fully-correct Mur 1st-order needs the boundary value BEFORE
+    // update_e was applied. Since update_e leaves the outermost
+    // tangential E cells alone (the loops skip i=0/i=nx, j=0/j=ny etc.),
+    // those cells still hold E^n, which is what we need.
+
+    // -x face (i = 0):   Ey at (0, j, k), Ez at (0, j, k)
+    {
+        auto& f = mur_xlo_;
+        // Ey at i=0
+        for (int k = 0; k <= nz; ++k) {
+            for (int j = 0; j < ny; ++j) {
+                const double ey_inner_new = ey_.at(1, j, k);
+                const double ey_b_old     = tap(f.prev_t0_a, j, k, f.na_a);
+                const double ey_inner_old = tap(f.prev_t1_a, j, k, f.na_a);
+                const double ey_b_new =
+                    ey_inner_old + kx * (ey_inner_new - ey_b_old);
+                ey_.at(0, j, k) = ey_b_new;
+                tap(f.prev_t0_a, j, k, f.na_a) = ey_b_new;
+                tap(f.prev_t1_a, j, k, f.na_a) = ey_inner_new;
+            }
+        }
+        // Ez at i=0
+        for (int k = 0; k < nz; ++k) {
+            for (int j = 0; j <= ny; ++j) {
+                const double ez_inner_new = ez_.at(1, j, k);
+                const double ez_b_old     = tap(f.prev_t0_b, j, k, f.na_b);
+                const double ez_inner_old = tap(f.prev_t1_b, j, k, f.na_b);
+                const double ez_b_new =
+                    ez_inner_old + kx * (ez_inner_new - ez_b_old);
+                ez_.at(0, j, k) = ez_b_new;
+                tap(f.prev_t0_b, j, k, f.na_b) = ez_b_new;
+                tap(f.prev_t1_b, j, k, f.na_b) = ez_inner_new;
+            }
+        }
+    }
+    // +x face (i = nx): Ey at (nx, j, k), Ez at (nx, j, k)
+    {
+        auto& f = mur_xhi_;
+        for (int k = 0; k <= nz; ++k) {
+            for (int j = 0; j < ny; ++j) {
+                const double ey_inner_new = ey_.at(nx - 1, j, k);
+                const double ey_b_old     = tap(f.prev_t0_a, j, k, f.na_a);
+                const double ey_inner_old = tap(f.prev_t1_a, j, k, f.na_a);
+                const double ey_b_new =
+                    ey_inner_old + kx * (ey_inner_new - ey_b_old);
+                ey_.at(nx, j, k) = ey_b_new;
+                tap(f.prev_t0_a, j, k, f.na_a) = ey_b_new;
+                tap(f.prev_t1_a, j, k, f.na_a) = ey_inner_new;
+            }
+        }
+        for (int k = 0; k < nz; ++k) {
+            for (int j = 0; j <= ny; ++j) {
+                const double ez_inner_new = ez_.at(nx - 1, j, k);
+                const double ez_b_old     = tap(f.prev_t0_b, j, k, f.na_b);
+                const double ez_inner_old = tap(f.prev_t1_b, j, k, f.na_b);
+                const double ez_b_new =
+                    ez_inner_old + kx * (ez_inner_new - ez_b_old);
+                ez_.at(nx, j, k) = ez_b_new;
+                tap(f.prev_t0_b, j, k, f.na_b) = ez_b_new;
+                tap(f.prev_t1_b, j, k, f.na_b) = ez_inner_new;
+            }
+        }
+    }
+    // -y face (j = 0):  Ex at (i, 0, k), Ez at (i, 0, k)
+    {
+        auto& f = mur_ylo_;
+        for (int k = 0; k <= nz; ++k) {
+            for (int i = 0; i < nx; ++i) {
+                const double v_new = ex_.at(i, 1, k);
+                const double b_old = tap(f.prev_t0_a, i, k, f.na_a);
+                const double i_old = tap(f.prev_t1_a, i, k, f.na_a);
+                const double b_new = i_old + ky * (v_new - b_old);
+                ex_.at(i, 0, k) = b_new;
+                tap(f.prev_t0_a, i, k, f.na_a) = b_new;
+                tap(f.prev_t1_a, i, k, f.na_a) = v_new;
+            }
+        }
+        for (int k = 0; k < nz; ++k) {
+            for (int i = 0; i <= nx; ++i) {
+                const double v_new = ez_.at(i, 1, k);
+                const double b_old = tap(f.prev_t0_b, i, k, f.na_b);
+                const double i_old = tap(f.prev_t1_b, i, k, f.na_b);
+                const double b_new = i_old + ky * (v_new - b_old);
+                ez_.at(i, 0, k) = b_new;
+                tap(f.prev_t0_b, i, k, f.na_b) = b_new;
+                tap(f.prev_t1_b, i, k, f.na_b) = v_new;
+            }
+        }
+    }
+    // +y face (j = ny):
+    {
+        auto& f = mur_yhi_;
+        for (int k = 0; k <= nz; ++k) {
+            for (int i = 0; i < nx; ++i) {
+                const double v_new = ex_.at(i, ny - 1, k);
+                const double b_old = tap(f.prev_t0_a, i, k, f.na_a);
+                const double i_old = tap(f.prev_t1_a, i, k, f.na_a);
+                const double b_new = i_old + ky * (v_new - b_old);
+                ex_.at(i, ny, k) = b_new;
+                tap(f.prev_t0_a, i, k, f.na_a) = b_new;
+                tap(f.prev_t1_a, i, k, f.na_a) = v_new;
+            }
+        }
+        for (int k = 0; k < nz; ++k) {
+            for (int i = 0; i <= nx; ++i) {
+                const double v_new = ez_.at(i, ny - 1, k);
+                const double b_old = tap(f.prev_t0_b, i, k, f.na_b);
+                const double i_old = tap(f.prev_t1_b, i, k, f.na_b);
+                const double b_new = i_old + ky * (v_new - b_old);
+                ez_.at(i, ny, k) = b_new;
+                tap(f.prev_t0_b, i, k, f.na_b) = b_new;
+                tap(f.prev_t1_b, i, k, f.na_b) = v_new;
+            }
+        }
+    }
+    // -z face (k = 0):  Ex at (i, j, 0), Ey at (i, j, 0)
+    {
+        auto& f = mur_zlo_;
+        for (int j = 0; j <= ny; ++j) {
+            for (int i = 0; i < nx; ++i) {
+                const double v_new = ex_.at(i, j, 1);
+                const double b_old = tap(f.prev_t0_a, i, j, f.na_a);
+                const double i_old = tap(f.prev_t1_a, i, j, f.na_a);
+                const double b_new = i_old + kz * (v_new - b_old);
+                ex_.at(i, j, 0) = b_new;
+                tap(f.prev_t0_a, i, j, f.na_a) = b_new;
+                tap(f.prev_t1_a, i, j, f.na_a) = v_new;
+            }
+        }
+        for (int j = 0; j < ny; ++j) {
+            for (int i = 0; i <= nx; ++i) {
+                const double v_new = ey_.at(i, j, 1);
+                const double b_old = tap(f.prev_t0_b, i, j, f.na_b);
+                const double i_old = tap(f.prev_t1_b, i, j, f.na_b);
+                const double b_new = i_old + kz * (v_new - b_old);
+                ey_.at(i, j, 0) = b_new;
+                tap(f.prev_t0_b, i, j, f.na_b) = b_new;
+                tap(f.prev_t1_b, i, j, f.na_b) = v_new;
+            }
+        }
+    }
+    // +z face (k = nz):
+    {
+        auto& f = mur_zhi_;
+        for (int j = 0; j <= ny; ++j) {
+            for (int i = 0; i < nx; ++i) {
+                const double v_new = ex_.at(i, j, nz - 1);
+                const double b_old = tap(f.prev_t0_a, i, j, f.na_a);
+                const double i_old = tap(f.prev_t1_a, i, j, f.na_a);
+                const double b_new = i_old + kz * (v_new - b_old);
+                ex_.at(i, j, nz) = b_new;
+                tap(f.prev_t0_a, i, j, f.na_a) = b_new;
+                tap(f.prev_t1_a, i, j, f.na_a) = v_new;
+            }
+        }
+        for (int j = 0; j < ny; ++j) {
+            for (int i = 0; i <= nx; ++i) {
+                const double v_new = ey_.at(i, j, nz - 1);
+                const double b_old = tap(f.prev_t0_b, i, j, f.na_b);
+                const double i_old = tap(f.prev_t1_b, i, j, f.na_b);
+                const double b_new = i_old + kz * (v_new - b_old);
+                ey_.at(i, j, nz) = b_new;
+                tap(f.prev_t0_b, i, j, f.na_b) = b_new;
+                tap(f.prev_t1_b, i, j, f.na_b) = v_new;
+            }
+        }
+    }
+}
+
 void FDTD3D::step() {
     if (dt_ <= 0) {
         throw std::runtime_error(
             "FDTD3D::step: dt not set (call set_dt_from_cfl first)");
     }
+    if (boundary_ == Boundary::Mur1stOrder && !mur_buffers_ready_) {
+        allocate_mur_buffers();
+    }
     update_h();
     update_e();
+    apply_mur_abc();
     apply_sources();
     ++n_steps_;
 }
