@@ -47,6 +47,7 @@ add_subdirectory(intent)          # circuitcore::intent -- board vs schematic
 # --- Layer 3: analysis tools ---
 add_subdirectory(pdnkit)
 add_subdirectory(sikit)
+add_subdirectory(emikit)
                             # (see sikit/MIGRATION.md)
 
 # --- Test discovery for the core libs ---
