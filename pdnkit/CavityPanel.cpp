@@ -17,6 +17,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QInputDialog>
 #include <QHeaderView>
 #include <QSpinBox>
 #include <QTableWidget>
@@ -25,6 +26,7 @@
 
 #include "ZfPlotWidget.h"
 #include "pi/CavityModel.h"
+#include "pi/TargetZ.h"
 #include "pi/DecapOptimizer.h"
 
 namespace {
@@ -152,7 +154,35 @@ CavityPanel::CavityPanel(QWidget* parent) : QWidget(parent) {
     target_z_spin_->setValue(0.025);  // 25 mOhm, a common PDN target
     target_z_spin_->setSuffix(" ohm");
     target_z_spin_->setSingleStep(0.005);
-    form->addRow("Target Z:", target_z_spin_);
+
+    auto* tz_row = new QHBoxLayout();
+    tz_row->setContentsMargins(0, 0, 0, 0);
+    tz_row->addWidget(target_z_spin_, 1);
+    auto* tz_btn = new QPushButton("From spec...");
+    tz_btn->setToolTip(
+        "Compute Z_target = V_nom * V_tol / I_step from the load's "
+        "datasheet (Larry Smith flat-target form).");
+    tz_row->addWidget(tz_btn);
+    form->addRow("Target Z:", tz_row);
+
+    connect(tz_btn, &QPushButton::clicked, this, [this]() {
+        bool ok = false;
+        const double v_nom = QInputDialog::getDouble(
+            this, "Target Z from spec",
+            "Nominal supply voltage (V):", 3.3, 0.001, 100.0, 3, &ok);
+        if (!ok) return;
+        const double v_tol_pct = QInputDialog::getDouble(
+            this, "Target Z from spec",
+            "Allowable voltage tolerance (%):", 5.0, 0.01, 50.0, 2, &ok);
+        if (!ok) return;
+        const double i_step = QInputDialog::getDouble(
+            this, "Target Z from spec",
+            "Peak step current (A):", 1.0, 0.001, 1000.0, 3, &ok);
+        if (!ok) return;
+        pdnkit::pi::TargetZSpec spec{v_nom, v_tol_pct / 100.0, i_step};
+        const double z = pdnkit::pi::target_impedance_flat(spec);
+        target_z_spin_->setValue(z);
+    });
 
     overlay_bare_check_ = new QCheckBox("Overlay bare plane");
     overlay_bare_check_->setChecked(true);
