@@ -15,6 +15,7 @@ add_executable(pdnkit_tests
     e2e_test.cpp
     ohms_law_test.cpp
     power_drc_test.cpp
+    spice_export_test.cpp
 )
 target_compile_definitions(pdnkit_tests PRIVATE
     PDNKIT_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"

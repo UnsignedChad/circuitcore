@@ -56,6 +56,13 @@ pdnkit --probe-r --net +3V3 --layer F.Cu \
        --pad-a U1.1 --pad-b U2.1 board.kicad_pcb
 ```
 
+### Export SPICE netlist
+```
+pdnkit --spice --net +3V3 --layer F.Cu --current 2.0 \
+       --cell-size 0.3 --out board.cir board.kicad_pcb
+```
+Dumps the IR-drop resistor network as a SPICE-3 netlist (R for each cell-to-cell resistor, I for current injectors at source pads, V_sink at sink pads). Load into ngspice or LTspice to co-simulate with a user-supplied IC load model, VRM circuit, or external decap bank. Omit `--out` to write to stdout.
+
 ### IPC-2152 power-aware DRC
 ```
 pdnkit --drc --net +3V3 --drc-current 5.0 --drc-temp-rise 10 board.kicad_pcb

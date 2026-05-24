@@ -22,6 +22,7 @@
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
 #include "pi/PowerDrc.h"
+#include "pi/SpiceExport.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -447,6 +448,71 @@ int run_headless_drc(const std::string& pcb_path,
     return 4;
 }
 
+int run_headless_spice(const std::string& pcb_path,
+                       const std::string& net_name,
+                       const std::string& layer_name,
+                       double current_amps,
+                       double cell_size_mm,
+                       const std::string& out_path) {
+    circuitcore::board::Board board;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
+    }
+
+    const auto* net = board.find_net_by_name(net_name);
+    if (!net) {
+        std::fprintf(stderr, "pdnkit: no net named '%s'\n", net_name.c_str());
+        return 3;
+    }
+    int layer_ord = -1;
+    for (const auto& L : board.stackup.layers) {
+        if (L.name == layer_name) { layer_ord = L.ordinal; break; }
+    }
+    if (layer_ord < 0) {
+        std::fprintf(stderr, "pdnkit: no layer named '%s'\n", layer_name.c_str());
+        return 4;
+    }
+
+    pdnkit::pi::MeshConfig mc;
+    mc.cell_size = cell_size_mm * 1.0e-3;
+    mc.net_id = net->id;
+    mc.layer_ordinal = layer_ord;
+    mc.auto_select_layer = true;
+
+    auto mesh = pdnkit::pi::IrMesher::build(board, mc);
+    if (mesh.nodes.empty()) {
+        std::fprintf(stderr, "pdnkit: mesher produced no nodes\n");
+        return 5;
+    }
+
+    pdnkit::pi::SpiceExportConfig cfg;
+    cfg.title = std::format("pdnkit IR-drop network: net={} layer={}",
+                             net_name, layer_name);
+    cfg.default_total_current = current_amps;
+
+    if (out_path.empty()) {
+        std::printf("%s", pdnkit::pi::export_spice(mesh, cfg).c_str());
+    } else {
+        if (!pdnkit::pi::write_spice_netlist(mesh, out_path, cfg)) {
+            std::fprintf(stderr, "pdnkit: failed to write '%s'\n",
+                         out_path.c_str());
+            return 6;
+        }
+        std::fprintf(stderr,
+                     "pdnkit: wrote SPICE netlist to %s "
+                     "(%zu nodes, %zu resistors)\n",
+                     out_path.c_str(),
+                     mesh.nodes.size(), mesh.resistors.size());
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -521,6 +587,14 @@ int main(int argc, char** argv) {
                    "Current carried by --net for --drc (A, default 1.0)");
     cli.add_option("--drc-temp-rise", drc_temp_rise,
                    "Allowable temperature rise for --drc (C, default 10)");
+
+    bool spice = false;
+    std::string spice_out;
+    cli.add_flag("--spice", spice,
+                 "Export the IR-drop mesh on --net at --layer as a SPICE "
+                 "netlist. Writes to --out, or stdout if not given.");
+    cli.add_option("--out", spice_out,
+                   "Output file path for --spice (default: stdout)");
 
     bool transient = false;
     double trn_dt_ns = 10.0;
@@ -608,6 +682,16 @@ int main(int argc, char** argv) {
         }
         return run_headless_drc(pcb_path, analyze_net, drc_current,
                                  drc_temp_rise);
+    }
+    if (spice) {
+        if (pcb_path.empty() || analyze_net.empty()) {
+            std::fprintf(stderr,
+                         "pdnkit: --spice requires --net and a board file\n");
+            return 1;
+        }
+        return run_headless_spice(pcb_path, analyze_net, analyze_layer,
+                                   analyze_current, analyze_cell_mm,
+                                   spice_out);
     }
     if (transient) {
         if (pcb_path.empty()) {
