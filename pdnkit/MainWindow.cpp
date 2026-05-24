@@ -369,9 +369,18 @@ void MainWindow::populateLayerPanel() {
 }
 
 bool MainWindow::loadKicadPcb(const QString& path) {
+    auto parse_result = circuitcore::formats::kicad::PcbParser::parse_file(
+        path.toStdString());
+    if (!parse_result) {
+        const auto msg = parse_result.error().format();
+        QMessageBox::critical(this, "Open KiCad PCB failed",
+                              QString::fromStdString(msg));
+        spdlog::error("failed to load {}: {}", path.toStdString(), msg);
+        return false;
+    }
     try {
         auto board = std::make_unique<circuitcore::board::Board>(
-            circuitcore::formats::kicad::PcbParser::parse_file(path.toStdString()));
+            std::move(*parse_result));
 
         const auto net_count   = board->nets.size();
         const auto seg_count   = board->segments.size();

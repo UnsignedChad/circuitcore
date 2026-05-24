@@ -35,11 +35,14 @@ int run_headless_analysis(const std::string& pcb_path,
                           double current,
                           double cell_size_mm) {
     circuitcore::board::Board board;
-    try {
-        board = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "pdnkit: parse failed: %s\n", e.what());
-        return 2;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
     }
 
     const auto* net = board.find_net_by_name(net_name);
@@ -121,11 +124,14 @@ int run_headless_zf(const std::string& pcb_path,
                     double f_min, double f_max,
                     int points, int modes) {
     circuitcore::board::Board board;
-    try {
-        board = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "pdnkit: parse failed: %s\n", e.what());
-        return 2;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
     }
     const auto* net = board.find_net_by_name(net_name);
     if (!net) {
@@ -195,11 +201,14 @@ int run_headless_zf(const std::string& pcb_path,
 
 int run_headless_list_nets(const std::string& pcb_path) {
     circuitcore::board::Board board;
-    try {
-        board = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "pdnkit: parse failed: %s\n", e.what());
-        return 2;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
     }
     // Tally per-net pad / segment / zone counts.
     std::map<int, std::tuple<int, int, int>> counts;
@@ -221,11 +230,14 @@ int run_headless_list_nets(const std::string& pcb_path) {
 
 int run_headless_list_layers(const std::string& pcb_path) {
     circuitcore::board::Board board;
-    try {
-        board = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "pdnkit: parse failed: %s\n", e.what());
-        return 2;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
     }
     std::printf("ordinal,name,type,is_copper,thickness_um\n");
     for (const auto& L : board.stackup.layers) {
@@ -243,11 +255,14 @@ int run_headless_probe_r(const std::string& pcb_path,
                          const std::string& pad_b,
                          double cell_size_mm) {
     circuitcore::board::Board board;
-    try {
-        board = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "pdnkit: parse failed: %s\n", e.what());
-        return 2;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
     }
     const auto* net = board.find_net_by_name(net_name);
     if (!net) {
@@ -325,11 +340,14 @@ int run_headless_transient(const std::string& pcb_path,
                            double eps_r,
                            double thickness_mm) {
     circuitcore::board::Board board;
-    try {
-        board = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "pdnkit: parse failed: %s\n", e.what());
-        return 2;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
     }
     const auto* net = board.find_net_by_name(net_name);
     if (!net) {

@@ -65,7 +65,7 @@ refactors across boundaries.
 
 ## Style
 
-- C++20, `-Wall -Wextra -Wpedantic`.
+- C++23 (requires clang ≥ 17 or gcc ≥ 13), `-Wall -Wextra -Wpedantic`.
 - `clang-format` is configured; run it before committing.
 - Headers: `#pragma once`. PIMPL only when there is a real ABI reason.
 - Types in `PascalCase`, functions in `snake_case`, members with

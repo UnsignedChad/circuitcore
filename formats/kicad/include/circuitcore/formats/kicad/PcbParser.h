@@ -14,8 +14,9 @@
 
 #pragma once
 
+#include <cstddef>
+#include <expected>
 #include <filesystem>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -23,20 +24,30 @@
 
 namespace circuitcore::formats::kicad {
 
-struct ParseError : std::runtime_error {
-    ParseError(const std::string& msg, std::size_t line, std::size_t col);
-    std::size_t line;
-    std::size_t col;
+// Detail about why a parse failed. Not an exception type -- the parser
+// returns this in a std::expected. Use .format() for a human-readable
+// "kicad_pcb parse error at line N, col M: message".
+struct ParseError {
+    std::string message;
+    std::size_t line = 0;
+    std::size_t col  = 0;
+
+    // "kicad_pcb parse error at line N, col M: <message>"
+    std::string format() const;
 };
 
 class PcbParser {
 public:
-    // Parse a .kicad_pcb file from disk. Throws ParseError on failure
-    // (file I/O failure surfaces as a runtime_error with errno-style detail).
-    static circuitcore::board::Board parse_file(const std::filesystem::path& path);
+    // Parse a .kicad_pcb file from disk. Returns the Board on success, or
+    // a ParseError describing where parsing failed. File-I/O failures
+    // (path missing, permission denied) surface as a ParseError with
+    // line/col == 0.
+    static std::expected<circuitcore::board::Board, ParseError> parse_file(
+        const std::filesystem::path& path);
 
     // Parse a .kicad_pcb document held in memory.
-    static circuitcore::board::Board parse_string(std::string_view src);
+    static std::expected<circuitcore::board::Board, ParseError> parse_string(
+        std::string_view src);
 };
 
 }  // namespace circuitcore::formats::kicad

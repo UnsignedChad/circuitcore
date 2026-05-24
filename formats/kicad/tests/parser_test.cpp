@@ -63,11 +63,11 @@ constexpr auto kTinyBoard = R"(
 )";
 
 TEST_CASE("parser: top-level requires kicad_pcb", "[parser]") {
-    REQUIRE_THROWS_AS(PcbParser::parse_string("(other)"), ParseError);
+    REQUIRE_FALSE(PcbParser::parse_string("(other)").has_value());
 }
 
 TEST_CASE("parser: parses stackup and thickness", "[parser]") {
-    auto b = PcbParser::parse_string(kTinyBoard);
+    auto b = PcbParser::parse_string(kTinyBoard).value();
     REQUIRE(b.stackup.layers.size() == 3);
     REQUIRE(b.stackup.layers[0].name == "F.Cu");
     REQUIRE(b.stackup.layers[1].ordinal == 31);
@@ -78,7 +78,7 @@ TEST_CASE("parser: parses stackup and thickness", "[parser]") {
 }
 
 TEST_CASE("parser: parses nets", "[parser]") {
-    auto b = PcbParser::parse_string(kTinyBoard);
+    auto b = PcbParser::parse_string(kTinyBoard).value();
     REQUIRE(b.nets.size() == 3);
     REQUIRE(b.find_net(0)->name.empty());
     REQUIRE(b.find_net(1)->name == "GND");
@@ -86,7 +86,7 @@ TEST_CASE("parser: parses nets", "[parser]") {
 }
 
 TEST_CASE("parser: parses segment with mm-to-m conversion", "[parser]") {
-    auto b = PcbParser::parse_string(kTinyBoard);
+    auto b = PcbParser::parse_string(kTinyBoard).value();
     REQUIRE(b.segments.size() == 1);
     const auto& s = b.segments[0];
     REQUIRE(s.start.x == 10e-3);
@@ -98,7 +98,7 @@ TEST_CASE("parser: parses segment with mm-to-m conversion", "[parser]") {
 }
 
 TEST_CASE("parser: parses via with from/to layer ordinals", "[parser]") {
-    auto b = PcbParser::parse_string(kTinyBoard);
+    auto b = PcbParser::parse_string(kTinyBoard).value();
     REQUIRE(b.vias.size() == 1);
     const auto& v = b.vias[0];
     REQUIRE(v.at.x == 25e-3);
@@ -110,7 +110,7 @@ TEST_CASE("parser: parses via with from/to layer ordinals", "[parser]") {
 }
 
 TEST_CASE("parser: parses zone with outline and filled polygons", "[parser]") {
-    auto b = PcbParser::parse_string(kTinyBoard);
+    auto b = PcbParser::parse_string(kTinyBoard).value();
     REQUIRE(b.zones.size() == 1);
     const auto& z = b.zones[0];
     REQUIRE(z.net_id == 1);
@@ -124,7 +124,7 @@ TEST_CASE("parser: parses zone with outline and filled polygons", "[parser]") {
 }
 
 TEST_CASE("parser: footprint pads transformed by footprint origin", "[parser]") {
-    auto b = PcbParser::parse_string(kTinyBoard);
+    auto b = PcbParser::parse_string(kTinyBoard).value();
     REQUIRE(b.pads.size() == 2);
     // Footprint origin (40, 50), rotation 0°.
     // Pad 1 local (-0.5, 0) → world (39.5, 50).
@@ -147,11 +147,11 @@ TEST_CASE("parser: unknown layer name in segment is an error", "[parser]") {
             (segment (start 0 0) (end 1 1) (width 0.25) (layer "Mystery") (net 0))
         )
     )";
-    REQUIRE_THROWS_AS(PcbParser::parse_string(bad), ParseError);
+    REQUIRE_FALSE(PcbParser::parse_string(bad).has_value());
 }
 
 TEST_CASE("parser: pad shape and size extracted", "[parser]") {
-    auto b = PcbParser::parse_string(kTinyBoard);
+    auto b = PcbParser::parse_string(kTinyBoard).value();
     REQUIRE(b.pads.size() == 2);
     // kTinyBoard pads are (pad "N" smd rect (size 0.5 0.5) ...).
     REQUIRE(b.pads[0].shape == circuitcore::board::PadShape::Rect);

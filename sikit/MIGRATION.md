@@ -27,7 +27,14 @@ Do NOT bring `~/sikit/third_party/` -- the monorepo's top-level
 `third_party/` is shared. If you depend on something pdnkit does not,
 add it there.
 
-## Step 3: Switch parser includes and namespaces
+## Step 3: Switch parser includes, namespaces, and the return type
+
+**Note:** as of the May 2026 refactor, `PcbParser::parse_file()` returns
+`std::expected<board::Board, ParseError>` instead of throwing. Replace
+any `try { auto b = PcbParser::parse_file(...); } catch (ParseError& e)`
+in your code with the `std::expected` pattern -- see
+[pdnkit/main.cpp](../pdnkit/main.cpp) for the reference idiom.
+
 
 If your code currently uses `pdnkit::*` or `kicad_ee::*` namespaces
 from a fork of pdnkit, rename to the new layout:

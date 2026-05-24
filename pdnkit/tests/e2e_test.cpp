@@ -27,7 +27,7 @@ std::filesystem::path fixture(const char* name) {
 }
 
 TEST_CASE("e2e: tiny_pdn fixture parses with expected counts", "[e2e]") {
-    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb")).value();
 
     REQUIRE(b.stackup.layers.size() == 11);
     REQUIRE(b.stackup.total_thickness == 1.6e-3);
@@ -44,7 +44,7 @@ TEST_CASE("e2e: tiny_pdn fixture parses with expected counts", "[e2e]") {
 }
 
 TEST_CASE("e2e: through-hole pads on *.Cu expand to all copper layers", "[e2e]") {
-    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb")).value();
 
     // Find the PinHeader pads — they use "*.Cu" so should hit both F.Cu (0)
     // and B.Cu (31). Their footprint origin is (5, 20), pad "1" at (0,0)
@@ -66,7 +66,7 @@ TEST_CASE("e2e: through-hole pads on *.Cu expand to all copper layers", "[e2e]")
 }
 
 TEST_CASE("e2e: IR drop on +3V3 F.Cu produces sane voltage map", "[e2e]") {
-    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb")).value();
 
     MeshConfig mc;
     mc.cell_size = 0.5e-3;  // 0.5mm grid
@@ -94,7 +94,7 @@ TEST_CASE("e2e: IR drop on +3V3 F.Cu produces sane voltage map", "[e2e]") {
 }
 
 TEST_CASE("e2e: board outline parsed from Edge.Cuts", "[e2e]") {
-    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("tiny_pdn.kicad_pcb")).value();
     // 4 rectangle lines + 24 arc segments + 48 circle segments = 76 outline lines.
     REQUIRE(b.outline.size() == 76);
     // First segment is the bottom rectangle edge from (0,15) to (20,15).

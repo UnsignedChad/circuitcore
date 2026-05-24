@@ -23,7 +23,7 @@ constexpr double kMmToM = 1.0e-3;
 constexpr double kDegToRad = 0.017453292519943295;  // M_PI / 180.0
 
 [[noreturn]] void fail(const Node& n, const std::string& msg) {
-    throw ParseError(msg, n.line, n.col);
+    throw ParseError{msg, n.line, n.col};
 }
 
 // Find first child of `n` whose head symbol matches `tag`. Returns nullptr if none.
@@ -516,20 +516,40 @@ private:
 
 }  // namespace
 
-ParseError::ParseError(const std::string& msg, std::size_t ln, std::size_t cl)
-    : std::runtime_error(std::format("kicad_pcb parse error at line {}, col {}: {}", ln, cl, msg)),
-      line(ln),
-      col(cl) {}
-
-circuitcore::board::Board PcbParser::parse_string(std::string_view src) {
-    Node root = parse(src);  // may throw circuitcore::sexpr::ParseError
-    return Walker(root).build();
+std::string ParseError::format() const {
+    return std::format("kicad_pcb parse error at line {}, col {}: {}",
+                       line, col, message);
 }
 
-circuitcore::board::Board PcbParser::parse_file(const std::filesystem::path& path) {
+// Internal helper: bridges sexpr::ParseError into our own ParseError so
+// callers only deal with one error type.
+namespace {
+
+ParseError from_sexpr(const circuitcore::sexpr::ParseError& e) {
+    return ParseError{e.what(), e.line, e.col};
+}
+
+}  // namespace
+
+std::expected<circuitcore::board::Board, ParseError>
+PcbParser::parse_string(std::string_view src) {
+    try {
+        Node root = parse(src);
+        return Walker(root).build();
+    } catch (const ParseError& e) {
+        return std::unexpected(e);
+    } catch (const circuitcore::sexpr::ParseError& e) {
+        return std::unexpected(from_sexpr(e));
+    }
+}
+
+std::expected<circuitcore::board::Board, ParseError>
+PcbParser::parse_file(const std::filesystem::path& path) {
     std::ifstream in(path);
     if (!in) {
-        throw std::runtime_error(std::format("cannot open kicad_pcb file: {}", path.string()));
+        return std::unexpected(ParseError{
+            std::format("cannot open kicad_pcb file: {}", path.string()),
+            0, 0});
     }
     std::ostringstream ss;
     ss << in.rdbuf();

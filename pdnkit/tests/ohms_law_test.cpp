@@ -59,7 +59,7 @@ constexpr double kCurrent      = 1.0;       // A
 }
 
 TEST_CASE("ohms-law: 100mm trace solves close to ρL/(Wt)", "[ohms][validation]") {
-    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb")).value();
 
     REQUIRE(b.find_net_by_name("VRAIL") != nullptr);
     REQUIRE(b.zones.size() == 1);
@@ -100,7 +100,7 @@ TEST_CASE("ohms-law: 100mm trace solves close to ρL/(Wt)", "[ohms][validation]"
 }
 
 TEST_CASE("ohms-law: drop scales linearly with current", "[ohms][validation]") {
-    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb")).value();
     MeshConfig mc;
     mc.cell_size = 0.5e-3;
     mc.net_id = b.find_net_by_name("VRAIL")->id;
@@ -120,7 +120,7 @@ TEST_CASE("ohms-law: drop scales linearly with current", "[ohms][validation]") {
 }
 
 TEST_CASE("ohms-law: result tightens as cell size shrinks", "[ohms][validation]") {
-    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb")).value();
     const double r_ideal = kRhoCu * kPadDistance / (kTraceWidth * kCuThickness);
 
     auto solve_at = [&](double cell_size_m) {
@@ -164,7 +164,7 @@ TEST_CASE("ohms-law: result tightens as cell size shrinks", "[ohms][validation]"
 // the existing one on a fixture where both should agree.
 TEST_CASE("ohms-law: source/sink_pad_indices match name-based picking",
           "[ohms][validation][probe-r]") {
-    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb")).value();
     REQUIRE(b.pads.size() == 2);
 
     const int net_id = b.find_net_by_name("VRAIL")->id;
@@ -218,7 +218,7 @@ TEST_CASE("ohms-law: source/sink_pad_indices match name-based picking",
 // 10% once you exclude the source/sink edge-spreading regions.
 TEST_CASE("ohms-law: current-density heat-map matches I/W in mid-trace",
           "[ohms][validation][current-density]") {
-    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb"));
+    auto b = PcbParser::parse_file(fixture("trace_100mm.kicad_pcb")).value();
 
     MeshConfig mc;
     mc.cell_size = 0.5e-3;
