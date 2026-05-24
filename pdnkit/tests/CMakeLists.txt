@@ -18,6 +18,7 @@ add_executable(pdnkit_tests
     spice_export_test.cpp
     target_z_test.cpp
     via_inductance_test.cpp
+    dielectric_test.cpp
 )
 target_compile_definitions(pdnkit_tests PRIVATE
     PDNKIT_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"

@@ -13,6 +13,7 @@ add_library(pdnkit_pi STATIC
     pi/SpiceExport.cpp
     pi/TargetZ.cpp
     pi/ViaInductance.cpp
+    pi/Dielectric.cpp
     render/Camera2D.cpp
     render/ZoneMesher.cpp
     render/IrResultMesh.cpp
