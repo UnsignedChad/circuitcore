@@ -36,6 +36,7 @@ add_library(sikit_si STATIC
     si/Rlgc.cpp
     si/SParam.cpp
     si/SiStackup.cpp
+    si/Skew.cpp
     si/StatEye.cpp
     si/SurfaceRoughness.cpp
     si/Touchstone.cpp

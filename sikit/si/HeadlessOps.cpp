@@ -15,6 +15,7 @@
 #include "si/Touchstone.h"
 #include "si/TouchstoneWriter.h"
 #include "si/TraceImpedance.h"
+#include "si/Skew.h"
 #include "si/VectorFit.h"
 
 namespace sikit::cli {
@@ -405,6 +406,33 @@ int compare_op(const std::filesystem::path& a_path,
     const bool pass = d.max_abs_db <= max_abs_db;
     std::printf("verdict   = %s\n", pass ? "PASS" : "FAIL");
     return pass ? 0 : 1;
+}
+
+int skew_op(const circuitcore::board::Board& board,
+             const sikit::si::SiStackup& sis,
+             double budget_ps) {
+    const auto stackup =
+        sikit::analysis::AnalysisStackup::from_board(board, sis);
+    const auto rows = sikit::si::compute_diff_pair_skews(board, stackup, budget_ps);
+    if (rows.empty()) {
+        std::printf("sikit: no diff pairs detected on this board\n");
+        return 3;
+    }
+    std::printf("%-20s  %8s  %8s  %8s  %7s  %6s\n",
+                  "pair", "P (mm)", "N (mm)",
+                  "|skew|mm", "skew_ps", "budget");
+    int over = 0;
+    for (const auto& r : rows) {
+        std::printf("%-20s  %8.3f  %8.3f  %8.3f  %+7.2f  %s\n",
+                      r.base_name.c_str(),
+                      r.length_p_m * 1e3, r.length_n_m * 1e3,
+                      std::abs(r.skew_m) * 1e3, r.skew_ps,
+                      r.exceeds_budget ? "FAIL" : "PASS");
+        if (r.exceeds_budget) ++over;
+    }
+    std::printf("\n%zu pair(s) checked, %d over the %.2f ps budget\n",
+                  rows.size(), over, budget_ps);
+    return over == 0 ? 0 : 1;
 }
 
 }  // namespace sikit::cli
