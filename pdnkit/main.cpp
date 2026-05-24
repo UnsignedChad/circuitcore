@@ -28,6 +28,7 @@
 #include "pi/Dielectric.h"
 #include "pi/Touchstone.h"
 #include "pi/Vrm.h"
+#include "pi/Thermal.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -674,6 +675,79 @@ int run_headless_vrm_z(double r_mohm, double l_uH, double f_hz) {
     return 0;
 }
 
+int run_headless_thermal(const std::string& pcb_path,
+                         const std::string& net_name,
+                         const std::string& layer_name,
+                         double current_amps,
+                         double cell_size_mm,
+                         double r_theta_kw,
+                         double t_ambient_c) {
+    circuitcore::board::Board board;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
+    }
+    const auto* net = board.find_net_by_name(net_name);
+    if (!net) {
+        std::fprintf(stderr, "pdnkit: no net named '%s'\n", net_name.c_str());
+        return 3;
+    }
+    int layer_ord = -1;
+    for (const auto& L : board.stackup.layers) {
+        if (L.name == layer_name) { layer_ord = L.ordinal; break; }
+    }
+    if (layer_ord < 0) {
+        std::fprintf(stderr, "pdnkit: no layer named '%s'\n", layer_name.c_str());
+        return 4;
+    }
+
+    pdnkit::pi::MeshConfig mc;
+    mc.cell_size = cell_size_mm * 1.0e-3;
+    mc.net_id = net->id;
+    mc.layer_ordinal = layer_ord;
+    mc.auto_select_layer = true;
+
+    pdnkit::pi::SolveConfig sc;
+    sc.total_current = current_amps;
+
+    pdnkit::pi::ThermalConfig tc;
+    tc.r_theta_total_kw = r_theta_kw;
+    tc.t_ambient_c = t_ambient_c;
+
+    auto r = pdnkit::pi::solve_ir_with_thermal(board, mc, sc, tc);
+
+    if (r.mesh.nodes.empty()) {
+        std::fprintf(stderr, "pdnkit: mesher produced no nodes\n");
+        return 5;
+    }
+    if (!r.solution.ok) {
+        std::fprintf(stderr, "pdnkit: solver failed: %s\n",
+                     r.solution.error.c_str());
+        return 7;
+    }
+
+    const double dv_mv = (r.solution.max_v - r.solution.min_v) * 1000.0;
+    const double rho_pct = (r.final_rho / mc.copper_rho - 1.0) * 100.0;
+    std::printf("pdnkit thermal-coupled IR  net=%s  layer=%s  I=%.3f A  "
+                "R_theta=%.1f K/W  T_amb=%.1f C\n",
+                net_name.c_str(), layer_name.c_str(),
+                current_amps, r_theta_kw, t_ambient_c);
+    std::printf("  iterations  = %d  (converged=%s)\n",
+                r.iterations, r.converged ? "yes" : "no");
+    std::printf("  power       = %.4f W\n", r.final_power_w);
+    std::printf("  delta-T     = %.2f C above ambient\n",
+                r.final_delta_t_c);
+    std::printf("  rho final   = %.3e ohm*m  (+%.2f%% from rho_20)\n",
+                r.final_rho, rho_pct);
+    std::printf("  V drop      = %.4f mV  (steady-state)\n", dv_mv);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -795,6 +869,17 @@ int main(int argc, char** argv) {
                    "VRM output inductance (uH, default 1.0)");
     cli.add_option("--vrm-f", vrm_f_hz,
                    "Frequency for --vrm-z (Hz, default 1e6)");
+
+    bool thermal = false;
+    double th_r_theta_kw = 100.0;
+    double th_t_amb_c = 25.0;
+    cli.add_flag("--thermal", thermal,
+                 "IR drop with thermal coupling: iterate solve + copper "
+                 "resistivity until steady-state delta-T converges.");
+    cli.add_option("--r-theta", th_r_theta_kw,
+                   "Aggregate thermal resistance to ambient (K/W, default 100)");
+    cli.add_option("--t-ambient", th_t_amb_c,
+                   "Ambient temperature (C, default 25)");
 
     bool via_l = false;
     double via_d_mm = 0.3;
@@ -946,6 +1031,16 @@ int main(int argc, char** argv) {
     }
     if (vrm_z) {
         return run_headless_vrm_z(vrm_r_mohm, vrm_l_uH, vrm_f_hz);
+    }
+    if (thermal) {
+        if (pcb_path.empty() || analyze_net.empty()) {
+            std::fprintf(stderr,
+                         "pdnkit: --thermal requires --net and a board file\n");
+            return 1;
+        }
+        return run_headless_thermal(pcb_path, analyze_net, analyze_layer,
+                                     analyze_current, analyze_cell_mm,
+                                     th_r_theta_kw, th_t_amb_c);
     }
     if (via_l) {
         return run_headless_via_l(via_d_mm, via_h_mm, via_s_mm);

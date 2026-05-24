@@ -67,6 +67,13 @@ pdnkit --eps-f --frequency 1e9 --eps-inf 3.8 --delta-eps 1.0
 ```
 Prints eps_r' / eps_r" / tan(delta) at one frequency under the causal Djordjevic-Sarkar fit. Defaults are a generic FR-4 (eps_inf=3.8, delta=1.0, f1=1 kHz, f2=1 GHz).
 
+### IR drop with thermal coupling
+```
+pdnkit --thermal --net VRAIL --layer F.Cu --current 5.0 \
+       --cell-size 0.5 --r-theta 100 board.kicad_pcb
+```
+Iterates the IR solve and copper resistivity until the steady-state temperature rise converges. Models the fact that high-current rails heat up, copper resistance climbs (alpha = 0.00393/C), and the drop is worse than the 20 C solve predicts. Default R_theta is 100 K/W (aggregate copper-to-ambient).
+
 ### VRM output impedance
 ```
 pdnkit --vrm-z --vrm-r 5 --vrm-l 1 --vrm-f 1e6
