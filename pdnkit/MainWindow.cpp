@@ -35,6 +35,7 @@
 #include "pi/IrSolver.h"
 #include "pi/Thermal.h"
 #include "pi/Touchstone.h"
+#include "pi/SpiceExport.h"
 #include "render/IrResultMesh.h"
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
@@ -180,6 +181,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         "Export &Touchstone (.s1p)...");
     connect(exportTouchstoneAct, &QAction::triggered, this,
             &MainWindow::onExportTouchstone);
+    auto* exportSpiceAct = fileMenu->addAction("Export &SPICE Netlist...");
+    connect(exportSpiceAct, &QAction::triggered, this,
+            &MainWindow::onExportSpiceNetlist);
     fileMenu->addSeparator();
     fileMenu->addAction("E&xit", this, &QWidget::close);
 
@@ -783,3 +787,33 @@ void MainWindow::onExportTouchstone() {
         8000);
 }
 
+void MainWindow::onExportSpiceNetlist() {
+    if (last_mesh_.nodes.empty()) {
+        QMessageBox::information(this, "Export SPICE",
+            "Run an IR-drop analysis first; there is no mesh to export.");
+        return;
+    }
+    const QString suggested = current_board_path_.isEmpty()
+        ? QString("pdnkit_ir.cir")
+        : QFileInfo(current_board_path_).completeBaseName() + "_ir.cir";
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Export SPICE Netlist", suggested,
+        "SPICE netlist (*.cir);;All files (*)");
+    if (path.isEmpty()) return;
+
+    pdnkit::pi::SpiceExportConfig cfg;
+    cfg.title = std::string("pdnkit IR-drop network: ") +
+                QFileInfo(current_board_path_).fileName().toStdString();
+    if (!pdnkit::pi::write_spice_netlist(last_mesh_,
+                                          path.toStdString(), cfg)) {
+        QMessageBox::critical(this, "Export SPICE",
+            "Failed to write " + path);
+        return;
+    }
+    statusBar()->showMessage(
+        QString("Wrote SPICE netlist to %1 (%2 nodes, %3 resistors)")
+            .arg(path)
+            .arg(last_mesh_.nodes.size())
+            .arg(last_mesh_.resistors.size()),
+        8000);
+}
