@@ -9,6 +9,7 @@ add_library(pdnkit_pi STATIC
     pi/CavityModel.cpp
     pi/DecapOptimizer.cpp
     pi/Transient.cpp
+    pi/PowerDrc.cpp
     render/Camera2D.cpp
     render/ZoneMesher.cpp
     render/IrResultMesh.cpp
