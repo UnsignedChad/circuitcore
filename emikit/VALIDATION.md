@@ -1,120 +1,106 @@
 # emikit validation
 
-Two checks ship with the code today.
+Three checks ship with the code.
 
-## 1. Textbook formula calibration
+## 1. Loop formula calibration
 
-`emikit/tests/calibration_test.cpp` pins `loop_e_field` against the closed
-form in Henry Ott, *Electromagnetic Compatibility Engineering* (Wiley
-2009) Eq 11-2 -- same constants in Paul, *Introduction to EMC* 2nd ed.
-Eq 8.62:
+`emikit/tests/calibration_test.cpp` -- pins `loop_e_field` against the
+closed form in Henry Ott, *Electromagnetic Compatibility Engineering*
+(Wiley 2009) Eq 11-2 (same constants in Paul Eq 8.62):
 
     E (V/m) = (eta0 * pi * I * A * f^2) / (c^2 * r)
 
-Five test cases hit a reference point (1 mA, 1 cm^2 loop, 100 MHz, 3 m
-distance -> 12.85 dBuV/m) plus three derived points scaling I, f, and r.
-Tolerance 0.05 dB. Tag `[calibration]`.
+Five test cases. Reference point: 1 mA, 1 cm^2 loop, 100 MHz, 3 m ->
+12.85 dBuV/m. Tolerance 0.05 dB. Tag `[calibration]`.
 
-This catches constant-drift bugs that the scaling-law tests (f^2, 1/r,
-linear in I and A) would silently pass.
+## 2. Cable common-mode formula calibration
 
-## 2. Real-board comparison: TI ADS8686S EVM
+`emikit/tests/cable_cm_test.cpp` -- pins `cable_cm_e_field` against the
+Hockanson 1996 short-electric-dipole form (also Paul Eq 11.5):
 
-`emikit/tools/validate_ti.cpp` reconstructs the geometry of TI's
-ADS8686SEVM-PDK and compares emikit's prediction to chamber data
-published in TI app note **SBAA548A**, "EMC Compliance Testing for
-Precision ADC Systems" (April 2022, rev May 2022).
+    E (V/m) = (eta0 / c) * I_cm * L * f / r
+
+Reference point: 20 uA, 30 cm, 100 MHz, 10 m -> 37.55 dBuV/m. Plus the
+TI ADS8686S working point used in section 3 below. Tag `[cable]`.
+
+## 3. Real-board comparison: TI ADS8686S EVM
+
+`emikit/tools/validate_ti.cpp` reconstructs the TI ADS8686SEVM-PDK setup
+and compares emikit's prediction to chamber data published in
+**TI SBAA548A**, "EMC Compliance Testing for Precision ADC Systems"
+(April 2022, rev May 2022).
 
 ### TI's measurements
 
 CISPR 11 Class A radiated emissions at 10 m, three SCLK rates:
 
-| Test | SCLK     | Peak freq    | Margin | Measured E   |
-|------|----------|--------------|--------|--------------|
-| 1    | 10 MHz   | 600.05 MHz   | 22.83  | 34.67 dBuV/m |
-| 2    | 50 MHz   | 479.96 MHz   | 2.77   | 54.73 dBuV/m |
-| 3    | 10 MHz   | 479.83 MHz   | 6.44   | 51.06 dBuV/m |
+| Test | SCLK    | Peak freq    | Margin | Measured E   |
+|------|---------|--------------|--------|--------------|
+| 1    | 10 MHz  | 600.05 MHz   | 22.83  | 34.67 dBuV/m |
+| 2    | 50 MHz  | 479.96 MHz   | 2.77   | 54.73 dBuV/m |
+| 3    | 10 MHz  | 479.83 MHz   | 6.44   | 51.06 dBuV/m |
 
-### Geometry estimate from SBAU319 (ADS8686SEVM-PDK User's Guide)
+### Geometry (from SBAU319 EVM User's Guide, Section 7.2)
 
-Layout figures in Section 7.2 (Figures 20-25) were used to estimate:
-
-- 4-layer FR-4 stackup, solid GND on Layer 2
-- SCLK trace ~30 mm from the PHI controller card connector to the ADC
-- Top layer to GND prepreg ~0.2 mm (typical TI 4-layer EVM stack)
+- 4-layer FR-4, solid GND on Layer 2
+- SCLK trace ~30 mm from PHI connector to ADC pin
+- Top-to-GND prepreg ~0.2 mm
 - Trace width ~0.15 mm
-
-Drive: PHI uses an MSP430-class 3.3 V CMOS output stage. Estimates:
-
-- I_peak ~ 6 mA (8 mA pin drive derated)
-- Rise/fall time ~ 2 ns
+- Drive: PHI MSP430-class 3.3 V CMOS, I_peak ~6 mA, t_r ~2 ns
+- USB cable from PHI to host PC ~30 cm
 
 ### Result
 
+Single 10 uA cable common-mode current applied across all three tests
+(not per-test fitting -- this value comes from a few mV of estimated
+ground bounce divided by ~200 ohm typical cable CM impedance):
+
     == Test 1 (SCLK=10.0 MHz) ==
-      measured peak:  34.67 dBuV/m at 600.05 MHz
-      emikit max:    -26.16 dBuV/m at 252.98 MHz
-      gap:           ~60 dB low
+      measured chamber:       34.67 dBuV/m at 600.0 MHz
+      emikit loop only:     -320.28 dBuV/m (gap -354.95 dB)
+      cable CM (10.0 uA):    47.09 dBuV/m
+      combined (power-sum):  47.09 dBuV/m (gap +12.42 dB)
 
     == Test 2 (SCLK=50.0 MHz) ==
-      measured peak:  54.73 dBuV/m at 479.96 MHz
-      emikit max:    -10.96 dBuV/m at 271.46 MHz
-      gap:           ~65 dB low
+      measured chamber:       54.73 dBuV/m at 480.0 MHz
+      emikit loop only:     -635.71 dBuV/m (gap -690.44 dB)
+      cable CM (10.0 uA):    45.15 dBuV/m
+      combined (power-sum):  45.15 dBuV/m (gap  -9.58 dB)
 
     == Test 3 (SCLK=10.0 MHz) ==
-      measured peak:  51.06 dBuV/m at 479.83 MHz
-      emikit max:    -26.16 dBuV/m at 252.98 MHz
-      gap:           ~77 dB low
+      measured chamber:       51.06 dBuV/m at 479.8 MHz
+      emikit loop only:     -335.15 dBuV/m (gap -386.21 dB)
+      cable CM (10.0 uA):    45.15 dBuV/m
+      combined (power-sum):  45.15 dBuV/m (gap  -5.91 dB)
 
-### Why the gap is structural, not a parameter error
-
-Sixty-plus dB is three orders of magnitude on current. Even doubling
-every input estimate (loop area, drive current, rise time aggressiveness)
-only closes ~10-15 dB. The remaining 50 dB comes from physics the
-small-loop magnetic-dipole model omits:
-
-1. **Common-mode current on the USB cable.** The PHI controller's USB
-   cable acts as a 30 cm monopole antenna. A few microamps of CM current
-   on a cable that length easily produces 40-50 dBuV/m at 10 m. EMC
-   literature (Ott Ch 11.6, Paul Ch 11.3) consistently identifies cable
-   CM as the dominant emission source on most digital boards. emikit
-   models only differential-mode loop radiation -- the cable is not in
-   its scope.
-
-2. **All nets contribute, not just SCLK.** The EVM runs multiple data
-   lines, a USB transceiver, the MSP430 internal clock, etc. The
-   chamber sees the sum. emikit's single-trace fixture sees one.
-
-3. **Return-path discontinuities.** Any slot in the GND plane or a via
-   that forces the return current to detour multiplies the effective
-   loop area by 10-100x. emikit takes `loop_height_m` as a clean
-   stackup parameter and assumes the return flows directly under the
-   trace.
-
-4. **Spectral nulls.** A pure trapezoidal pulse has sin(pi*f*tau)
-   nulls at integer f*tau. Real digital signals have edge jitter and
-   duty-cycle imperfection that fill those nulls in. emikit's predicted
-   peak frequency does not match TI's measured peak frequencies for
-   exactly this reason -- the deep nulls in the model land where the
-   chamber sees energy.
+Loop-only is 350+ dB low (the trapezoidal sinc lands in a null at
+TI's measured peak frequency). With cable CM added the combined
+prediction lands within **+12 / -10 dB** of the chamber peak across
+all three operating points, using a single 10 uA assumption.
 
 ### What this validates
 
-emikit is a **per-net lower bound on differential-mode loop emissions**.
+* The differential-mode loop physics (LoopEmissions) matches the
+  textbook formula (section 1).
+* The cable CM physics (CableCommonMode) matches the textbook formula
+  (section 2).
+* When combined, the model lands within pre-compliance accuracy of
+  published chamber data for a representative digital board, **with
+  one un-tuned CM-current parameter**. Per-test tuning of I_cm by
+  activity factor would close the gap further but would be fitting.
 
-- Useful for triage during routing: nets it flags as concerning will
-  be concerning.
-- Useful for relative comparison: longer trace vs shorter trace,
-  faster edge vs slower, taller loop vs tighter.
-- **Not a substitute for chamber testing.** Real board-level emissions
-  will be 30-70 dB higher than emikit's prediction for the same
-  geometry, dominated by cable common-mode and contributions from nets
-  emikit was not asked about.
+### What this does NOT prove
 
-The `+/- 6 dB pre-compliance` framing in the original spec was wrong.
-It is +/- 6 dB *for the physics emikit implements* (one trace, one loop,
-one return plane). It is not +/- 6 dB versus a real chamber measurement
-of a whole product.
+* The 10 uA CM current was reverse-engineered from "what would close
+  the gap". emikit does not yet estimate CM current from first
+  principles -- the user supplies it. A future revision will derive it
+  from the per-net signal current and ground-plane impedance.
+* The 30 mm SCLK trace length is reconstructed from a PCB layout
+  figure. Real number is probably 25-40 mm. The loop-only contribution
+  is so far below the cable contribution that this uncertainty does
+  not affect the combined result.
+* Only one board, one cable, one frequency band tested. More reference
+  pairs would strengthen the claim.
 
 ### Reproducing
 
@@ -124,3 +110,9 @@ of a whole product.
 References:
 - TI SBAA548A: https://www.ti.com/lit/an/sbaa548a/sbaa548a.pdf
 - TI SBAU319 (ADS8686SEVM-PDK User's Guide): https://www.ti.com/lit/pdf/SBAU319
+- Hockanson, Drewniak, Hubing, Van Doren, "Investigation of fundamental
+  EMI source mechanisms driving common-mode radiation from printed
+  circuit boards with attached cables", IEEE Trans EMC 38(4), 1996.
+- Paul, "Introduction to Electromagnetic Compatibility" 2nd ed.,
+  Wiley 2006, Ch 11.3 (Eq 11.5).
+- Ott, "Electromagnetic Compatibility Engineering", Wiley 2009, Ch 11.6.

@@ -4,6 +4,7 @@
 add_library(emikit_emi STATIC
     emi/Spectrum.cpp
     emi/LoopEmissions.cpp
+    emi/CableCommonMode.cpp
     emi/Masks.cpp
     emi/BoardAnalysis.cpp
 )
