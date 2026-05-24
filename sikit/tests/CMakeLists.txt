@@ -31,6 +31,7 @@ add_executable(sikit_tests
     spice_export_test.cpp
     compliance_test.cpp
     topology_test.cpp
+    headless_test.cpp
     via_model_test.cpp
     roughness_test.cpp
     channel_test.cpp

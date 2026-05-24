@@ -24,6 +24,7 @@ add_library(sikit_si STATIC
     si/EyeMask.cpp
     si/Compliance.cpp
     si/Topology.cpp
+    si/HeadlessOps.cpp
     si/EyeMetrics.cpp
     si/FdmSolver.cpp
     si/Fft.cpp
