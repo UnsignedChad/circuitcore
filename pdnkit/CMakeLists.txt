@@ -47,6 +47,7 @@ add_executable(pdnkit
     LayerPanel.cpp
     AnalysisPanel.cpp
     ColorLegend.cpp
+    DrcPanel.cpp
     CavityPanel.cpp
     NetStatsPanel.cpp
     TransientPanel.cpp
