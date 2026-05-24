@@ -44,7 +44,7 @@ add_subdirectory(formats/kicad)   # circuitcore::kicad -> board::Board
 
 # --- Layer 3: analysis tools ---
 add_subdirectory(pdnkit)
-# add_subdirectory(sikit)   # uncomment once sikit migrates in
+add_subdirectory(sikit)
                             # (see sikit/MIGRATION.md)
 
 # --- Test discovery for the core libs ---
