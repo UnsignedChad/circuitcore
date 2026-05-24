@@ -1,19 +1,37 @@
-// Touchstone (.s1p / .s2p / .s4p / .s8p) S-parameter file reader.
+// Touchstone S-parameter file reader and writer.
 //
-// Touchstone is the de facto interchange format for measured / simulated
-// network parameters in SI work. Format:
+// Two format versions are supported:
 //
-//   ! comment lines start with bang
-//   # <freq_unit> <param_type> <format> R <ref_impedance>
-//   <freq>  <p1_a> <p1_b>  <p2_a> <p2_b>  ...
-//   ...
+//   v1 (.s1p / .s2p / .s4p / .s8p)
+//       The original IBIS Open Forum Touchstone 1.0 spec. Header line:
+//           # <freq_unit> <param_type> <format> R <ref_impedance>
+//       Body is N freq + 2*N^2 floats per record. Port count comes
+//       from the filename suffix.
 //
-// We support S-parameters in RI (real/imag), MA (mag/angle-deg), and
-// DB (dB/angle-deg) formats. Reference impedance is parsed from the option
-// line. Multi-line data records (common for .s4p+) are handled by streaming
-// floats and chunking into 1 + 2N² values per frequency point.
+//   v2 (.ts and the .sNp family with embedded [Version] keyword)
+//       The IBIS Open Forum Touchstone 2.0 spec, 2009. Adds bracketed
+//       keyword sections around the same numeric body:
 //
-// Reference: Touchstone File Format Specification, Version 1.0 (IBIS Open Forum).
+//           [Version] 2.0
+//           # GHz S RI R 50
+//           [Number of Ports] 2
+//           [Two-Port Order] 12_21
+//           [Reference] 50 50
+//           [Network Data]
+//           1.0 0.1 0.2 ...
+//           [End]
+//
+//       Per-port reference impedances are supported via the
+//       port_impedances vector on TouchstoneFile (empty -> reuse the
+//       scalar reference_impedance for all ports). [Two-Port Order]
+//       lets the file pick between the v1 quirky 21_12 ordering and
+//       the conventional 12_21 ordering. v1 files behave as before;
+//       v2 detection is based on the presence of the [Version] line.
+//
+// Format conversions (RI, MA, DB) are supported in both reader paths.
+//
+// References: Touchstone File Format Specification v1.0 (IBIS Open
+// Forum, 2002) and v2.0 (IBIS Open Forum, 2009).
 
 #pragma once
 
@@ -33,17 +51,39 @@ enum class Format {
     DbAngle,
 };
 
+// Two-port S-parameter ordering quirk: v1 files store 2-port records as
+// freq S11 S21 S12 S22 (column-major). v2 lets the file pick between
+// that legacy order and the matrix-natural row-major freq S11 S12 S21
+// S22. We always keep the in-memory storage column-major; this enum
+// only affects the on-disk row order at read/write time.
+enum class TwoPortOrder {
+    LegacyColumnMajor,   // 21_12 -- freq S11 S21 S12 S22 (v1 default)
+    RowMajor,            // 12_21 -- freq S11 S12 S21 S22 (v2 friendly)
+};
+
 struct TouchstoneFile {
     int num_ports = 0;
     Format format = Format::RealImaginary;
-    double reference_impedance = 50.0;  // ohms
-    double frequency_scale = 1.0;       // multiplier to convert raw freq → Hz
+    double reference_impedance = 50.0;  // ohms (scalar; see port_impedances)
+    double frequency_scale = 1.0;       // multiplier to convert raw freq -> Hz
+
+    // Per-port reference impedance (v2 [Reference] section). Empty when
+    // the file uses a single scalar Z_ref for all ports.
+    std::vector<double> port_impedances;
+
+    // Format version that produced this file: 1 or 2. Used at write
+    // time to decide whether to emit v2 [...] keyword sections.
+    int version = 1;
+
+    // On-disk 2-port order. Only meaningful when num_ports == 2;
+    // ignored otherwise.
+    TwoPortOrder two_port_order = TwoPortOrder::LegacyColumnMajor;
 
     // One entry per frequency point.
     std::vector<double> frequencies;   // in Hz (after scale applied)
 
     // S-matrices, one per frequency point. Each matrix is stored
-    // **column-major** with size num_ports × num_ports:
+    // column-major with size num_ports x num_ports:
     //     S[row + col*num_ports]
     // so s_matrices[k][r + c*N] is the (r,c) entry at frequencies[k].
     std::vector<std::vector<std::complex<double>>> s_matrices;
