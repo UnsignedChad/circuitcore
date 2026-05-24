@@ -26,6 +26,7 @@
 #include "pi/TargetZ.h"
 #include "pi/ViaInductance.h"
 #include "pi/Dielectric.h"
+#include "pi/Touchstone.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -559,6 +560,103 @@ int run_headless_eps_f(double f_hz, double eps_inf, double delta_eps,
     return 0;
 }
 
+int run_headless_touchstone(const std::string& pcb_path,
+                            const std::string& net_name,
+                            const std::string& layer_name,
+                            double port1_x_mm, double port1_y_mm,
+                            double port2_x_mm, double port2_y_mm,
+                            double eps_r, double tan_delta, double thickness_mm,
+                            double f_min, double f_max,
+                            int points, int modes,
+                            const std::string& out_path) {
+    circuitcore::board::Board board;
+    {
+        auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
+        if (!result) {
+            std::fprintf(stderr, "pdnkit: parse failed: %s\n",
+                         result.error().format().c_str());
+            return 2;
+        }
+        board = std::move(*result);
+    }
+    const auto* net = board.find_net_by_name(net_name);
+    if (!net) {
+        std::fprintf(stderr, "pdnkit: no net named '%s'\n", net_name.c_str());
+        return 3;
+    }
+    int layer_ord = -1;
+    for (const auto& L : board.stackup.layers) {
+        if (L.name == layer_name) { layer_ord = L.ordinal; break; }
+    }
+    if (layer_ord < 0) {
+        std::fprintf(stderr, "pdnkit: no layer named '%s'\n", layer_name.c_str());
+        return 4;
+    }
+
+    bool any = false;
+    double lo_x = 0, lo_y = 0, hi_x = 0, hi_y = 0;
+    for (const auto& z : board.zones) {
+        if (z.net_id != net->id || z.layer_ordinal != layer_ord) continue;
+        for (const auto& fp : z.filled) {
+            for (const auto& p : fp.outline) {
+                if (!any) { lo_x = hi_x = p.x; lo_y = hi_y = p.y; any = true; }
+                else {
+                    if (p.x < lo_x) lo_x = p.x;
+                    if (p.x > hi_x) hi_x = p.x;
+                    if (p.y < lo_y) lo_y = p.y;
+                    if (p.y > hi_y) hi_y = p.y;
+                }
+            }
+        }
+    }
+    if (!any) {
+        std::fprintf(stderr, "pdnkit: no filled zones on (net, layer)\n");
+        return 5;
+    }
+
+    pdnkit::pi::CavityConfig cfg;
+    cfg.a = hi_x - lo_x;
+    cfg.b = hi_y - lo_y;
+    cfg.d = thickness_mm * 1.0e-3;
+    cfg.eps_r = eps_r;
+    cfg.tan_delta = tan_delta;
+    cfg.max_modes = modes;
+
+    std::vector<pdnkit::pi::TouchstoneSample> samples;
+    samples.reserve(points);
+    const double log_lo = std::log10(f_min);
+    const double log_hi = std::log10(f_max);
+    constexpr double k2pi = 2.0 * 3.14159265358979323846;
+    for (int i = 0; i < points; ++i) {
+        const double t = (points == 1) ? 0.0 :
+                          static_cast<double>(i) / (points - 1);
+        const double f = std::pow(10.0, log_lo + t * (log_hi - log_lo));
+        const double w = k2pi * f;
+        const auto z = pdnkit::pi::cavity_impedance(
+            cfg,
+            port1_x_mm * 1.0e-3, port1_y_mm * 1.0e-3,
+            port2_x_mm * 1.0e-3, port2_y_mm * 1.0e-3, w);
+        samples.push_back({f, z});
+    }
+
+    const std::string out = out_path.empty()
+        ? std::string("pdnkit_zf.s1p") : out_path;
+    const std::string comment = std::format(
+        "pdnkit cavity Z(f) sweep\nnet={} layer={} a={:.1f}mm b={:.1f}mm "
+        "d={:.3f}mm eps_r={:.2f} tan_d={:.4f}",
+        net_name, layer_name,
+        cfg.a * 1000.0, cfg.b * 1000.0,
+        thickness_mm, eps_r, tan_delta);
+    if (!pdnkit::pi::write_touchstone_z1p(out, samples, comment)) {
+        std::fprintf(stderr, "pdnkit: failed to write '%s'\n", out.c_str());
+        return 6;
+    }
+    std::fprintf(stderr,
+                 "pdnkit: wrote Touchstone (.s1p) to %s (%d frequency points)\n",
+                 out.c_str(), points);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -604,6 +702,15 @@ int main(int argc, char** argv) {
     cli.add_option("--f-max", zf_f_max, "Sweep end frequency (Hz)");
     cli.add_option("--points", zf_points, "Number of log-spaced frequency points");
     cli.add_option("--modes", zf_modes, "Mode sum truncation per axis");
+
+    bool touchstone = false;
+    std::string ts_out;
+    cli.add_flag("--touchstone", touchstone,
+                 "Write the cavity Z(f) sweep as a Touchstone v1 .s1p "
+                 "file (Z-form). Uses the same --net / --port* / --f-* "
+                 "options as --zf.");
+    cli.add_option("--touchstone-out", ts_out,
+                   "Output path for --touchstone (default: pdnkit_zf.s1p)");
 
     bool list_nets = false;
     bool list_layers = false;
@@ -762,6 +869,18 @@ int main(int argc, char** argv) {
                                zf_p1x, zf_p1y, zf_p2x, zf_p2y,
                                zf_eps_r, zf_tan_delta, zf_thickness_mm,
                                zf_f_min, zf_f_max, zf_points, zf_modes);
+    }
+    if (touchstone) {
+        if (pcb_path.empty()) {
+            std::fprintf(stderr,
+                         "pdnkit: --touchstone requires a board file\n");
+            return 1;
+        }
+        return run_headless_touchstone(pcb_path, analyze_net, analyze_layer,
+                                        zf_p1x, zf_p1y, zf_p2x, zf_p2y,
+                                        zf_eps_r, zf_tan_delta, zf_thickness_mm,
+                                        zf_f_min, zf_f_max, zf_points, zf_modes,
+                                        ts_out);
     }
     if (probe_r) {
         if (pcb_path.empty() || probe_pad_a.empty() || probe_pad_b.empty()) {
