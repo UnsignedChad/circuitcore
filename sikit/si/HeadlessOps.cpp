@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
 #include <stdexcept>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include "si/Overlay.h"
 #include "si/BusGroup.h"
 #include "si/ReturnPath.h"
+#include "si/Report.h"
 #include "si/Touchstone.h"
 #include "si/TouchstoneWriter.h"
 #include "si/TraceImpedance.h"
@@ -487,6 +489,29 @@ int return_path_op(const circuitcore::board::Board& board,
     }
     std::printf("\n%zu segment(s) flagged\n", v.size());
     return 1;
+}
+
+
+int report_op(const circuitcore::board::Board& board,
+                const sikit::si::SiStackup& sis,
+                const std::filesystem::path& out_path) {
+    auto r = sikit::report::build_board_report(board, sis);
+    r.board_path = out_path.filename().string();
+    const std::string html = sikit::report::render_html(r);
+    std::ofstream out(out_path, std::ios::trunc);
+    if (!out) {
+        std::fprintf(stderr, "sikit: cannot write %s\n",
+                      out_path.string().c_str());
+        return 6;
+    }
+    out << html;
+    std::printf("Report written to %s  (%d nets, %zu pairs, %zu buses, "
+                  "%zu RP violations -> %s)\n",
+                  out_path.string().c_str(), r.net_count,
+                  r.diff_pairs.size(), r.buses.size(),
+                  r.return_path_violations.size(),
+                  r.overall_pass() ? "PASS" : "FAIL");
+    return r.overall_pass() ? 0 : 1;
 }
 
 }  // namespace sikit::cli

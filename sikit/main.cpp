@@ -236,6 +236,16 @@ int main(int argc, char** argv) {
     rp_cmd->add_option("--threshold", rp_threshold,
                          "Off-plane fraction threshold (default 0.05)");
 
+    // -------- report --------
+    auto* rep_cmd = app.add_subcommand(
+        "report",
+        "Emit a self-contained HTML compliance report for the board");
+    std::string rep_pcb, rep_out;
+    rep_cmd->add_option("pcb", rep_pcb, ".kicad_pcb file")
+        ->required()->check(CLI::ExistingFile);
+    rep_cmd->add_option("-o,--out", rep_out, "Output HTML path")
+        ->required();
+
     // -------- list-specs --------
     auto* list_specs_cmd = app.add_subcommand(
         "list-specs", "List all built-in compliance specifications");
@@ -295,6 +305,11 @@ int main(int argc, char** argv) {
         circuitcore::board::Board b; sikit::si::SiStackup sis;
         if (!load_board(rp_pcb, b, sis)) return 2;
         return sikit::cli::return_path_op(b, rp_samples, rp_threshold);
+    }
+    if (rep_cmd->parsed()) {
+        circuitcore::board::Board b; sikit::si::SiStackup sis;
+        if (!load_board(rep_pcb, b, sis)) return 2;
+        return sikit::cli::report_op(b, sis, rep_out);
     }
     if (list_specs_cmd->parsed()) {
         return sikit::cli::list_specs_op();

@@ -39,6 +39,7 @@ add_executable(sikit_tests
     via_model_test.cpp
     return_path_test.cpp
     example_test.cpp
+    report_test.cpp
     roughness_test.cpp
     channel_test.cpp
     channel_synthesis_test.cpp
