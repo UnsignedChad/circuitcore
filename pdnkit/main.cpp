@@ -24,6 +24,7 @@
 #include "pi/PowerDrc.h"
 #include "pi/SpiceExport.h"
 #include "pi/TargetZ.h"
+#include "pi/ViaInductance.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -523,6 +524,26 @@ int run_headless_target_z(double v_nom, double v_tol, double i_step) {
     return 0;
 }
 
+int run_headless_via_l(double diameter_mm, double length_mm,
+                       double spacing_mm) {
+    const double r = 0.5 * diameter_mm * 1.0e-3;
+    const double h = length_mm * 1.0e-3;
+    const double L = pdnkit::pi::via_self_inductance(r, h);
+    std::printf("Via barrel  diameter=%.3f mm  length=%.3f mm\n",
+                diameter_mm, length_mm);
+    std::printf("  L_self = %.6e H  (%.3f pH)\n", L, L * 1.0e12);
+    if (spacing_mm > 0.0) {
+        const double d = spacing_mm * 1.0e-3;
+        const double M = pdnkit::pi::via_mutual_inductance(r, h, d);
+        const double loop = L - M;
+        std::printf("  with return at spacing=%.3f mm:\n", spacing_mm);
+        std::printf("    M_mutual = %.3f pH\n", M * 1.0e12);
+        std::printf("    L_loop   = %.3f pH  (self - mutual)\n",
+                    loop * 1.0e12);
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -621,6 +642,23 @@ int main(int argc, char** argv) {
     cli.add_option("--i-step", tz_i_step,
                    "Peak step current the load demands for --target-z "
                    "(A, default 1.0)");
+
+    bool via_l = false;
+    double via_d_mm = 0.3;
+    double via_h_mm = 1.6;
+    double via_s_mm = 0.0;
+    cli.add_flag("--via-l", via_l,
+                 "Compute partial inductance of a cylindrical via barrel "
+                 "(Grover/Ruehli closed form). Optionally with a return "
+                 "via at --via-spacing.");
+    cli.add_option("--via-diameter", via_d_mm,
+                   "Via barrel outer diameter (mm, default 0.3)");
+    cli.add_option("--via-length",   via_h_mm,
+                   "Via barrel length, typically board thickness "
+                   "(mm, default 1.6)");
+    cli.add_option("--via-spacing",  via_s_mm,
+                   "Center-to-center spacing to a return via for loop-L "
+                   "calc (mm, default 0 = self only)");
 
     bool transient = false;
     double trn_dt_ns = 10.0;
@@ -721,6 +759,9 @@ int main(int argc, char** argv) {
     }
     if (target_z) {
         return run_headless_target_z(tz_v_nom, tz_v_tol, tz_i_step);
+    }
+    if (via_l) {
+        return run_headless_via_l(via_d_mm, via_h_mm, via_s_mm);
     }
     if (transient) {
         if (pcb_path.empty()) {
