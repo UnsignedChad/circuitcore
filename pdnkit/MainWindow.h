@@ -42,6 +42,7 @@ private slots:
     void onSaveCanvasImage();
     void onExportResultsCsv();
     void onExportTouchstone();
+    void onExportSpiceNetlist();
     void onAboutDialog();
     void onShortcutsDialog();
 
