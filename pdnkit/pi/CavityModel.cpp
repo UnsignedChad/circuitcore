@@ -96,9 +96,13 @@ std::complex<double> cavity_impedance_with_decaps(
     const cd j(0.0, 1.0);
     for (int k = 0; k < N; ++k) {
         const auto& d = decaps[k];
-        // Z_decap(omega) = ESR + jw*ESL - j/(wC).
+        // Z_decap(omega) = ESR + jw*(ESL + L_mount) - j/(wC).
+        // L_mount captures the via loop from cap pads to the planes
+        // (Ruehli partial inductance, see pi/ViaInductance.h). Defaults
+        // to 0 -> identical to the old behavior.
         if (d.C <= 0.0) continue;
-        const cd z_dec = d.esr + j * omega * d.esl - j / (omega * d.C);
+        const double l_eff = d.esl + d.mounting_via_loop_l_h;
+        const cd z_dec = d.esr + j * omega * l_eff - j / (omega * d.C);
         if (std::abs(z_dec) > 0.0) Y(k + 1, k + 1) += 1.0 / z_dec;
     }
 

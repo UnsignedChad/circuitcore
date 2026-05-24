@@ -55,7 +55,14 @@ struct Decap {
     double y = 0.0;
     double C  = 1.0e-6; // capacitance (F)
     double esr = 0.005; // equivalent series resistance (ohms)
-    double esl = 0.5e-9;// equivalent series inductance (H)
+    double esl = 0.5e-9;// equivalent series inductance (H), package only
+
+    // Additional series inductance from the via loop that connects the
+    // cap pads to the planes. Compute from via geometry via the helpers
+    // in pi/ViaInductance.h (via_pair_loop_inductance). Default 0 keeps
+    // existing behavior; non-zero values push the cap's SRF down because
+    // the effective ESL = esl + mounting_via_loop_l_h.
+    double mounting_via_loop_l_h = 0.0;
 };
 
 // Self-impedance at the observation port (xo, yo) with N decaps mounted at
