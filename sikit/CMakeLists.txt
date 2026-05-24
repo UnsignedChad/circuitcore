@@ -14,6 +14,8 @@ add_library(sikit_si STATIC
     si/ChannelResponse.cpp
     si/ChannelSynthesis.cpp
     si/Crosstalk.cpp
+    si/VectorFit.cpp
+    si/SpiceExport.cpp
     si/CrossSection.cpp
     si/DiffPair.cpp
     si/DiffSynth.cpp
