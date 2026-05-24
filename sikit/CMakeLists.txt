@@ -13,6 +13,7 @@ add_library(sikit_si STATIC
     si/Bathtub.cpp
     si/ChannelResponse.cpp
     si/ChannelSynthesis.cpp
+    si/Overlay.cpp
     si/Crosstalk.cpp
     si/VectorFit.cpp
     si/SpiceExport.cpp

@@ -184,6 +184,22 @@ int main(int argc, char** argv) {
     deemb_cmd->add_option("-o,--out", deemb_out, "Output DUT Touchstone path")
         ->required();
 
+    // -------- compare --------
+    auto* cmp_cmd = app.add_subcommand(
+        "compare",
+        "Compare two Touchstone files; print max |dB| delta + PASS/FAIL");
+    std::string cmp_a, cmp_b;
+    int cmp_idx = 1;
+    double cmp_budget = 1.0;
+    cmp_cmd->add_option("-a", cmp_a, "First Touchstone (e.g. measured)")
+        ->required()->check(CLI::ExistingFile);
+    cmp_cmd->add_option("-b", cmp_b, "Second Touchstone (e.g. simulated)")
+        ->required()->check(CLI::ExistingFile);
+    cmp_cmd->add_option("--index", cmp_idx,
+                          "S-parameter index (default 1 = S21 of 2-port)");
+    cmp_cmd->add_option("--max-db", cmp_budget,
+                          "|dB| delta budget (default 1.0)");
+
     // -------- list-specs --------
     auto* list_specs_cmd = app.add_subcommand(
         "list-specs", "List all built-in compliance specifications");
@@ -225,6 +241,9 @@ int main(int argc, char** argv) {
     }
     if (deemb_cmd->parsed()) {
         return sikit::cli::deembed_op(deemb_in, deemb_fix, deemb_out);
+    }
+    if (cmp_cmd->parsed()) {
+        return sikit::cli::compare_op(cmp_a, cmp_b, cmp_idx, cmp_budget);
     }
     if (list_specs_cmd->parsed()) {
         return sikit::cli::list_specs_op();
