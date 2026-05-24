@@ -452,9 +452,18 @@ void CavityPanel::onRun() {
     std::vector<ZfPlotWidget::Curve> curves;
 
     std::vector<double> mags_main;
+    last_sweep_freqs_ = freqs;
+    last_sweep_z_.clear();
+    last_sweep_z_.reserve(freqs.size());
     if (decaps.empty()) {
-        mags_main = pdnkit::pi::cavity_impedance_magnitude_sweep(
-            cfg, x1, y1, x2, y2, freqs);
+        mags_main.reserve(freqs.size());
+        constexpr double k2pi = 2.0 * 3.14159265358979323846;
+        for (double f : freqs) {
+            const auto z = pdnkit::pi::cavity_impedance(
+                cfg, x1, y1, x2, y2, k2pi * f);
+            last_sweep_z_.push_back(z);
+            mags_main.push_back(std::abs(z));
+        }
         ZfPlotWidget::Curve c;
         c.freqs = freqs;
         c.mags  = mags_main;
@@ -462,8 +471,14 @@ void CavityPanel::onRun() {
         c.label = "Z(f)";
         curves.push_back(std::move(c));
     } else {
-        mags_main = pdnkit::pi::cavity_impedance_with_decaps_magnitude_sweep(
-            cfg, x1, y1, decaps, freqs);
+        mags_main.reserve(freqs.size());
+        constexpr double k2pi = 2.0 * 3.14159265358979323846;
+        for (double f : freqs) {
+            const auto z = pdnkit::pi::cavity_impedance_with_decaps(
+                cfg, x1, y1, decaps, k2pi * f);
+            last_sweep_z_.push_back(z);
+            mags_main.push_back(std::abs(z));
+        }
         ZfPlotWidget::Curve c;
         c.freqs = freqs;
         c.mags  = mags_main;

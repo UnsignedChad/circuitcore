@@ -32,6 +32,7 @@
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
 #include "pi/IrSolver.h"
+#include "pi/Touchstone.h"
 #include "render/IrResultMesh.h"
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
@@ -160,6 +161,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     connect(saveImgAct, &QAction::triggered, this, &MainWindow::onSaveCanvasImage);
     auto* exportCsvAct = fileMenu->addAction("&Export Results as CSV...");
     connect(exportCsvAct, &QAction::triggered, this, &MainWindow::onExportResultsCsv);
+    auto* exportTouchstoneAct = fileMenu->addAction(
+        "Export &Touchstone (.s1p)...");
+    connect(exportTouchstoneAct, &QAction::triggered, this,
+            &MainWindow::onExportTouchstone);
     fileMenu->addSeparator();
     fileMenu->addAction("E&xit", this, &QWidget::close);
 
@@ -698,3 +703,40 @@ void MainWindow::onViewModeChanged(int mode) {
         statusBar()->showMessage("Voltage-drop view restored.", 6000);
     }
 }
+
+void MainWindow::onExportTouchstone() {
+    if (!cavity_panel_ || !cavity_panel_->hasLastSweep()) {
+        QMessageBox::information(this, "Export Touchstone",
+            "Run a Plane Z(f) sweep first; there is no data to export.");
+        return;
+    }
+    const QString suggested = current_board_path_.isEmpty()
+        ? QString("pdnkit_zf.s1p")
+        : QFileInfo(current_board_path_).completeBaseName() + "_zf.s1p";
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Export Touchstone", suggested,
+        "Touchstone v1 (*.s1p);;All files (*)");
+    if (path.isEmpty()) return;
+
+    const auto& freqs = cavity_panel_->lastSweepFreqs();
+    const auto& zs    = cavity_panel_->lastSweepZ();
+    std::vector<pdnkit::pi::TouchstoneSample> samples;
+    samples.reserve(freqs.size());
+    for (std::size_t i = 0; i < freqs.size(); ++i) {
+        samples.push_back({freqs[i], zs[i]});
+    }
+    const std::string comment =
+        std::string("pdnkit cavity Z(f) sweep -- ") +
+        QFileInfo(current_board_path_).fileName().toStdString();
+    if (!pdnkit::pi::write_touchstone_z1p(path.toStdString(),
+                                          samples, comment)) {
+        QMessageBox::critical(this, "Export Touchstone",
+            "Failed to write " + path);
+        return;
+    }
+    statusBar()->showMessage(
+        QString("Wrote Touchstone to %1 (%2 frequency points)")
+            .arg(path).arg(samples.size()),
+        8000);
+}
+
