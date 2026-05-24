@@ -1,0 +1,106 @@
+(kicad_pcb
+    (version 20240108)
+    (generator "sikit-example")
+    (general
+        (thickness 1.6)
+    )
+    (paper "A4")
+    (layers
+        (0 "F.Cu" signal)
+        (1 "In1.Cu" power)
+        (2 "In2.Cu" power)
+        (31 "B.Cu" signal)
+        (44 "Edge.Cuts" user)
+    )
+    (setup
+        (stackup
+            (layer "F.Cu"        (type "copper")    (thickness 0.035))
+            (layer "prepreg-1"   (type "prepreg")   (thickness 0.20)
+                                                    (material "FR4")
+                                                    (epsilon_r 4.5)
+                                                    (loss_tangent 0.02))
+            (layer "In1.Cu"      (type "copper")    (thickness 0.018))
+            (layer "core"        (type "core")      (thickness 1.13)
+                                                    (material "FR4")
+                                                    (epsilon_r 4.4)
+                                                    (loss_tangent 0.02))
+            (layer "In2.Cu"      (type "copper")    (thickness 0.018))
+            (layer "prepreg-2"   (type "prepreg")   (thickness 0.20)
+                                                    (material "FR4")
+                                                    (epsilon_r 4.5)
+                                                    (loss_tangent 0.02))
+            (layer "B.Cu"        (type "copper")    (thickness 0.035))
+        )
+    )
+
+    ; ---------- Nets ----------------------------------------------------
+    (net 0 "")
+    (net 1 "GND")
+    (net 2 "VCC")
+    (net 3 "USB_DP")
+    (net 4 "USB_DN")
+    (net 5 "DDR_DQ0")
+    (net 6 "DDR_DQ1")
+    (net 7 "DDR_DQ2")
+    (net 8 "DDR_DQ3")
+    (net 9 "BAD_NET")    ; will cross the In1.Cu gap
+
+    ; ---------- Edge.Cuts -- 100 x 50 mm board outline ------------------
+    (gr_line (start 0 0)    (end 100 0)   (layer "Edge.Cuts") (width 0.1))
+    (gr_line (start 100 0)  (end 100 50)  (layer "Edge.Cuts") (width 0.1))
+    (gr_line (start 100 50) (end 0 50)    (layer "Edge.Cuts") (width 0.1))
+    (gr_line (start 0 50)   (end 0 0)     (layer "Edge.Cuts") (width 0.1))
+
+    ; ---------- Ground pour on In1.Cu --
+    ; Covers everything EXCEPT a 5-mm-wide horizontal gap centred at
+    ; y = 20 mm. The gap simulates a slot that BAD_NET crosses, which
+    ; the return-path detector should flag.
+    (zone (net 1) (net_name "GND") (layer "In1.Cu")
+        (polygon (pts
+            (xy 2 2) (xy 98 2) (xy 98 17.5) (xy 2 17.5)
+        ))
+        (filled_polygon (layer "In1.Cu") (pts
+            (xy 2 2) (xy 98 2) (xy 98 17.5) (xy 2 17.5)
+        ))
+    )
+    (zone (net 1) (net_name "GND") (layer "In1.Cu")
+        (polygon (pts
+            (xy 2 22.5) (xy 98 22.5) (xy 98 48) (xy 2 48)
+        ))
+        (filled_polygon (layer "In1.Cu") (pts
+            (xy 2 22.5) (xy 98 22.5) (xy 98 48) (xy 2 48)
+        ))
+    )
+
+    ; ---------- Solid VCC pour on In2.Cu -- used as USB_DP/_DN reference
+    (zone (net 2) (net_name "VCC") (layer "In2.Cu")
+        (polygon (pts
+            (xy 2 2) (xy 98 2) (xy 98 48) (xy 2 48)
+        ))
+        (filled_polygon (layer "In2.Cu") (pts
+            (xy 2 2) (xy 98 2) (xy 98 48) (xy 2 48)
+        ))
+    )
+
+    ; ---------- USB diff pair on B.Cu, slight intra-pair skew ---------
+    ; USB_DP: 40 mm exactly. USB_DN: 40.4 mm (0.4 mm longer -> ~2.5 ps
+    ; skew on FR-4 microstrip).
+    (segment (start 30 10) (end 70 10) (width 0.20) (layer "B.Cu") (net 3))
+    (segment (start 30 12) (end 70.4 12) (width 0.20) (layer "B.Cu") (net 4))
+
+    ; ---------- DDR_DQ0..3 byte lane on F.Cu, deliberate length spread.
+    ; DQ0 = 40 mm
+    ; DQ1 = 41 mm
+    ; DQ2 = 39 mm  (shortest)
+    ; DQ3 = 43 mm  (longest -> 4 mm spread on the bus, ~27 ps skew)
+    (segment (start 10 30) (end 50 30)   (width 0.15) (layer "F.Cu") (net 5))
+    (segment (start 10 32) (end 51 32)   (width 0.15) (layer "F.Cu") (net 6))
+    (segment (start 10 34) (end 49 34)   (width 0.15) (layer "F.Cu") (net 7))
+    (segment (start 10 36) (end 53 36)   (width 0.15) (layer "F.Cu") (net 8))
+
+    ; ---------- BAD_NET on F.Cu, crosses the In1.Cu gap ----------------
+    ; In1.Cu has a 5-mm horizontal gap centred at y = 20 mm. This trace
+    ; runs at y = 20 mm, so it's directly over the gap for its entire
+    ; length. The return-path detector should flag the whole segment.
+    (segment (start 10 20) (end 90 20) (width 0.20) (layer "F.Cu") (net 9))
+)

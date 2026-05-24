@@ -16,6 +16,7 @@ class ColorLegend;
 class NetStatsPanel;
 class CavityPanel;
 class TransientPanel;
+class DrcPanel;
 class QLabel;
 
 class MainWindow : public QMainWindow {
@@ -55,6 +56,7 @@ private:
     NetStatsPanel* netstats_panel_;
     CavityPanel* cavity_panel_;
     TransientPanel* transient_panel_;
+    DrcPanel* drc_panel_;
     ColorLegend* legend_;
     QLabel* hover_label_;
     std::unique_ptr<circuitcore::board::Board> board_;

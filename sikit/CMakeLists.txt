@@ -13,6 +13,8 @@ add_library(sikit_si STATIC
     si/Bathtub.cpp
     si/ChannelResponse.cpp
     si/ChannelSynthesis.cpp
+    si/Report.cpp
+    si/ReturnPath.cpp
     si/BusGroup.cpp
     si/Overlay.cpp
     si/Crosstalk.cpp

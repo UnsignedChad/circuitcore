@@ -26,12 +26,14 @@
 #include "ColorLegend.h"
 #include "CavityPanel.h"
 #include "TransientPanel.h"
+#include "DrcPanel.h"
 #include "NetStatsPanel.h"
 #include "LayerPanel.h"
 #include "PcbCanvas.h"
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
 #include "pi/IrSolver.h"
+#include "pi/Thermal.h"
 #include "pi/Touchstone.h"
 #include "render/IrResultMesh.h"
 
@@ -147,6 +149,19 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     addDockWidget(Qt::RightDockWidgetArea, trn_dock);
     tabifyDockWidget(an_dock, trn_dock);
 
+    drc_panel_ = new DrcPanel(this);
+    auto* drc_scroll = new QScrollArea(this);
+    drc_scroll->setWidget(drc_panel_);
+    drc_scroll->setWidgetResizable(true);
+    drc_scroll->setFrameShape(QFrame::NoFrame);
+    auto* drc_dock = new QDockWidget("DRC", this);
+    drc_dock->setWidget(drc_scroll);
+    drc_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::RightDockWidgetArea, drc_dock);
+    tabifyDockWidget(an_dock, drc_dock);
+    connect(netstats_panel_, &NetStatsPanel::netSelected,
+            drc_panel_, &DrcPanel::setNetById);
+
     auto* fileMenu = menuBar()->addMenu("&File");
     auto* openAct = fileMenu->addAction("&Open KiCad PCB...");
     openAct->setShortcut(QKeySequence::Open);
@@ -177,6 +192,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     viewMenu->addAction(nets_dock->toggleViewAction());
     viewMenu->addAction(cav_dock->toggleViewAction());
     viewMenu->addAction(trn_dock->toggleViewAction());
+    viewMenu->addAction(drc_dock->toggleViewAction());
 
     auto* analyzeMenu = menuBar()->addMenu("&Analyze");
     auto* irAct = analyzeMenu->addAction("Static &IR drop on F.Cu");
@@ -273,12 +289,30 @@ void MainWindow::onAnalyzeStaticIrDrop() {
         return;
     }
 
-    auto sol = pdnkit::pi::IrSolver::solve(mesh, {});
-    if (!sol.ok) {
-        QMessageBox::critical(this, "Static IR drop",
-                              QString("Solver failed: %1")
-                                  .arg(QString::fromStdString(sol.error)));
-        return;
+    pdnkit::pi::Solution sol;
+    pdnkit::pi::ThermalResult tres;
+    if (analysis_panel_->thermalEnabled()) {
+        pdnkit::pi::ThermalConfig tc;
+        tc.r_theta_total_kw = analysis_panel_->thermalRThetaKw();
+        tc.t_ambient_c = analysis_panel_->thermalTAmbientC();
+        tres = pdnkit::pi::solve_ir_with_thermal(*board_, mc, {}, tc);
+        if (!tres.solution.ok) {
+            QMessageBox::critical(this, "Static IR drop (thermal)",
+                                  QString("Solver failed: %1")
+                                      .arg(QString::fromStdString(tres.solution.error)));
+            return;
+        }
+        // The thermal iteration produces its own final mesh + solution.
+        mesh = std::move(tres.mesh);
+        sol = std::move(tres.solution);
+    } else {
+        sol = pdnkit::pi::IrSolver::solve(mesh, {});
+        if (!sol.ok) {
+            QMessageBox::critical(this, "Static IR drop",
+                                  QString("Solver failed: %1")
+                                      .arg(QString::fromStdString(sol.error)));
+            return;
+        }
     }
 
     auto result_mesh = pdnkit::render::build_ir_result_mesh(mesh, sol,
@@ -349,6 +383,14 @@ void MainWindow::onAnalyzeStaticIrDrop() {
             .arg(v_drop_mv, 0, 'f', 4)
             .arg(worst_x * 1000.0, 0, 'f', 2)
             .arg(worst_y * 1000.0, 0, 'f', 2));
+    if (analysis_panel_->thermalEnabled() && tres.converged) {
+        statusBar()->showMessage(
+            statusBar()->currentMessage() +
+            QString("  | thermal: deltaT=%1 C, iter=%2, rho=+%3%%")
+                .arg(tres.final_delta_t_c, 0, 'f', 1)
+                .arg(tres.iterations)
+                .arg((tres.final_rho / mc.copper_rho - 1.0) * 100.0, 0, 'f', 2));
+    }
     spdlog::info("IR drop on net {} ({}) layer {}: {} nodes, {} resistors, "
                  "Vmax={:.6f}V, Vmin={:.6f}V",
                  mc.net_id, net_name.toStdString(), mc.layer_ordinal,
@@ -406,6 +448,7 @@ bool MainWindow::loadKicadPcb(const QString& path) {
         netstats_panel_->setBoard(board_.get());
         cavity_panel_->setBoard(board_.get());
         transient_panel_->setBoard(board_.get());
+        drc_panel_->setBoard(board_.get());
 
         // Restore per-board last-selected net for the Analysis panel.
         QSettings settings("pdnkit", "pdnkit");

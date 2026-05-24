@@ -71,4 +71,18 @@ int list_specs_op();
 
 int list_nets_op(const circuitcore::board::Board& board);
 
+
+int bus_skew_op(const circuitcore::board::Board& board,
+                  const sikit::si::SiStackup& sis,
+                  double budget_ps);
+
+int return_path_op(const circuitcore::board::Board& board,
+                     int samples_per_segment,
+                     double off_plane_threshold);
+
+
+int report_op(const circuitcore::board::Board& board,
+                const sikit::si::SiStackup& sis,
+                const std::filesystem::path& out_path);
+
 }  // namespace sikit::cli

@@ -26,6 +26,7 @@
 
 #include "ZfPlotWidget.h"
 #include "pi/CavityModel.h"
+#include "pi/Vrm.h"
 #include "pi/TargetZ.h"
 #include "pi/DecapOptimizer.h"
 
@@ -187,6 +188,25 @@ CavityPanel::CavityPanel(QWidget* parent) : QWidget(parent) {
     overlay_bare_check_ = new QCheckBox("Overlay bare plane");
     overlay_bare_check_->setChecked(true);
     form->addRow("", overlay_bare_check_);
+
+    vrm_check_ = new QCheckBox("Overlay VRM Z(f)");
+    vrm_check_->setToolTip(
+        "Add a Z_VRM(f) = R + j*omega*L curve to the Z(f) plot. Lets "
+        "you see where the VRM dominates the rail impedance vs the "
+        "cap network vs the cavity itself.");
+    form->addRow("", vrm_check_);
+    vrm_r_mohm_spin_ = new QDoubleSpinBox();
+    vrm_r_mohm_spin_->setRange(0.0, 1000.0);
+    vrm_r_mohm_spin_->setDecimals(3);
+    vrm_r_mohm_spin_->setValue(5.0);
+    vrm_r_mohm_spin_->setSuffix(" mOhm");
+    form->addRow("VRM R_droop:", vrm_r_mohm_spin_);
+    vrm_l_uH_spin_ = new QDoubleSpinBox();
+    vrm_l_uH_spin_->setRange(0.0, 1000.0);
+    vrm_l_uH_spin_->setDecimals(3);
+    vrm_l_uH_spin_->setValue(1.0);
+    vrm_l_uH_spin_->setSuffix(" uH");
+    form->addRow("VRM L_out:", vrm_l_uH_spin_);
     outer->addLayout(form);
 
     plane_info_label_ = new QLabel("Plane: (no board)");
@@ -502,6 +522,21 @@ void CavityPanel::onRun() {
     last_freqs_ = freqs;
     last_mags_  = mags_main;
     plot_->setTargetImpedance(target_z_spin_->value());
+        if (vrm_check_->isChecked()) {
+        pdnkit::pi::VrmModel vrm{
+            vrm_r_mohm_spin_->value() * 1.0e-3,
+            vrm_l_uH_spin_->value() * 1.0e-6};
+        ZfPlotWidget::Curve v;
+        v.freqs = last_sweep_freqs_;
+        v.mags.reserve(last_sweep_freqs_.size());
+        for (double f : last_sweep_freqs_) {
+            const double w = 2.0 * 3.14159265358979323846 * f;
+            v.mags.push_back(std::abs(pdnkit::pi::vrm_impedance(vrm, w)));
+        }
+        v.color = QColor(0xff, 0x6a, 0xa0);   // pink, distinct from yellow/cyan
+        v.label = "VRM Z(f)";
+        curves.push_back(std::move(v));
+    }
     plot_->setCurves(std::move(curves));
 }
 
