@@ -20,6 +20,8 @@
 #include "si/TouchstoneWriter.h"
 #include "si/TraceImpedance.h"
 #include "si/Skew.h"
+#include "si/SchematicTopology.h"
+#include "circuitcore/netlist/Netlist.h"
 #include "si/VectorFit.h"
 
 namespace sikit::cli {
@@ -512,6 +514,58 @@ int report_op(const circuitcore::board::Board& board,
                   r.return_path_violations.size(),
                   r.overall_pass() ? "PASS" : "FAIL");
     return r.overall_pass() ? 0 : 1;
+}
+
+
+namespace {
+
+void print_topology(const sikit::si::DerivedTopology& t) {
+    std::printf("net '%s' (code %d): %zu endpoints\n",
+                  t.net_name.c_str(), t.net_code, t.endpoints.size());
+    for (const auto& ep : t.endpoints) {
+        std::printf("  %-12s %-6s  role=%-11s  type='%s'%s%s\n",
+                      ep.component_ref.c_str(),
+                      ep.pin.c_str(),
+                      sikit::si::role_name(ep.role),
+                      ep.pin_type.c_str(),
+                      ep.pin_function.empty() ? "" : "  fn=",
+                      ep.pin_function.c_str());
+    }
+    const auto ndrv = t.drivers().size();
+    if (t.has_driver_problem()) {
+        if (ndrv == 0) {
+            std::printf("  PROBLEM: no drivers found on this net\n");
+        } else {
+            std::printf("  PROBLEM: %zu drivers on this net "
+                          "(contention or multi-drop bus)\n", ndrv);
+        }
+    }
+}
+
+}  // namespace
+
+int derive_topology_op(const circuitcore::netlist::Netlist& nl,
+                        const std::string& net_name) {
+    if (!net_name.empty()) {
+        if (!nl.find_net(net_name)) {
+            std::fprintf(stderr, "sikit: no net named '%s'\n",
+                          net_name.c_str());
+            return 3;
+        }
+        const auto t = sikit::si::derive_topology(nl, net_name);
+        print_topology(t);
+        return t.has_driver_problem() ? 1 : 0;
+    }
+
+    const auto all = sikit::si::derive_all_topologies(nl);
+    int problems = 0;
+    for (const auto& t : all) {
+        print_topology(t);
+        if (t.has_driver_problem()) ++problems;
+    }
+    std::printf("\n%zu signal nets analysed, %d flagged\n",
+                  all.size(), problems);
+    return problems > 0 ? 1 : 0;
 }
 
 }  // namespace sikit::cli

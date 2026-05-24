@@ -31,6 +31,7 @@
 #include "si/HeadlessOps.h"
 #include "MainWindow.h"
 #include "circuitcore/formats/kicad/PcbParser.h"
+#include "circuitcore/formats/kicad/NetlistParser.h"
 #include "si/SiStackup.h"
 
 namespace {
@@ -246,6 +247,17 @@ int main(int argc, char** argv) {
     rep_cmd->add_option("-o,--out", rep_out, "Output HTML path")
         ->required();
 
+    // -------- derive-topology --------
+    auto* dt_cmd = app.add_subcommand(
+        "derive-topology",
+        "Classify driver/receiver/passive endpoints from a KiCad .net");
+    std::string dt_net_file, dt_net_name;
+    dt_cmd->add_option("net", dt_net_file, "KiCad .net file")
+        ->required()->check(CLI::ExistingFile);
+    dt_cmd->add_option("--name", dt_net_name,
+                         "If set, only report this net; otherwise every "
+                         "non-power net.");
+
     // -------- list-specs --------
     auto* list_specs_cmd = app.add_subcommand(
         "list-specs", "List all built-in compliance specifications");
@@ -310,6 +322,18 @@ int main(int argc, char** argv) {
         circuitcore::board::Board b; sikit::si::SiStackup sis;
         if (!load_board(rep_pcb, b, sis)) return 2;
         return sikit::cli::report_op(b, sis, rep_out);
+    }
+    if (dt_cmd->parsed()) {
+        auto r =
+            circuitcore::formats::kicad::NetlistParser::parse_file(
+                dt_net_file);
+        if (!r.has_value()) {
+            std::fprintf(stderr, "sikit: cannot parse %s: %s\n",
+                          dt_net_file.c_str(),
+                          r.error().format().c_str());
+            return 2;
+        }
+        return sikit::cli::derive_topology_op(r.value(), dt_net_name);
     }
     if (list_specs_cmd->parsed()) {
         return sikit::cli::list_specs_op();

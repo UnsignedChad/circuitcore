@@ -38,6 +38,7 @@ add_library(sikit_si STATIC
     si/Project.cpp
     si/Rlgc.cpp
     si/SParam.cpp
+    si/SchematicTopology.cpp
     si/SiStackup.cpp
     si/Skew.cpp
     si/StatEye.cpp
@@ -63,6 +64,7 @@ target_link_libraries(sikit_si
     PUBLIC
         circuitcore::board
         circuitcore::sexpr   # SiStackup parses (setup (stackup ...)) directly
+        circuitcore::netlist # SchematicTopology consumes parsed netlists
         Eigen3::Eigen
         spdlog::spdlog
         ${CMAKE_DL_LIBS}     # for AMI dlopen
