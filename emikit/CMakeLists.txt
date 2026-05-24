@@ -20,6 +20,12 @@ target_link_libraries(emikit PRIVATE
 )
 target_compile_options(emikit PRIVATE -Wall -Wextra -Wpedantic)
 
+add_executable(emikit_validate_ti
+    tools/validate_ti.cpp
+)
+target_link_libraries(emikit_validate_ti PRIVATE emikit_emi)
+target_compile_options(emikit_validate_ti PRIVATE -Wall -Wextra -Wpedantic)
+
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
