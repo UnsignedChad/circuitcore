@@ -190,6 +190,32 @@ public:
     double sigma_y(int i, int j, int k) const { return sigma_y_.at(i, j, k); }
     double sigma_z(int i, int j, int k) const { return sigma_z_.at(i, j, k); }
 
+    // Perfect electric conductor mask. After update_e, every E
+    // component at a cell marked PEC is forced to zero. Use this for
+    // copper traces, vias, and plane fills -- modeling them by setting
+    // sigma to ~5.8e7 instead would blow up the Yee-Hagness damping
+    // term (damp = sigma*dt/(2*e0) becomes huge and Ca flips sign).
+    //
+    // Per-cell granularity is per-E-component, so the rasteriser can
+    // mark a half-cell-thick conductor exactly: setting only Ex/Ey but
+    // not Ez makes a horizontal sheet that allows Ez to pass through
+    // -- not physical, but useful for "we want a copper plane but not
+    // a copper block."
+    void mark_pec_box(int ilo, int jlo, int klo,
+                      int ihi, int jhi, int khi);
+
+    enum class EComp { Ex, Ey, Ez };
+    void mark_pec_cell(EComp c, int i, int j, int k);
+
+    bool pec_x(int i, int j, int k) const { return pec_x_.at(i, j, k); }
+    bool pec_y(int i, int j, int k) const { return pec_y_.at(i, j, k); }
+    bool pec_z(int i, int j, int k) const { return pec_z_.at(i, j, k); }
+
+    // Counts of cells flagged PEC, per E component. Convenient for
+    // the future "sikit fdtd info" CLI summary.
+    std::size_t pec_cell_count() const;
+
+
 
     double ex(int i, int j, int k) const { return ex_.at(i, j, k); }
     double ey(int i, int j, int k) const { return ey_.at(i, j, k); }
@@ -213,6 +239,29 @@ private:
     // corresponding field array. Default-initialised to (1.0, 0.0).
     Field3D epsr_x_, epsr_y_, epsr_z_;
     Field3D sigma_x_, sigma_y_, sigma_z_;
+
+    // PEC mask per E component. Stored as char to keep
+    // std::vector behaviour predictable (no bool specialisation).
+    // 0 = free, non-zero = PEC.
+    struct ByteField3D {
+        std::vector<char> data;
+        int nx = 0, ny = 0, nz = 0;
+        void resize(int X, int Y, int Z) {
+            nx = X; ny = Y; nz = Z;
+            data.assign(static_cast<std::size_t>(X) * Y * Z, 0);
+        }
+        char& at(int i, int j, int k) {
+            return data[static_cast<std::size_t>(i)
+                       + static_cast<std::size_t>(j) * nx
+                       + static_cast<std::size_t>(k) * nx * ny];
+        }
+        char at(int i, int j, int k) const {
+            return data[static_cast<std::size_t>(i)
+                       + static_cast<std::size_t>(j) * nx
+                       + static_cast<std::size_t>(k) * nx * ny];
+        }
+    };
+    ByteField3D pec_x_, pec_y_, pec_z_;
     std::vector<HardESource> sources_;
 
     // Mur ABC: store E at the boundary cell + the cell one step in,

@@ -39,6 +39,7 @@ add_library(sikit_si STATIC
     si/Rlgc.cpp
     si/SParam.cpp
     si/Fdtd3d.cpp
+    si/FdtdRasterize.cpp
     si/SchematicTopology.cpp
     si/SiStackup.cpp
     si/Skew.cpp
