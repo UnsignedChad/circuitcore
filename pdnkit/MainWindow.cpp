@@ -32,6 +32,7 @@
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
 #include "pi/IrSolver.h"
+#include "pi/Thermal.h"
 #include "pi/Touchstone.h"
 #include "render/IrResultMesh.h"
 
@@ -273,12 +274,30 @@ void MainWindow::onAnalyzeStaticIrDrop() {
         return;
     }
 
-    auto sol = pdnkit::pi::IrSolver::solve(mesh, {});
-    if (!sol.ok) {
-        QMessageBox::critical(this, "Static IR drop",
-                              QString("Solver failed: %1")
-                                  .arg(QString::fromStdString(sol.error)));
-        return;
+    pdnkit::pi::Solution sol;
+    pdnkit::pi::ThermalResult tres;
+    if (analysis_panel_->thermalEnabled()) {
+        pdnkit::pi::ThermalConfig tc;
+        tc.r_theta_total_kw = analysis_panel_->thermalRThetaKw();
+        tc.t_ambient_c = analysis_panel_->thermalTAmbientC();
+        tres = pdnkit::pi::solve_ir_with_thermal(*board_, mc, {}, tc);
+        if (!tres.solution.ok) {
+            QMessageBox::critical(this, "Static IR drop (thermal)",
+                                  QString("Solver failed: %1")
+                                      .arg(QString::fromStdString(tres.solution.error)));
+            return;
+        }
+        // The thermal iteration produces its own final mesh + solution.
+        mesh = std::move(tres.mesh);
+        sol = std::move(tres.solution);
+    } else {
+        sol = pdnkit::pi::IrSolver::solve(mesh, {});
+        if (!sol.ok) {
+            QMessageBox::critical(this, "Static IR drop",
+                                  QString("Solver failed: %1")
+                                      .arg(QString::fromStdString(sol.error)));
+            return;
+        }
     }
 
     auto result_mesh = pdnkit::render::build_ir_result_mesh(mesh, sol,
@@ -349,6 +368,14 @@ void MainWindow::onAnalyzeStaticIrDrop() {
             .arg(v_drop_mv, 0, 'f', 4)
             .arg(worst_x * 1000.0, 0, 'f', 2)
             .arg(worst_y * 1000.0, 0, 'f', 2));
+    if (analysis_panel_->thermalEnabled() && tres.converged) {
+        statusBar()->showMessage(
+            statusBar()->currentMessage() +
+            QString("  | thermal: deltaT=%1 C, iter=%2, rho=+%3%%")
+                .arg(tres.final_delta_t_c, 0, 'f', 1)
+                .arg(tres.iterations)
+                .arg((tres.final_rho / mc.copper_rho - 1.0) * 100.0, 0, 'f', 2));
+    }
     spdlog::info("IR drop on net {} ({}) layer {}: {} nodes, {} resistors, "
                  "Vmax={:.6f}V, Vmin={:.6f}V",
                  mc.net_id, net_name.toStdString(), mc.layer_ordinal,

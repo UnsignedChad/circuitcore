@@ -32,6 +32,13 @@ public:
     enum class ViewMode { Voltage, CurrentDensity };
     ViewMode viewMode() const;
 
+    // Thermal-coupling toggle: when on, the runner uses
+    // pdnkit::pi::solve_ir_with_thermal instead of plain IrSolver.
+    // R_theta is aggregate K/W copper-to-ambient; T_ambient in C.
+    bool   thermalEnabled() const;
+    double thermalRThetaKw() const;
+    double thermalTAmbientC() const;
+
 signals:
     void runRequested();
     void netChanged(int net_id);
@@ -63,4 +70,7 @@ private:
     QPushButton* run_btn_;
     QPushButton* clear_btn_;
     class QCheckBox* current_density_check_;
+    class QCheckBox*    thermal_check_;
+    class QDoubleSpinBox* thermal_r_theta_spin_;
+    class QDoubleSpinBox* thermal_t_ambient_spin_;
 };
