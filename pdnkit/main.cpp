@@ -23,6 +23,7 @@
 #include "pi/IrMesher.h"
 #include "pi/PowerDrc.h"
 #include "pi/SpiceExport.h"
+#include "pi/TargetZ.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -513,6 +514,15 @@ int run_headless_spice(const std::string& pcb_path,
     return 0;
 }
 
+int run_headless_target_z(double v_nom, double v_tol, double i_step) {
+    pdnkit::pi::TargetZSpec spec{v_nom, v_tol, i_step};
+    const double z = pdnkit::pi::target_impedance_flat(spec);
+    std::printf("V_nom = %.3f V,  V_tol = %.3f (%.1f%%),  I_step = %.3f A\n",
+                v_nom, v_tol, v_tol * 100.0, i_step);
+    std::printf("Z_target = %.6e ohm  (%.3f m-ohm)\n", z, z * 1000.0);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -595,6 +605,22 @@ int main(int argc, char** argv) {
                  "netlist. Writes to --out, or stdout if not given.");
     cli.add_option("--out", spice_out,
                    "Output file path for --spice (default: stdout)");
+
+    bool target_z = false;
+    double tz_v_nom = 3.3;
+    double tz_v_tol = 0.05;
+    double tz_i_step = 1.0;
+    cli.add_flag("--target-z", target_z,
+                 "Compute target PDN impedance Z = V_nom * V_tol / I_step "
+                 "(Larry Smith flat-target form). No board file required.");
+    cli.add_option("--v-nom",  tz_v_nom,
+                   "Nominal supply voltage for --target-z (V, default 3.3)");
+    cli.add_option("--v-tol",  tz_v_tol,
+                   "Fractional voltage tolerance for --target-z "
+                   "(e.g. 0.05 = 5%, default 0.05)");
+    cli.add_option("--i-step", tz_i_step,
+                   "Peak step current the load demands for --target-z "
+                   "(A, default 1.0)");
 
     bool transient = false;
     double trn_dt_ns = 10.0;
@@ -692,6 +718,9 @@ int main(int argc, char** argv) {
         return run_headless_spice(pcb_path, analyze_net, analyze_layer,
                                    analyze_current, analyze_cell_mm,
                                    spice_out);
+    }
+    if (target_z) {
+        return run_headless_target_z(tz_v_nom, tz_v_tol, tz_i_step);
     }
     if (transient) {
         if (pcb_path.empty()) {
