@@ -29,6 +29,7 @@
 #include "pi/Touchstone.h"
 #include "pi/Vrm.h"
 #include "pi/Thermal.h"
+#include "pi/Roughness.h"
 #include "pi/CavityModel.h"
 #include "pi/IrSolver.h"
 #include "pi/Transient.h"
@@ -748,6 +749,18 @@ int run_headless_thermal(const std::string& pcb_path,
     return 0;
 }
 
+int run_headless_rough_k(double r_q_um, double f_hz) {
+    const double r_q_m = r_q_um * 1.0e-6;
+    const double k = pdnkit::pi::hj_roughness_multiplier(r_q_m, f_hz);
+    const double w = 2.0 * 3.14159265358979323846 * f_hz;
+    const double delta_m = pdnkit::pi::skin_depth_copper(w);
+    std::printf("Hammerstad-Jensen surface roughness\n");
+    std::printf("  R_q = %.3f um   f = %.3e Hz\n", r_q_um, f_hz);
+    std::printf("  skin depth = %.3f um\n", delta_m * 1.0e6);
+    std::printf("  K_HJ       = %.4f  (effective R = K * R_smooth)\n", k);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     CLI::App cli{"pdnkit — open-source Power Integrity analysis for KiCad PCBs"};
     cli.allow_extras();  // Don't trip on Qt's --platform, --style, etc.
@@ -880,6 +893,18 @@ int main(int argc, char** argv) {
                    "Aggregate thermal resistance to ambient (K/W, default 100)");
     cli.add_option("--t-ambient", th_t_amb_c,
                    "Ambient temperature (C, default 25)");
+
+    bool rough_k = false;
+    double rough_rq_um = 1.0;
+    double rough_f_hz = 1.0e9;
+    cli.add_flag("--rough-k", rough_k,
+                 "Print Hammerstad-Jensen surface-roughness multiplier "
+                 "K = 1 + (2/pi)*atan(1.4*(Rq/delta_s)^2) at --rough-f. "
+                 "K=1 is smooth, K=2 is the high-freq asymptote.");
+    cli.add_option("--rough-rq", rough_rq_um,
+                   "RMS surface roughness (um, default 1.0 = std rolled Cu)");
+    cli.add_option("--rough-f",  rough_f_hz,
+                   "Frequency for --rough-k (Hz, default 1e9)");
 
     bool via_l = false;
     double via_d_mm = 0.3;
@@ -1041,6 +1066,9 @@ int main(int argc, char** argv) {
         return run_headless_thermal(pcb_path, analyze_net, analyze_layer,
                                      analyze_current, analyze_cell_mm,
                                      th_r_theta_kw, th_t_amb_c);
+    }
+    if (rough_k) {
+        return run_headless_rough_k(rough_rq_um, rough_f_hz);
     }
     if (via_l) {
         return run_headless_via_l(via_d_mm, via_h_mm, via_s_mm);
