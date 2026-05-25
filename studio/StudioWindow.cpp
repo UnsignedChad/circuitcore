@@ -15,42 +15,11 @@
 #include "BoardTab.h"
 #include "SiTab.h"
 #include "PiTab.h"
+#include "EmiTab.h"
 
 namespace circuitcore::studio {
 
-namespace {
 
-// Plain placeholder tab. Three lines of intent text centred on a dark
-// background. Replaced by real widgets in Tasks #3 / #4 / #5.
-QWidget* makePlaceholderTab(const QString& heading,
-                              const QString& details) {
-    auto* page = new QWidget;
-    page->setAutoFillBackground(true);
-    QPalette pal = page->palette();
-    pal.setColor(QPalette::Window, QColor(28, 30, 34));
-    page->setPalette(pal);
-    auto* layout = new QVBoxLayout(page);
-    layout->setAlignment(Qt::AlignCenter);
-
-    auto* h = new QLabel(heading);
-    h->setAlignment(Qt::AlignCenter);
-    QFont f = h->font();
-    f.setPointSize(f.pointSize() + 6);
-    f.setBold(true);
-    h->setFont(f);
-    h->setStyleSheet("color: #d0d0d0;");
-
-    auto* d = new QLabel(details);
-    d->setAlignment(Qt::AlignCenter);
-    d->setWordWrap(true);
-    d->setStyleSheet("color: #909090;");
-
-    layout->addWidget(h);
-    layout->addWidget(d);
-    return page;
-}
-
-}  // namespace
 
 StudioWindow::StudioWindow(QWidget* parent)
     : QMainWindow(parent),
@@ -64,12 +33,7 @@ StudioWindow::StudioWindow(QWidget* parent)
     tabs_->addTab(board_tab_, "Board");
     tabs_->addTab(new SiTab(model_.get(), tabs_), "SI");
     tabs_->addTab(new PiTab(model_.get(), tabs_), "PI");
-    tabs_->addTab(
-        makePlaceholderTab(
-            "EMI / EMC",
-            "Radiated-emissions verdict, spectrum vs. CISPR mask.\n"
-            "Wired in by Task #5."),
-        "EMI");
+    tabs_->addTab(new EmiTab(model_.get(), tabs_), "EMI");
     setCentralWidget(tabs_);
 
     // --- Menu ---
