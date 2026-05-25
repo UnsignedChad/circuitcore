@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QMatrix4x4>
+#include <QPainter>
 #include <QMouseEvent>
 #include <QVector3D>
 #include <QVector4D>
@@ -278,7 +279,7 @@ void upload_one_3d(QOpenGLBuffer& vbo, QOpenGLBuffer& ibo,
 
 void PcbCanvas::paintOverlays2D() {
     if (overlay_dirty_) uploadOverlay();
-    if (overlay_index_count_ <= 0) return;
+    if (overlay_index_count_ <= 0) { drawGizmo(); return; }
     const QMatrix4x4 proj = ortho_matrix();
     vcol_prog_.bind();
     vcol_prog_.setUniformValue("u_proj", proj);
@@ -287,6 +288,7 @@ void PcbCanvas::paintOverlays2D() {
                     GL_UNSIGNED_INT, nullptr);
     overlay_vao_.release();
     vcol_prog_.release();
+    drawGizmo();
 }
 
 void PcbCanvas::paintGL() {
@@ -351,6 +353,76 @@ void PcbCanvas::paintGL() {
     lit_prog_.release();
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
+
+    drawGizmo();
+}
+
+void PcbCanvas::drawGizmo() {
+    // Bottom-left corner indicator. In 3D mode: colored XYZ axes that
+    // rotate with the camera so the user can read orientation. In 2D
+    // mode: a flat "2D" badge so the user knows the canvas isn't
+    // rotation-interactable.
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    const int box = 80;
+    const int margin = 10;
+    const QPoint origin(margin + box / 2, height() - margin - box / 2);
+
+    // Faint backdrop circle so the gizmo reads as its own widget.
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(0, 0, 0, 90));
+    painter.drawEllipse(origin, box / 2 - 2, box / 2 - 2);
+
+    if (view_mode_ == ViewMode::D2) {
+        painter.setPen(QColor(180, 180, 180));
+        QFont f = painter.font();
+        f.setPointSizeF(f.pointSizeF() + 2);
+        f.setBold(true);
+        painter.setFont(f);
+        painter.drawText(QRect(origin.x() - box / 2, origin.y() - box / 2,
+                                 box, box),
+                          Qt::AlignCenter, "2D");
+        return;
+    }
+
+    // 3D: project world axes through the current view matrix to get
+    // their screen-space direction, draw arrows.
+    const auto V = camera3d_.view_matrix();
+    auto rotate = [&](double wx, double wy, double wz) {
+        // Column-major: V[0..3]=col0, V[4..7]=col1, V[8..11]=col2.
+        // Top-left 3x3 rotates world -> view.
+        const double sx = V[0] * wx + V[4] * wy + V[8]  * wz;
+        const double sy = V[1] * wx + V[5] * wy + V[9]  * wz;
+        const double sz = V[2] * wx + V[6] * wy + V[10] * wz;
+        return std::array<double, 3>{sx, sy, sz};
+    };
+    struct Axis { std::array<double, 3> dir; QColor color; const char* label; };
+    Axis axes[3] = {
+        {rotate(1.0, 0.0, 0.0), QColor(220,  60,  60), "X"},
+        {rotate(0.0, 1.0, 0.0), QColor( 80, 200,  80), "Y"},
+        {rotate(0.0, 0.0, 1.0), QColor( 80, 140, 240), "Z"},
+    };
+    // Painter's order: back to front (by view-space z, +z toward camera).
+    std::sort(axes, axes + 3, [](const Axis& a, const Axis& b) {
+        return a.dir[2] < b.dir[2];
+    });
+    const double arm = (box / 2) - 14;
+    QFont lf = painter.font();
+    lf.setPointSizeF(lf.pointSizeF() - 1);
+    lf.setBold(true);
+    painter.setFont(lf);
+    for (const auto& a : axes) {
+        // Screen-y grows down; view-y grows up -> flip.
+        const QPointF tip(origin.x() + a.dir[0] * arm,
+                           origin.y() - a.dir[1] * arm);
+        painter.setPen(QPen(a.color, 2.0));
+        painter.drawLine(origin, tip);
+        painter.setBrush(a.color);
+        painter.drawEllipse(tip, 3.5, 3.5);
+        painter.setPen(QColor(245, 245, 245));
+        painter.drawText(QPointF(tip.x() + 4, tip.y() - 4), a.label);
+    }
 }
 
 void PcbCanvas::mousePressEvent(QMouseEvent* e) {
