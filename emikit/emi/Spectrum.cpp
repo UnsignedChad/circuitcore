@@ -1,5 +1,6 @@
 #include "emi/Spectrum.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 
@@ -40,6 +41,28 @@ std::vector<double> spectrum_sweep(const TrapezoidalSpec& spec,
         const int n = std::max(1, static_cast<int>(std::round(f / f_clk)));
         out.push_back(harmonic_magnitude(spec, n));
     }
+    return out;
+}
+
+double envelope_magnitude(const TrapezoidalSpec& spec, double freq_hz) {
+    if (spec.period_s <= 0.0 || freq_hz <= 0.0) return 0.0;
+    const double tau = spec.duty_cycle * spec.period_s;
+    const double dc  = 2.0 * spec.i_peak_a * spec.duty_cycle;
+    const double pi  = std::numbers::pi;
+    const double a = (tau > 0.0)
+                       ? std::min(1.0, 1.0 / (pi * freq_hz * tau))
+                       : 1.0;
+    const double b = (spec.rise_time_s > 0.0)
+                       ? std::min(1.0, 1.0 / (pi * freq_hz * spec.rise_time_s))
+                       : 1.0;
+    return dc * a * b;
+}
+
+std::vector<double> envelope_sweep(const TrapezoidalSpec& spec,
+                                    const std::vector<double>& freq_hz) {
+    std::vector<double> out;
+    out.reserve(freq_hz.size());
+    for (double f : freq_hz) out.push_back(envelope_magnitude(spec, f));
     return out;
 }
 

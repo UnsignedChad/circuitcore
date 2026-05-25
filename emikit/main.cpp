@@ -16,6 +16,7 @@
 #include "circuitcore/board/Board.h"
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "emi/BoardAnalysis.h"
+#include "emi/CableCommonMode.h"
 #include "emi/Masks.h"
 #include "emi/Spectrum.h"
 
@@ -45,6 +46,10 @@ int main(int argc, char** argv) {
     double rise_ns  = 1.0;
     double i_peak_ma = 20.0;
     double loop_height_mm = 0.2;
+    double cable_length_cm = 0.0;
+    double ground_inductance_nh = 0.0;
+    double cable_cm_uh_per_m = 1.0;
+    double cable_cm_ua = 0.0;
     check->add_option("pcb", pcb_path, ".kicad_pcb file")
         ->required()->check(CLI::ExistingFile);
     check->add_option("--mask", mask_name,
@@ -62,6 +67,18 @@ int main(int argc, char** argv) {
     check->add_option("--loop-height-mm", loop_height_mm,
                        "Vertical distance trace to reference plane "
                        "(default 0.2 mm)");
+    check->add_option("--cable-length-cm", cable_length_cm,
+                       "Attached cable length in cm. >0 enables "
+                       "common-mode contribution.");
+    check->add_option("--ground-inductance-nh", ground_inductance_nh,
+                       "Partial GND return inductance, used by the "
+                       "common-mode estimator (typ 1-30 nH).");
+    check->add_option("--cable-cm-uh-per-m", cable_cm_uh_per_m,
+                       "Cable per-meter common-mode inductance "
+                       "(default 1.0 uH/m, USB-like).");
+    check->add_option("--cable-cm-ua", cable_cm_ua,
+                       "Explicit cable CM current in uA. Overrides "
+                       "the ground-inductance estimator.");
 
     auto* list_masks_cmd = app.add_subcommand(
         "list-masks", "List built-in regulatory masks");
@@ -95,6 +112,22 @@ int main(int argc, char** argv) {
         cfg.loop_height_m = loop_height_mm * 1e-3;
         cfg.test_distance_m = mask->test_distance_m;
         cfg.net_filter = nets_filter;
+
+        if (cable_length_cm > 0.0) {
+            emikit::emi::CableSpec cable;
+            cable.length_m = cable_length_cm * 1e-2;
+            cable.cable_cm_inductance_per_m_h = cable_cm_uh_per_m * 1e-6;
+            if (cable_cm_ua > 0.0) {
+                cable.cm_current_a = cable_cm_ua * 1e-6;
+            } else if (ground_inductance_nh > 0.0) {
+                cable.ground_inductance_h = ground_inductance_nh * 1e-9;
+            } else {
+                std::fprintf(stderr, "emikit: --cable-length-cm given but no "
+                              "--ground-inductance-nh or --cable-cm-ua, "
+                              "cable will contribute nothing\n");
+            }
+            cfg.cables.push_back(cable);
+        }
         // Leave cfg.freq_hz empty -> defaults to 30 MHz - 1 GHz log grid.
 
         auto R = emikit::emi::analyze_board(board_r.value(), *mask, cfg);
