@@ -3,6 +3,7 @@
 
 #include <cctype>
 #include <charconv>
+#include <cstdlib>
 #include <format>
 #include <string>
 
@@ -142,8 +143,24 @@ private:
             if (to_parse.empty()) return {Tok::End, {}, 0.0, tok_line, tok_col};
         }
         double value = 0.0;
-        auto [ptr, ec] = std::from_chars(to_parse.data(), to_parse.data() + to_parse.size(), value);
-        if (ec == std::errc() && ptr == to_parse.data() + to_parse.size()) {
+#if defined(__APPLE__) && defined(_LIBCPP_VERSION)
+        // Apple libc++ explicitly deletes the floating-point overload of
+        // std::from_chars. strtod handles the same syntax (sign, digits,
+        // optional exponent) with the C locale.
+        const std::string nul_terminated(to_parse);
+        char* parse_end = nullptr;
+        value = std::strtod(nul_terminated.c_str(), &parse_end);
+        const bool consumed_all =
+            parse_end == nul_terminated.c_str() + nul_terminated.size();
+        const bool ok = consumed_all && parse_end != nul_terminated.c_str();
+#else
+        auto [ptr, ec] = std::from_chars(to_parse.data(),
+                                          to_parse.data() + to_parse.size(),
+                                          value);
+        const bool ok = (ec == std::errc())
+                     && ptr == to_parse.data() + to_parse.size();
+#endif
+        if (ok) {
             while (pos_ < end) advance();
             return {Tok::Number, std::string(candidate), value, tok_line, tok_col};
         }
