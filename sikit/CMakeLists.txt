@@ -104,6 +104,7 @@ set_target_properties(sikit PROPERTIES
 target_link_libraries(sikit PRIVATE
     sikit_si
     sikit::widgets
+    circuitcore::ui      # PcbCanvas now subclasses circuitcore::ui::PcbCanvas
     circuitcore::kicad
     Qt6::Widgets
     Qt6::OpenGLWidgets

@@ -1,93 +1,81 @@
+// sikit's PCB canvas.
+//
+// Subclasses circuitcore::ui::PcbCanvas to inherit the shared 2D
+// pipeline (grid, layer fills, outline, camera, pan/zoom, hover hit-
+// test, settings save/restore). Adds the sikit-specific features:
+//   - 3D stackup view (Camera3D + Mesher3D). Ctrl+D toggle.
+//   - Impedance error overlay (per-segment colored rectangles drawn
+//     over the trace fills via a per-vertex-color shader).
+//   - SiStackup pointer used by the 3D mesh builder for accurate
+//     per-layer thicknesses + epsilon_r.
+//
+// All the analysis-agnostic plumbing lives in the base class; this
+// file is just the sikit overlays plus the 3D paint path that bypasses
+// the base's 2D paintGL.
+
 #pragma once
 
-#include <unordered_map>
 #include <vector>
 
 #include <QOpenGLBuffer>
-#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
-#include <QOpenGLWidget>
-#include <QPoint>
 
-#include "si/TraceImpedance.h"
+#include "circuitcore/ui/PcbCanvas.h"
 #include "circuitcore/board/Board.h"
 #include "si/SiStackup.h"
-#include "circuitcore/ui/Camera2D.h"
+#include "si/TraceImpedance.h"
 #include "render/Camera3D.h"
 #include "render/Mesher3D.h"
-#include "circuitcore/ui/SegmentMesher.h"
 
-class PcbCanvas : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
+// sikit's flavoured canvas. Lives in the global namespace so existing
+// MainWindow code that just says "PcbCanvas* canvas_;" keeps working
+// without a namespace touch.
+class PcbCanvas : public circuitcore::ui::PcbCanvas {
     Q_OBJECT
 public:
     enum class ViewMode { D2, D3 };
 
     explicit PcbCanvas(QWidget* parent = nullptr);
 
-    void setBoard(const circuitcore::board::Board* board);
     void setSiStackup(const sikit::si::SiStackup* s);
-    void setLayerVisibility(int ordinal, bool visible);
-    void fitToBoard();
 
     void setViewMode(ViewMode mode);
     ViewMode viewMode() const { return view_mode_; }
 
-    // Build and upload a colored impedance-error overlay over the board's
-    // segments. Pass an empty results vector to clear.
-    void setImpedanceOverlay(const std::vector<sikit::analysis::SegmentImpedance>& results,
-                              double target_z0);
+    // Build and upload a colored impedance-error overlay over the
+    // board's segments. Pass an empty results vector to clear.
+    void setImpedanceOverlay(
+        const std::vector<sikit::analysis::SegmentImpedance>& results,
+        double target_z0);
     void clearImpedanceOverlay();
 
-signals:
-    void hoverInfo(const QString& info);
-
 protected:
-    void initializeGL() override;
-    void resizeGL(int w, int h) override;
+    // We override paintGL outright -- the base does 2D, we hand-roll
+    // the 3D path. paintOverlays2D handles the impedance overlay when
+    // we ARE in 2D mode (called back into by base::paintGL).
     void paintGL() override;
 
+    void initializeGLOverlays() override;
+    void paintOverlays2D() override;
+    void onBoardChanged() override;
+
+    // 3D mode needs custom orbit / pan / zoom -- in 2D mode we
+    // delegate back to the base.
     void mousePressEvent(QMouseEvent* e) override;
     void mouseMoveEvent(QMouseEvent* e) override;
     void mouseReleaseEvent(QMouseEvent* e) override;
     void wheelEvent(QWheelEvent* e) override;
 
 private:
-    void buildGrid();
-    void uploadBoardMeshes();
     void uploadOverlay();
+    void rebuildMesh3D();
 
-    struct LayerRange {
-        int ordinal = 0;
-        int index_start = 0;
-        int index_count = 0;
-    };
-
-    circuitcore::ui::Camera2D camera_;
-    sikit::render::Camera3D camera3d_;
     ViewMode view_mode_ = ViewMode::D2;
-    const circuitcore::board::Board* board_ = nullptr;
     const sikit::si::SiStackup* si_stackup_ = nullptr;
 
-    // Flat-color shader: grid + per-layer board fills.
-    QOpenGLShaderProgram flat_prog_;
-    // Per-vertex color shader: impedance overlay (and any future scalar overlay).
+    // 2D impedance overlay.
     QOpenGLShaderProgram vcol_prog_;
-
-    QOpenGLBuffer grid_vbo_{QOpenGLBuffer::VertexBuffer};
-    QOpenGLVertexArrayObject grid_vao_;
-    int grid_vertex_count_ = 0;
-
-    QOpenGLBuffer board_vbo_{QOpenGLBuffer::VertexBuffer};
-    QOpenGLBuffer board_ibo_{QOpenGLBuffer::IndexBuffer};
-    QOpenGLVertexArrayObject board_vao_;
-    std::vector<LayerRange> layer_ranges_;
-    std::vector<circuitcore::ui::LayerMesh> pending_meshes_;
-    bool meshes_dirty_ = false;
-
-    // Impedance overlay: 6 floats per vertex (x, y, r, g, b, a), 2 triangles
-    // per segment. Stored at vertex level so a single draw call colors every
-    // segment by its own deviation from target Z0.
     QOpenGLBuffer overlay_vbo_{QOpenGLBuffer::VertexBuffer};
     QOpenGLBuffer overlay_ibo_{QOpenGLBuffer::IndexBuffer};
     QOpenGLVertexArrayObject overlay_vao_;
@@ -96,14 +84,8 @@ private:
     int overlay_index_count_ = 0;
     bool overlay_dirty_ = false;
 
-    std::unordered_map<int, bool> layer_visible_;
-
-    bool panning_ = false;
-    QPoint last_mouse_;
-
-    // 3D pipeline. One lit shader, one VAO per mesh category so the paint
-    // path can swap depth/blend state between opaque (copper, vias) and
-    // translucent (dielectric) passes.
+    // 3D pipeline.
+    sikit::render::Camera3D camera3d_;
     QOpenGLShaderProgram lit_prog_;
     struct GpuMesh3D {
         QOpenGLBuffer vbo{QOpenGLBuffer::VertexBuffer};
@@ -116,4 +98,9 @@ private:
     GpuMesh3D mesh3d_vias_;
     sikit::render::BoardMesh3D pending_mesh3d_;
     bool mesh3d_dirty_ = false;
+
+    // 3D-mode pan/orbit state. The base owns the 2D pan state; we
+    // mirror it for 3D so the two modes don't share a stale flag.
+    bool panning_3d_ = false;
+    QPoint last_mouse_3d_;
 };
