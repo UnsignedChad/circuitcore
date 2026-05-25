@@ -44,6 +44,10 @@ private slots:
     void onAnalyzeStaticIrDrop();
     void onProbeRequested(int pad_a, int pad_b, int net_id, int layer_ord);
 
+    void onSaveModifiedStackup();
+    void onExportCavityTouchstone();
+    void onExportReducedSpice();
+
 private:
     void populateLayerPanel();
 
