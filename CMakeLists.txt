@@ -13,7 +13,7 @@ option(CIRCUITCORE_BUILD_TESTS "Build all test suites" ON)
 
 # --- Shared dependencies ---
 find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGL OpenGLWidgets)
-find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(spdlog REQUIRED)
 
 # CHOLMOD is optional -- falls back to Eigen::SimplicialLLT.
