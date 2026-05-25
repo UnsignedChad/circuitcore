@@ -1,8 +1,9 @@
 # sikit FDTD3D validation
 
-Five checks ship with the full-wave solver. All run in
-`sikit/tests/sikit_tests` under tags `[fdtd3d]`, `[fdtd-raster]`,
-`[fdtd-port]`. 27 cases / 118 assertions, all green on `main`.
+Six checks. Five live in `sikit/tests/sikit_tests` under tags
+`[fdtd3d]`, `[fdtd-raster]`, `[fdtd-port]` (27 cases / 118
+assertions, all green). The sixth is a side-by-side cross-validation
+against openEMS, run by the `sikit_validate_fdtd_vs_openems` tool.
 
 ## 1. CFL bound matches the closed-form
 
@@ -50,6 +51,43 @@ Cb=dt/eps0) is correct (defaults-vacuum test pins that exactly).
   raises `|S11|` above the FFT round-off floor by orders of magnitude
   (`> 1e-5` vs the round-off floor of a few times 1e-12 from
   identical-run subtraction).
+
+## 6. Cross-validation vs openEMS
+
+`sikit/tools/cavity_openems.py` sets up a 50 x 30 x 20 mm rectangular
+PEC cavity in openEMS (CSXCAD + the v0.0.36 Python wheel), Gauss-pulse
+excites Ez at one interior cell, probes Ez at another asymmetric cell,
+and FFT-peak-picks the TE_101 mode. Result is committed as
+`sikit/tools/openems_te101_peak.txt` so the comparison is reproducible
+without re-running openEMS.
+
+`sikit/tools/validate_fdtd_vs_openems.cpp` runs the *same* geometry
+through sikit's FDTD3D pipeline and prints all three numbers:
+
+```
+FDTD3D cross-validation: PEC cavity TE_101
+  cavity (mm)      : 50.0 x 30.0 x 20.0, dx = 2.0
+  analytic peak    : 8.0722 GHz
+  sikit peak       : 7.7952 GHz   (err vs analytic: -3.43%)
+  openEMS peak     : 7.7964 GHz   (err vs analytic: -3.42%)
+  |sikit - openEMS|: 0.02%
+```
+
+The two codes agree to **0.02%** on the same Yee mesh. Both show the
+same ~3.4% mesh-dispersion error from the analytic mode -- expected
+behaviour for the Yee grid, which systematically lowers cavity-mode
+frequencies for a given mesh density (Taflove ch. 4).
+
+Run via `./build/sikit/sikit_validate_fdtd_vs_openems
+sikit/tools/openems_te101_peak.txt`. Exit 0 iff sikit and openEMS
+agree within 5%, AND both agree with the analytic mode within 5%.
+
+To regenerate the openEMS reference (only needed if the geometry
+changes):
+```
+/home/chad/opt/openEMS/venv/bin/python sikit/tools/cavity_openems.py
+cp /tmp/openems_te101_peak.txt sikit/tools/
+```
 
 ## What's NOT in v1
 
