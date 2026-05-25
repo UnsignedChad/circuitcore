@@ -21,6 +21,7 @@ add_library(pdnkit_pi STATIC
     pi/Sensitivity.cpp
     pi/Mor.cpp
     StackupWriter.cpp
+    Report.cpp
     render/Camera2D.cpp
     render/ZoneMesher.cpp
     render/IrResultMesh.cpp

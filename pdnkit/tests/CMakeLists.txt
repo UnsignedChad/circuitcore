@@ -27,6 +27,7 @@ add_executable(pdnkit_tests
     roughness_test.cpp
     sensitivity_test.cpp
     mor_test.cpp
+    report_test.cpp
 )
 target_compile_definitions(pdnkit_tests PRIVATE
     PDNKIT_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
