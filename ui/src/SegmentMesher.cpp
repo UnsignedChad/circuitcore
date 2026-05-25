@@ -1,6 +1,7 @@
 #include "circuitcore/ui/SegmentMesher.h"
 
 #include <algorithm>
+#include "circuitcore/ui/CircleHelper.h"
 #include <cmath>
 #include <unordered_map>
 
@@ -56,6 +57,14 @@ std::vector<LayerMesh> SegmentMesher::build(const circuitcore::board::Board& boa
         // Triangles: (0,1,2) and (0,2,3) relative to base.
         m.indices.insert(m.indices.end(), {base + 0, base + 1, base + 2,
                                            base + 0, base + 2, base + 3});
+
+        // Round caps at each endpoint so adjacent segments join smoothly
+        // and standalone segments render as pill shapes (matching how
+        // KiCad draws trace ends). The disks overlap the rectangle on
+        // the inside; the half that extends past each endpoint is the
+        // visible cap.
+        append_disk(m, s.start.x, s.start.y, hw, 16);
+        append_disk(m, s.end.x,   s.end.y,   hw, 16);
     }
 
     return meshes;
