@@ -68,7 +68,10 @@ add_library(pdnkit_widgets STATIC
 )
 add_library(pdnkit::widgets ALIAS pdnkit_widgets)
 set_target_properties(pdnkit_widgets PROPERTIES AUTOMOC ON)
-target_include_directories(pdnkit_widgets PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(pdnkit_widgets PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}    # so studio can use "pdnkit/PcbCanvas.h" etc.
+)
 target_link_libraries(pdnkit_widgets PUBLIC
     circuitcore::ui
     pdnkit_pi

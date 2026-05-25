@@ -13,8 +13,8 @@
 #include <QVBoxLayout>
 
 #include "BoardModel.h"
-#include "EyeWindow.h"
-#include "SParamPlotWindow.h"
+#include "sikit/EyeWindow.h"
+#include "sikit/SParamPlotWindow.h"
 #include "circuitcore/ui/PcbCanvas.h"
 
 #include "si/ChannelResponse.h"  // sikit::dsp::apply_channel

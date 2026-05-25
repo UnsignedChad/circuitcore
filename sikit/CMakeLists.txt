@@ -82,7 +82,10 @@ add_library(sikit_widgets STATIC
 )
 add_library(sikit::widgets ALIAS sikit_widgets)
 set_target_properties(sikit_widgets PROPERTIES AUTOMOC ON)
-target_include_directories(sikit_widgets PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(sikit_widgets PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}    # so studio can use "sikit/EyeWindow.h" etc.
+)
 target_link_libraries(sikit_widgets PUBLIC
     sikit_si
     Qt6::Widgets
