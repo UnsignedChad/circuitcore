@@ -43,12 +43,3 @@ scratchpad for ideas, not commitments. rough order of interest.
     weighted PI+SI+EMI score. whole new dimension.
 17. **python bindings** -- pybind11 wrappers for the analysis libs.
 18. **diff mode** -- load board A vs board B, show what got worse.
-19. more EMI reference pairs (Hockanson 1996 test board, IEC 61967 IC).
-20. pdnkit cavity vs published measurement.
-21. finish openEMS cross-check (PR #62 WIP).
-
-## not in scope
-
-- **IC-level analog / RF** -- different industry, different file formats
-  and PDKs, different users. that is the Cadence Virtuoso / Xschem +
-  SKY130 / IHP130 world. circuitcore is board-level.
