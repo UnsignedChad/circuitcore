@@ -117,6 +117,7 @@ target_link_libraries(sikit PRIVATE
     Qt6::Widgets
     Qt6::OpenGLWidgets
     Qt6::OpenGL
+    CLI11::CLI11
 )
 target_compile_options(sikit PRIVATE -Wall -Wextra -Wpedantic)
 
