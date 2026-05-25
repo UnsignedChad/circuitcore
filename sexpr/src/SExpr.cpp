@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <format>
 #include <string>
+#include <utility>
 
 namespace circuitcore::sexpr {
 

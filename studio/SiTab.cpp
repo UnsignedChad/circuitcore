@@ -24,6 +24,8 @@
 #include <QStatusBar>
 #include <QToolBar>
 #include <QToolButton>
+#include <memory>
+#include <utility>
 
 #include "BoardModel.h"
 

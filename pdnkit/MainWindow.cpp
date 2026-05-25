@@ -21,6 +21,8 @@
 #include <QStatusBar>
 #include <QTextStream>
 #include <spdlog/spdlog.h>
+#include <memory>
+#include <utility>
 
 #include "AnalysisPanel.h"
 #include "ColorLegend.h"

@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <vector>
+#include <algorithm>
 
 #include "si/StatEye.h"
 #include "si/Touchstone.h"

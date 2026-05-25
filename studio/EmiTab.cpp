@@ -19,6 +19,7 @@
 #include <QStackedWidget>
 #include <QTableWidget>
 #include <QVBoxLayout>
+#include <utility>
 
 #include "BoardModel.h"
 #include "circuitcore/ui/PcbCanvas.h"

@@ -11,6 +11,7 @@
 #include <QString>
 #include <QVector4D>
 #include <QWheelEvent>
+#include <utility>
 
 #include "circuitcore/board/HitTest.h"
 #include "circuitcore/ui/GraphicsMesher.h"

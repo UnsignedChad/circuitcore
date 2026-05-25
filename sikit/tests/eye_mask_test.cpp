@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <utility>
 
 #include "si/Eye.h"
 #include "si/EyeMask.h"

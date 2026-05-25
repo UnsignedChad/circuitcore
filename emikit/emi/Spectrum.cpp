@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <numbers>
+#include <algorithm>
 
 namespace emikit::emi {
 

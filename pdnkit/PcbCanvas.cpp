@@ -10,6 +10,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QVector4D>
+#include <utility>
 
 #include "circuitcore/board/HitTest.h"
 #include "circuitcore/ui/CircleHelper.h"

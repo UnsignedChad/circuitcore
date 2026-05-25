@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <QPainterPath>
+#include <utility>
 
 ZfPlotWidget::ZfPlotWidget(QWidget* parent) : QWidget(parent) {
     setMinimumSize(220, 120);

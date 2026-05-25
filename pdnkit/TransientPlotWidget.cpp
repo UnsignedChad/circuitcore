@@ -8,6 +8,7 @@
 #include <QPainterPath>
 #include <QPaintEvent>
 #include <QPen>
+#include <utility>
 
 TransientPlotWidget::TransientPlotWidget(QWidget* parent) : QWidget(parent) {
     setMinimumSize(220, 120);

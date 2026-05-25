@@ -44,6 +44,7 @@
 #include <cstddef>
 #include <stdexcept>
 #include <vector>
+#include <algorithm>
 
 namespace sikit::fdtd {
 

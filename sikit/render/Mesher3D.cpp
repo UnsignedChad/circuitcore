@@ -6,6 +6,7 @@
 #include <numbers>
 #include <optional>
 #include <unordered_map>
+#include <utility>
 
 #include "circuitcore/ui/LayerColors.h"
 

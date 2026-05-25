@@ -1,5 +1,6 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <utility>
 
 #include "si/TraceImpedance.h"
 #include "si/SiStackup.h"

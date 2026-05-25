@@ -7,6 +7,7 @@
 #include <QScrollArea>
 #include <QStatusBar>
 #include <QWidget>
+#include <utility>
 
 #include "BoardModel.h"
 

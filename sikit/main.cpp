@@ -27,6 +27,7 @@
 #include <QSurfaceFormat>
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
+#include <utility>
 
 #include "si/HeadlessOps.h"
 #include "MainWindow.h"

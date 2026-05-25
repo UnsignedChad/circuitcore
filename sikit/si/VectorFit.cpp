@@ -7,6 +7,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
+#include <utility>
 
 namespace sikit::si {
 

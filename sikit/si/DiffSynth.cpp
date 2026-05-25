@@ -4,6 +4,8 @@
 #include <complex>
 #include <numbers>
 #include <stdexcept>
+#include <algorithm>
+#include <utility>
 
 #include "si/CrossSection.h"
 #include "si/FdmSolver.h"

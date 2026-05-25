@@ -14,6 +14,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <utility>
 
 #include "TransientPlotWidget.h"
 #include "pi/IrMesher.h"
