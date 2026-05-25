@@ -20,17 +20,17 @@ Legend:
 | Per-segment impedance (`compute_all`)                | SI tab Z=50/90/100 overlay buttons        | studio |
 | Diff-pair impedance (`compute_diff_pairs`)           | SI tab Zdiff=90/100 buttons               | studio |
 | Eye synth (`prbs7 + nrz_waveform + build_eye`)       | SI tab toolbar -> "Synth eye"             | studio |
-| Statistical eye / PDA (`StatEye`)                    | -- not wired                              | GAP    |
-| Multi-aggressor crosstalk (`Crosstalk`)              | -- not wired                              | GAP    |
-| Rational fit + SPICE export (`VectorFit`, `SpiceExport`)| -- not wired                            | GAP    |
+| Statistical eye / PDA (`StatEye`)                    | SI tab Tools -> Statistical eye (PDA)     | studio |
+| Multi-aggressor crosstalk (`Crosstalk`)              | SI tab Tools -> Crosstalk eye for victim  | studio |
+| Rational fit + SPICE export (`VectorFit`, `SpiceExport`)| SI tab Tools -> Export channel as SPICE | studio |
 | Compliance suites (`Compliance`, `EyeMask`)          | sikit CLI `compliance` subcommand         | CLI-only (auto-checked in eye render) |
-| De-embedding (`SParam::deembed`)                     | sikit CLI `deembed` subcommand            | GAP    |
-| Touchstone overlay measured-vs-sim (`Overlay`)       | sikit CLI `compare` subcommand            | GAP    |
-| Length skew (`Skew`, `BusGroup`)                     | sikit CLI `skew`, `bus-skew`              | GAP    |
-| Return-path detector (`ReturnPath`)                  | sikit CLI `return-path`                   | GAP    |
-| HTML compliance report (`Report`)                    | sikit CLI `report`                        | GAP    |
-| Schematic-derived topology (`SchematicTopology`)     | sikit CLI `derive-topology`               | GAP    |
-| Connector preset library (`Connector`)               | -- not surfaced                           | GAP    |
+| De-embedding (`SParam::deembed`)                     | SI tab toolbar -> De-embed                | studio |
+| Touchstone overlay measured-vs-sim (`Overlay`)       | SI tab toolbar -> Compare overlay         | studio |
+| Length skew (`Skew`, `BusGroup`)                     | SI tab toolbar -> Skew                    | studio |
+| Return-path detector (`ReturnPath`)                  | SI tab toolbar -> Return path             | studio |
+| HTML compliance report (`Report`)                    | SI tab toolbar -> HTML report             | studio |
+| Schematic-derived topology (`SchematicTopology`)     | SI tab toolbar -> Topology from .net      | studio |
+| Connector preset library (`Connector`)               | SI tab Tools -> Connector library         | studio |
 | Topology cascade (`Topology` ChannelBlock list)      | -- model only, no editor                  | GAP    |
 | 3D FDTD (`Fdtd3d`, `FdtdPort`, `FdtdRasterize`)      | sikit CLI `fdtd info`                     | CLI-only (run is multi-minute; status doc says CLI-only by design) |
 
@@ -60,8 +60,8 @@ Legend:
 | `--probe-r`      | Pad-to-pad probe resistance              | PI tab right-click probe-R workflow           | studio |
 | `--transient`    | Transient IR (`Transient`)               | PI tab TransientPanel                         | studio |
 | `--drc`          | IPC-2152 power DRC (`PowerDrc`)          | PI tab DrcPanel                               | studio |
-| `--spice`        | SPICE subcircuit (`SpiceExport`)         | -- not wired                                  | GAP    |
-| `--touchstone`   | One-port Z(f) Touchstone                 | -- not wired                                  | GAP    |
+| `--spice`        | SPICE subcircuit (`SpiceExport`)         | PI tab File -> Export reduced SPICE           | studio |
+| `--touchstone`   | One-port Z(f) Touchstone                 | PI tab File -> Export cavity Z(f) Touchstone  | studio |
 | `--list-nets`    | Net listing                              | implicit via NetStatsPanel                    | studio |
 | `--list-layers`  | Layer listing                            | implicit via LayerPanel                       | studio |
 
@@ -78,11 +78,11 @@ Legend:
 ### Higher-level features (no CLI flag)
 | Capability                                           | Where                                  | Status |
 |------------------------------------------------------|----------------------------------------|--------|
-| Decap optimizer (`DecapOptimizer`)                   | -- not wired                           | GAP    |
-| Sensitivity / leave-one-out (`Sensitivity`)          | -- not wired                           | GAP    |
-| Model-order reduction (`Mor`)                        | -- not wired                           | GAP    |
+| Decap optimizer (`DecapOptimizer`)                   | PI tab Cavity panel -> Auto-suggest    | studio |
+| Sensitivity / leave-one-out (`Sensitivity`)          | PI tab Cavity panel -> Decap sensitivity | studio |
+| Model-order reduction (`Mor`)                        | PI tab File -> Export reduced SPICE    | studio |
 | Dielectric model (`Dielectric`)                      | used internally by CavityPanel         | studio (transparent) |
-| Save modified stackup back to .kicad_pcb (`StackupWriter`) | standalone pdnkit File menu        | GAP (move to studio File menu) |
+| Save modified stackup back to .kicad_pcb (`StackupWriter`) | PI tab File -> Save modified stackup | studio |
 | Save canvas as image                                 | standalone pdnkit File menu            | GAP    |
 | Export results as CSV                                | standalone pdnkit File menu            | GAP    |
 
@@ -109,17 +109,15 @@ Legend:
 
 ## Follow-up tasks to file
 
-Grouped to keep the queue manageable. Listed in suggested priority order.
+Shipped since this audit was first written:
+- SI tab toolbar: HTML report, de-embed, compare overlay, skew, return path, derive-topology.
+- SI tab Tools menu: statistical eye (PDA), crosstalk eye, SPICE export, connector library.
+- PI tab File menu: save modified stackup, export cavity Z(f) Touchstone, export reduced SPICE.
+- Decap optimizer and leave-one-out sensitivity are reachable on the PI tab Cavity panel.
 
-1. **SI tab: HTML report + de-embed + compare + skew + return-path + derive-topology**
-   -- These are CLI-only today but the analyses are useful interactively. One PR per group of related workflows.
-2. **SI tab: statistical eye + multi-aggressor crosstalk + SPICE export + connector library**
-   -- More specialized SI features, fits a "Tools" menu on the SI tab.
-3. **PI tab: SPICE / Touchstone export buttons + save modified stackup**
-   -- Three buttons or a File submenu on the PI tab.
-4. **PI tab: decap optimizer + sensitivity + MOR**
-   -- Three pdnkit features that have no GUI today; could be a single "Optimize" submenu.
-5. **Calculator panels** (pdnkit `--target-z` `--via-l` `--vrm-z` `--eps-f` `--rough-k`, emikit cable CM)
+Open:
+
+1. **Calculator panels** (pdnkit `--target-z` `--via-l` `--vrm-z` `--eps-f` `--rough-k`, emikit cable CM)
    -- A "Calculators" menu in the studio shell (board-independent helpers).
-6. **studio shell: drag-and-drop, recent files, per-board settings, save canvas as image, shortcuts dialog**
+2. **studio shell: drag-and-drop, recent files, per-board settings, save canvas as image, shortcuts dialog**
    -- Standard polish, one PR.
