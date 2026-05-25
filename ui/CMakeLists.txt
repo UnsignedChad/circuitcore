@@ -20,7 +20,9 @@ add_library(circuitcore_ui STATIC
     src/ViaMesher.cpp
     src/ZoneMesher.cpp
     src/PcbCanvas.cpp
+    src/GraphicsMesher.cpp
     include/circuitcore/ui/PcbCanvas.h
+    include/circuitcore/ui/GraphicsMesher.h
 )
 add_library(circuitcore::ui ALIAS circuitcore_ui)
 

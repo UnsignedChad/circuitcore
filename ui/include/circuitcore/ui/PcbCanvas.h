@@ -28,6 +28,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <string>
 #include <vector>
 
 #include <QOpenGLBuffer>
@@ -120,6 +121,7 @@ private:
     void buildGrid();
     void buildOutline();
     void uploadBoardMeshes();
+    void uploadGraphics();
 
     struct LayerRange {
         int ordinal = 0;
@@ -146,6 +148,32 @@ private:
     std::vector<LayerRange> layer_ranges_;
     std::vector<LayerMesh> pending_meshes_;
     bool meshes_dirty_ = false;
+
+    // Silkscreen / mask / courtyard meshes (one VBO + IBO per category).
+    // Built from Board::graphics by GraphicsMesher; uploaded lazily in
+    // paintGL when the board changes. Drawn with the flat shader at
+    // category-specific colors (mask translucent green, silk opaque
+    // white, courtyard dim magenta).
+    QOpenGLBuffer silk_vbo_{QOpenGLBuffer::VertexBuffer};
+    QOpenGLBuffer silk_ibo_{QOpenGLBuffer::IndexBuffer};
+    QOpenGLVertexArrayObject silk_vao_;
+    int silk_index_count_ = 0;
+    QOpenGLBuffer mask_vbo_{QOpenGLBuffer::VertexBuffer};
+    QOpenGLBuffer mask_ibo_{QOpenGLBuffer::IndexBuffer};
+    QOpenGLVertexArrayObject mask_vao_;
+    int mask_index_count_ = 0;
+    QOpenGLBuffer cyd_vbo_{QOpenGLBuffer::VertexBuffer};
+    QOpenGLBuffer cyd_ibo_{QOpenGLBuffer::IndexBuffer};
+    QOpenGLVertexArrayObject cyd_vao_;
+    int cyd_index_count_ = 0;
+    bool graphics_dirty_ = false;
+    // Pending text items rendered via QPainter on top of the GL frame
+    // (silkscreen reference designators + labels).
+    struct SilkText {
+        double x = 0, y = 0, size_m = 0, angle = 0;
+        std::string text;
+    };
+    std::vector<struct SilkText> pending_text_;
 
     std::unordered_map<int, bool> layer_visible_;
 
