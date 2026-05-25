@@ -29,6 +29,7 @@
 #include "DrcPanel.h"
 #include "NetStatsPanel.h"
 #include "LayerPanel.h"
+#include "StackupWriter.h"
 #include "PcbCanvas.h"
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
@@ -177,6 +178,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     connect(saveImgAct, &QAction::triggered, this, &MainWindow::onSaveCanvasImage);
     auto* exportCsvAct = fileMenu->addAction("&Export Results as CSV...");
     connect(exportCsvAct, &QAction::triggered, this, &MainWindow::onExportResultsCsv);
+    auto* saveStackupAct = fileMenu->addAction(
+        "Save Modified Stackup &As...");
+    saveStackupAct->setToolTip(
+        "Write a new .kicad_pcb file with the LayerPanel-edited "
+        "thicknesses applied. Source file is never overwritten.");
+    connect(saveStackupAct, &QAction::triggered, this,
+            &MainWindow::onSaveModifiedStackup);
     auto* exportTouchstoneAct = fileMenu->addAction(
         "Export &Touchstone (.s1p)...");
     connect(exportTouchstoneAct, &QAction::triggered, this,
@@ -837,6 +845,37 @@ void MainWindow::onExportReducedSpice() {
         QString("Wrote reduced subcircuit to %1 "
                 "(%2 nodes -> %3 ports)")
             .arg(path).arg(last_mesh_.nodes.size()).arg(ports.size()),
+        10000);
+}
+
+void MainWindow::onSaveModifiedStackup() {
+    if (!board_ || current_board_path_.isEmpty()) {
+        QMessageBox::information(this, "Save Modified Stackup",
+            "Open a KiCad PCB first.");
+        return;
+    }
+    const QString suggested =
+        QFileInfo(current_board_path_).completeBaseName() +
+        "_pdnkit-stackup.kicad_pcb";
+    const QString out_path = QFileDialog::getSaveFileName(
+        this, "Save Modified Stackup As", suggested,
+        "KiCad PCB (*.kicad_pcb);;All files (*)");
+    if (out_path.isEmpty()) return;
+    if (QFileInfo(out_path) == QFileInfo(current_board_path_)) {
+        QMessageBox::warning(this, "Save Modified Stackup",
+            "Destination must differ from the source file.");
+        return;
+    }
+    auto r = pdnkit::save_modified_stackup(
+        current_board_path_.toStdString(), out_path.toStdString(), *board_);
+    if (!r.ok) {
+        QMessageBox::critical(this, "Save Modified Stackup",
+            QString::fromStdString(r.error));
+        return;
+    }
+    statusBar()->showMessage(
+        QString("Wrote modified stackup to %1 (%2 layer(s) updated)")
+            .arg(out_path).arg(r.layers_updated),
         10000);
 }
 
