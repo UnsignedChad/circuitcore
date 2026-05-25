@@ -1,26 +1,17 @@
-// Cable common-mode radiated emissions.
+// cable common-mode radiated emissions.
 //
-// On most real digital boards the dominant source of radiated emissions
-// between 30 MHz and 1 GHz is not the differential signal loop, it is
-// the common-mode current driven onto attached cables (USB, Ethernet,
-// power, ribbon) by the noisy ground reference. See:
-//   * Henry Ott, "Electromagnetic Compatibility Engineering" Ch 11.6
-//   * Clayton Paul, "Introduction to EMC" 2nd ed. Ch 11.3 / Eq 11.5
-//   * Hockanson, Drewniak, Hubing, Van Doren et al. "Investigation of
-//     fundamental EMI source mechanisms driving common-mode radiation
-//     from printed circuit boards with attached cables." IEEE TEMC 1996.
+// on most digital boards the dominant emission between 30 MHz and 1 GHz
+// is common-mode current pushed onto attached cables by ground bounce,
+// not the differential signal loop.
 //
-// LoopEmissions models differential-mode radiation from the trace+return
-// loop. This file adds the common-mode-on-cable contribution. The two
-// are independent mechanisms; the chamber sees both summed in power.
+// refs:
+//   * Ott, EMC Engineering, Ch 11.6
+//   * Paul, Intro to EMC 2nd ed., Ch 11.3 / Eq 11.5
+//   * Hockanson et al., IEEE Trans EMC 38(4), 1996
 //
-// Two ways to supply the CM current:
-//   1. Explicit -- set CableSpec::cm_current_a to a measured or
-//      estimated CM current magnitude. Same value used at every freq.
-//   2. Ground-bounce estimator -- set CableSpec::ground_inductance_h to
-//      the partial inductance of the GND return path under the trace,
-//      and use estimate_cm_current() to derive I_cm from the signal
-//      current spectrum. This is the Hockanson 1996 model.
+// LoopEmissions covers the differential-mode loop. CableSpec carries
+// either an explicit cm_current_a or a ground_inductance_h that
+// estimate_cm_current() uses to derive I_cm from the signal spectrum.
 
 #pragma once
 

@@ -1,22 +1,15 @@
-// Run emikit against TI's published ADS8686SEVM-PDK chamber data
-// (SBAA548A, April 2022) -- v3: use the ground-bounce estimator
-// instead of a hand-tuned CM current.
+// Compares emikit against TI SBAA548A (April 2022) chamber data for
+// the ADS8686SEVM-PDK at three SCLK rates. Uses the ground-bounce
+// estimator for cable CM current:
 //
-// The cable CM current is now derived from
 //     I_cm = (2 * L_gnd / (L_cable_per_m * cable_length)) * I_signal(f)
-// using the Hockanson 1996 model. Inputs (cable length, L_gnd,
-// L_cable_per_m) all have defensible engineering estimates for the
-// EVM under test.
 //
-// Inputs and where they come from:
-//   * Cable length 0.3 m -- standard USB cable PHI to host PC.
-//   * L_cable_per_m 1.0 uH/m -- typical unshielded USB CM mode.
-//   * L_gnd 8 nH -- estimate for the EVM's GND return path under
-//     the SCLK route. Bigger than a textbook clean plane (1-2 nH)
-//     because the route crosses a via-stitched layer transition and
-//     the PHI connector pinout puts the GND return one pin over from
-//     the signal. This is in the typical "real digital board" range
-//     of 5-30 nH that Ott Ch 11 quotes.
+// inputs:
+//   * cable length 0.3 m -- PHI USB to host PC
+//   * L_cable_per_m 1.0 uH/m -- typical unshielded USB CM mode
+//   * L_gnd 15 nH -- mid-range for a real digital board (Ott Ch 11
+//     quotes 5-30 nH); EVM route crosses a layer transition and the
+//     PHI connector pinout is not optimal for return
 
 #include <algorithm>
 #include <cmath>

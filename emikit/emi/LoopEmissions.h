@@ -12,9 +12,8 @@
 // broadside value; a real trace is rarely oriented for that maximum,
 // but pre-compliance always assumes worst case.
 //
-// We don't model the resonant transition (loop perimeter ~= lambda)
-// because by that point the device is well into "hire a test house"
-// territory anyway. v1 is honest about being pre-compliance.
+// We don't model the resonant transition (loop perimeter ~= lambda).
+// Past that you want a full-wave solver.
 
 #pragma once
 
