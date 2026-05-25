@@ -15,6 +15,7 @@ option(CIRCUITCORE_BUILD_TESTS "Build all test suites" ON)
 find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGL OpenGLWidgets)
 find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(spdlog REQUIRED)
+find_package(CLI11 REQUIRED)
 
 # CHOLMOD is optional -- falls back to Eigen::SimplicialLLT.
 find_path(CHOLMOD_INCLUDE_DIR cholmod.h PATHS /usr/include/suitesparse)

@@ -18,6 +18,7 @@ add_executable(emikit
 target_link_libraries(emikit PRIVATE
     emikit_emi
     circuitcore::kicad
+    CLI11::CLI11
 )
 target_compile_options(emikit PRIVATE -Wall -Wextra -Wpedantic)
 
