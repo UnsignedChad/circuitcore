@@ -48,4 +48,23 @@ struct Node {
 // Throws ParseError on malformed input. The returned Node is typically a List.
 Node parse(std::string_view src);
 
+// Formatting options for the emitter. Defaults match KiCad's pcbnew save
+// style (tab indent, line-broken outer forms, atoms inline) so round-tripping
+// a .kicad_pcb produces a file pcbnew will accept without complaint.
+struct EmitConfig {
+    // String used per indent level. KiCad uses "\t".
+    std::string indent = "\t";
+
+    // If a list contains nested lists, each child goes on its own line.
+    // If the list is "small" (only atoms, total inline width below this
+    // threshold), it stays on one line.
+    int inline_width_threshold = 80;
+};
+
+// Serialize a Node tree back to text. Round-trip safe in the sense that
+// parse(emit(N)) yields a tree structurally equal to N for any N parsed
+// from a .kicad_pcb. Whitespace and comments from the original source are
+// not preserved -- the output is canonically formatted.
+std::string emit(const Node& root, const EmitConfig& cfg = {});
+
 }  // namespace circuitcore::sexpr

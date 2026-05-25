@@ -1,5 +1,6 @@
 add_executable(circuitcore_sexpr_tests
     sexpr_test.cpp
+    sexpr_emit_test.cpp
 )
 target_link_libraries(circuitcore_sexpr_tests PRIVATE
     circuitcore::sexpr
