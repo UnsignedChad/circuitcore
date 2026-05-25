@@ -1,24 +1,18 @@
-// Cable common-mode radiated emissions.
+// cable common-mode radiated emissions.
 //
-// On most real digital boards the dominant source of radiated emissions
-// between 30 MHz and 1 GHz is not the differential signal loop, it is
-// the common-mode current driven onto attached cables (USB, Ethernet,
-// power, ribbon) by the noisy ground reference. See:
-//   * Henry Ott, "Electromagnetic Compatibility Engineering" Ch 11.6
-//   * Clayton Paul, "Introduction to EMC" 2nd ed. Ch 11.3 / Eq 11.5
-//   * Hockanson, Drewniak, Hubing, Van Doren et al. "Investigation of
-//     fundamental EMI source mechanisms driving common-mode radiation
-//     from printed circuit boards with attached cables." IEEE TEMC 1996.
+// on most digital boards the dominant emission between 30 MHz and 1 GHz
+// is the common-mode current pushed onto attached cables (USB, Ethernet,
+// power, ribbon) by ground bounce, not the differential signal loop.
 //
-// LoopEmissions models differential-mode radiation from the trace+return
-// loop. This file adds the common-mode-on-cable contribution. The two
-// are independent mechanisms; the chamber sees both summed in power.
+// refs:
+//   * Ott, EMC Engineering, Ch 11.6
+//   * Paul, Intro to EMC 2nd ed., Ch 11.3 / Eq 11.5
+//   * Hockanson et al., IEEE Trans EMC 38(4), 1996
 //
-// V1 takes the CM current as an explicit user input. Estimating it from
-// scratch requires the ground-plane impedance at frequency and the
-// cable's common-mode termination -- both highly board-specific. A
-// future revision can add a heuristic estimator driven by the per-net
-// signal current the analyzer already computes.
+// LoopEmissions covers the differential-mode loop. This file covers
+// the cable CM contribution. They are independent mechanisms; the
+// chamber sees them summed in power. CableSpec::cm_current_a is a user
+// input today.
 
 #pragma once
 

@@ -1,27 +1,11 @@
-// Absolute-value calibration against the textbook closed form.
-//
-// loop_e_field implements the small magnetic-dipole far-field formula
-// from Henry Ott, "Electromagnetic Compatibility Engineering" (Wiley
-// 2009) Eq 11-2 -- also Clayton Paul "Introduction to Electromagnetic
-// Compatibility" 2nd ed. Eq 8.62 with identical leading constants:
+// pins loop_e_field to Ott Eq 11-2 (also Paul Eq 8.62) absolute
+// values. scaling tests in loop_test.cpp would silently pass if eta0
+// or pi got corrupted; these wouldn't.
 //
 //     E (V/m) = (eta0 * pi * I * A * f^2) / (c^2 * r)
 //
-// The other emikit tests verify scaling (f^2, 1/r, linear in I and A).
-// This file pins down the absolute value -- if someone fat-fingers
-// eta0 or drops the pi, scaling tests still pass but these don't.
-//
-// Reference points were computed by hand against
-//     eta0 = 376.730313668  ohm
-//     c    = 2.99792458e8   m/s
-// to ~5 sig figs.  Tolerance below is 0.05 dB which is well under the
-// +/- 6 dB pre-compliance accuracy floor the tool claims.
-//
-// NOT validated here: the connection from a real PCB layout to the
-// (I, A) inputs.  That is the small-loop approximation, which is
-// honest only when loop perimeter << wavelength and the trace has a
-// nearby reference plane.  Above ~1 GHz on a typical FR-4 board the
-// approximation degrades; see Ott 11.3 and Paul 8.4 for the bounds.
+// reference points hand-computed against eta0 = 376.730313668 ohm,
+// c = 2.99792458e8 m/s to ~5 sig figs.
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
