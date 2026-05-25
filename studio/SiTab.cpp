@@ -5,6 +5,14 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QDesktopServices>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QHeaderView>
+#include <QTableWidget>
+#include <QTextStream>
+#include <QUrl>
+#include <QVBoxLayout>
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -23,6 +31,13 @@
 #include "sikit/SParamPlotWindow.h"
 
 #include "si/ChannelResponse.h"
+#include "si/Overlay.h"
+#include "si/Report.h"
+#include "si/ReturnPath.h"
+#include "si/SchematicTopology.h"
+#include "si/SParam.h"
+#include "si/Skew.h"
+#include "circuitcore/formats/kicad/NetlistParser.h"
 #include "si/ChannelSynthesis.h"
 #include "si/DiffPair.h"
 #include "si/DiffSynth.h"
@@ -114,6 +129,13 @@ SiTab::SiTab(BoardModel* model, QWidget* parent)
     add("Export .s2p", &SiTab::onExportTouchstone);
     add("Export .csv", &SiTab::onExportCsv);
     add("Export .s4p", &SiTab::onExportDiffPairS4p);
+    tb->addSeparator();
+    add("HTML report...",         &SiTab::onSaveHtmlReport);
+    add("De-embed...",            &SiTab::onDeembedTouchstone);
+    add("Compare overlay...",     &SiTab::onCompareOverlay);
+    add("Skew",                   &SiTab::onCheckSkew);
+    add("Return path",            &SiTab::onCheckReturnPath);
+    add("Topology from .net...",  &SiTab::onDeriveTopology);
     tb->addSeparator();
     fdm_action_ = tb->addAction("FDM");
     fdm_action_->setCheckable(true);
@@ -621,6 +643,241 @@ void SiTab::onClearOverlay() {
 
 void SiTab::onView3DToggled(bool on) {
     canvas_->setViewMode(on ? sikit::PcbCanvas::ViewMode::D3 : sikit::PcbCanvas::ViewMode::D2);
+}
+
+
+
+namespace {
+
+// Pop a modal-ish results dialog with a read-only QTableWidget. Used by
+// the skew / return-path / topology workflows that produce tabular
+// output without needing to drive a plot widget.
+void showResultsDialog(QWidget* parent, const QString& title,
+                        const QStringList& headers,
+                        const std::vector<QStringList>& rows) {
+    auto* dlg = new QDialog(parent);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle(title);
+    dlg->resize(720, 360);
+    auto* layout = new QVBoxLayout(dlg);
+    auto* table = new QTableWidget(static_cast<int>(rows.size()),
+                                     headers.size(), dlg);
+    table->setHorizontalHeaderLabels(headers);
+    table->verticalHeader()->setVisible(false);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->horizontalHeader()->setStretchLastSection(true);
+    for (int r = 0; r < static_cast<int>(rows.size()); ++r) {
+        const auto& row = rows[r];
+        for (int c = 0; c < row.size(); ++c) {
+            table->setItem(r, c, new QTableWidgetItem(row[c]));
+        }
+    }
+    table->resizeColumnsToContents();
+    layout->addWidget(table);
+    auto* bb = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+    QObject::connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::close);
+    layout->addWidget(bb);
+    dlg->show();
+}
+
+// Build a QStringList row from a parameter pack via operator<<.
+template <typename... Args>
+QStringList makeRow(Args&&... args) {
+    QStringList r;
+    (r << ... << QString(args));
+    return r;
+}
+
+}  // namespace
+
+void SiTab::onSaveHtmlReport() {
+    if (!model_->board()) {
+        QMessageBox::information(this, tr("HTML report"),
+                                  tr("Load a board first."));
+        return;
+    }
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Save board report"), "board_report.html",
+        tr("HTML (*.html)"));
+    if (path.isEmpty()) return;
+    auto report = sikit::report::build_board_report(*model_->board(),
+                                                      model_->siStackup());
+    if (!model_->currentPath().isEmpty()) {
+        report.board_path =
+            QFileInfo(model_->currentPath()).fileName().toStdString();
+    }
+    const auto html = sikit::report::render_html(report);
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::critical(this, tr("HTML report"),
+                               tr("Cannot write %1").arg(path));
+        return;
+    }
+    QTextStream(&f) << QString::fromStdString(html);
+    f.close();
+    status_label_->setText(tr("Wrote %1").arg(QFileInfo(path).fileName()));
+    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+void SiTab::onDeembedTouchstone() {
+    const QString meas = QFileDialog::getOpenFileName(
+        this, tr("Measured DUT+fixtures"), QString(),
+        tr("Touchstone (*.s2p)"));
+    if (meas.isEmpty()) return;
+    const QString left = QFileDialog::getOpenFileName(
+        this, tr("Left fixture (.s2p)"), QString(),
+        tr("Touchstone (*.s2p)"));
+    if (left.isEmpty()) return;
+    const QString right = QFileDialog::getOpenFileName(
+        this, tr("Right fixture (.s2p)  -- Cancel to reuse left"),
+        QString(), tr("Touchstone (*.s2p)"));
+
+    using sikit::touchstone::TouchstoneFile;
+    using sikit::touchstone::TouchstoneReader;
+    TouchstoneFile measured, fl, fr, out;
+    try {
+        measured = TouchstoneReader::read_file(meas.toStdString());
+        fl       = TouchstoneReader::read_file(left.toStdString());
+        if (right.isEmpty()) {
+            out = sikit::sparam::deembed_symmetric(measured, fl);
+        } else {
+            fr = TouchstoneReader::read_file(right.toStdString());
+            out = sikit::sparam::deembed(measured, fl, fr);
+        }
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("De-embed"), e.what());
+        return;
+    }
+    auto* w = new SParamPlotWindow();
+    w->setWindowFlag(Qt::Window);
+    w->setAttribute(Qt::WA_DeleteOnClose);
+    w->setData(out);
+    w->setTitleSubtext(QString("De-embedded %1")
+                            .arg(QFileInfo(meas).fileName()));
+    w->show();
+}
+
+void SiTab::onCompareOverlay() {
+    const QString a = QFileDialog::getOpenFileName(
+        this, tr("Primary (simulated) Touchstone"), QString(),
+        tr("Touchstone (*.s*p)"));
+    if (a.isEmpty()) return;
+    const QString b = QFileDialog::getOpenFileName(
+        this, tr("Overlay (measured) Touchstone"), QString(),
+        tr("Touchstone (*.s*p)"));
+    if (b.isEmpty()) return;
+    sikit::touchstone::TouchstoneFile ta, tb;
+    try {
+        ta = sikit::touchstone::TouchstoneReader::read_file(a.toStdString());
+        tb = sikit::touchstone::TouchstoneReader::read_file(b.toStdString());
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Compare"), e.what());
+        return;
+    }
+    auto* w = new SParamPlotWindow();
+    w->setWindowFlag(Qt::Window);
+    w->setAttribute(Qt::WA_DeleteOnClose);
+    w->setData(ta);
+    w->setOverlay(tb, QFileInfo(b).fileName().toStdString());
+    w->setTitleSubtext(QString("Compare %1 vs %2")
+                            .arg(QFileInfo(a).fileName())
+                            .arg(QFileInfo(b).fileName()));
+    w->show();
+}
+
+void SiTab::onCheckSkew() {
+    if (!model_->board()) return;
+    auto stackup = sikit::analysis::AnalysisStackup::from_board(
+        *model_->board(), model_->siStackup());
+    auto skews = sikit::si::compute_diff_pair_skews(
+        *model_->board(), stackup, 5.0);
+    if (skews.empty()) {
+        QMessageBox::information(this, tr("Diff-pair skew"),
+                                  tr("No diff pairs detected on this board."));
+        return;
+    }
+    std::vector<QStringList> rows;
+    rows.reserve(skews.size());
+    for (const auto& s : skews) {
+        QStringList r;
+        r << QString::fromStdString(s.base_name)
+          << QString::number(s.length_p_m * 1e3, 'f', 3)
+          << QString::number(s.length_n_m * 1e3, 'f', 3)
+          << QString::number(s.skew_m * 1e6, 'f', 1)
+          << QString::number(s.skew_ps, 'f', 2)
+          << (s.exceeds_budget ? "FAIL" : "ok");
+        rows.push_back(std::move(r));
+    }
+    QStringList headers;
+    headers << "Pair" << "P length mm" << "N length mm"
+            << "skew um" << "skew ps" << "vs budget";
+    showResultsDialog(this, tr("Diff-pair skew (budget 5 ps)"),
+                       headers, rows);
+}
+
+void SiTab::onCheckReturnPath() {
+    if (!model_->board()) return;
+    auto vs = sikit::si::detect_return_path_violations(*model_->board(), 20,
+                                                         0.05);
+    if (vs.empty()) {
+        QMessageBox::information(this, tr("Return path"),
+                                  tr("No violations -- every signal trace "
+                                      "has a continuous reference plane."));
+        return;
+    }
+    std::vector<QStringList> rows;
+    rows.reserve(vs.size());
+    for (const auto& v : vs) {
+        const auto* net = model_->board()->find_net(v.net_id);
+        const QString net_name = net ? QString::fromStdString(net->name)
+                                      : QString::number(v.net_id);
+        const auto* sl = model_->board()->find_layer(v.signal_layer);
+        const auto* rl = model_->board()->find_layer(v.reference_layer);
+        QStringList r;
+        r << QString::number(v.segment_index)
+          << net_name
+          << (sl ? QString::fromStdString(sl->name) : QString("?"))
+          << (rl ? QString::fromStdString(rl->name) : QString("(none)"))
+          << QString::number(v.segment_length_m * 1e3, 'f', 2)
+          << QString::number(v.off_plane_fraction * 100.0, 'f', 1) + "%"
+          << QString::number(v.severity_m * 1e3, 'f', 2);
+        rows.push_back(std::move(r));
+    }
+    QStringList headers;
+    headers << "Seg #" << "Net" << "Signal layer" << "Reference"
+            << "Length mm" << "Off-plane" << "Severity mm";
+    showResultsDialog(this, tr("Return-path violations"), headers, rows);
+}
+
+void SiTab::onDeriveTopology() {
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Open KiCad .net"), QString(),
+        tr("KiCad netlist (*.net)"));
+    if (path.isEmpty()) return;
+    auto r = circuitcore::formats::kicad::NetlistParser::parse_file(
+        path.toStdString());
+    if (!r.has_value()) {
+        QMessageBox::critical(this, tr("Derive topology"),
+                               QString::fromStdString(r.error().format()));
+        return;
+    }
+    auto all = sikit::si::derive_all_topologies(r.value());
+    std::vector<QStringList> rows;
+    rows.reserve(all.size());
+    for (const auto& t : all) {
+        QStringList row;
+        row << QString::fromStdString(t.net_name)
+            << QString::number(t.endpoints.size())
+            << QString::number(t.drivers().size())
+            << QString::number(t.receivers().size())
+            << QString::number(t.passives().size())
+            << (t.has_driver_problem() ? "FLAG" : "ok");
+        rows.push_back(std::move(row));
+    }
+    QStringList headers;
+    headers << "Net" << "Endpoints" << "Drivers" << "Receivers"
+            << "Passives" << "Sanity";
+    showResultsDialog(this, tr("Schematic-derived topology"), headers, rows);
 }
 
 }  // namespace circuitcore::studio
