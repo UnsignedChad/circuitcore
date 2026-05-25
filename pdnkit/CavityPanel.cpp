@@ -23,6 +23,7 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QVBoxLayout>
+#include <utility>
 
 #include "ZfPlotWidget.h"
 #include "pi/CavityModel.h"

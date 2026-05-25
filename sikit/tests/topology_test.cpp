@@ -5,6 +5,7 @@
 #include <complex>
 #include <memory>
 #include <vector>
+#include <algorithm>
 
 #include "si/Topology.h"
 #include "si/Touchstone.h"

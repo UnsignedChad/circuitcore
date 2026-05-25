@@ -17,6 +17,8 @@
 #include <spdlog/spdlog.h>
 
 #include <cmath>
+#include <memory>
+#include <utility>
 
 #include "EyeWindow.h"
 #include "SParamPlotWindow.h"

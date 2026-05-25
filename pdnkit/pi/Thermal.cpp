@@ -1,6 +1,7 @@
 #include "pi/Thermal.h"
 
 #include <cmath>
+#include <utility>
 
 namespace pdnkit::pi {
 

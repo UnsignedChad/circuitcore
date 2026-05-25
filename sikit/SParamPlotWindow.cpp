@@ -15,6 +15,7 @@
 #include <QPaintEvent>
 #include <QPen>
 #include <QVBoxLayout>
+#include <utility>
 
 namespace {
 

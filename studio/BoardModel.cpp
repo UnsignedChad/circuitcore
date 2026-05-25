@@ -1,6 +1,7 @@
 #include "BoardModel.h"
 
 #include <utility>
+#include <memory>
 
 #include "circuitcore/formats/kicad/PcbParser.h"
 

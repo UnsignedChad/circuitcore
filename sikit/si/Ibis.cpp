@@ -9,6 +9,7 @@
 #include <limits>
 #include <optional>
 #include <sstream>
+#include <utility>
 
 namespace sikit::ibis {
 

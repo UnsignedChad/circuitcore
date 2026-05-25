@@ -17,6 +17,7 @@
 #include <spdlog/spdlog.h>
 
 #include <Eigen/Core>
+#include <utility>
 
 #include "MainWindow.h"
 #include "circuitcore/formats/kicad/PcbParser.h"

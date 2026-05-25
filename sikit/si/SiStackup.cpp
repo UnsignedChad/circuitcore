@@ -4,6 +4,7 @@
 #include <cctype>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 #include "circuitcore/sexpr/SExpr.h"
 

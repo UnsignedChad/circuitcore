@@ -8,6 +8,7 @@
 
 #include <QMainWindow>
 #include <optional>
+#include <memory>
 
 #include "si/Ami.h"
 #include "si/Ibis.h"

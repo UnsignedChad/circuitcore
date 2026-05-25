@@ -4,6 +4,8 @@
 #include <complex>
 #include <numbers>
 #include <stdexcept>
+#include <algorithm>
+#include <utility>
 
 namespace sikit::analysis {
 

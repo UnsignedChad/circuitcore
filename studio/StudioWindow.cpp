@@ -20,6 +20,7 @@
 #include <QTextBrowser>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <memory>
 
 #include "BoardModel.h"
 #include "BoardTab.h"

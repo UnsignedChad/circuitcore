@@ -6,6 +6,8 @@
 #include <format>
 #include <numbers>
 #include <stdexcept>
+#include <memory>
+#include <utility>
 
 #include "si/SParam.h"
 

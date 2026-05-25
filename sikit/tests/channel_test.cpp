@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <numbers>
+#include <algorithm>
 
 #include "si/ChannelResponse.h"
 #include "si/Touchstone.h"

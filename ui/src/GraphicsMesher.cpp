@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include <mapbox/earcut.hpp>
+#include <utility>
 
 namespace mapbox {
 namespace util {
