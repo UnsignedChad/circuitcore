@@ -27,6 +27,12 @@ public:
 signals:
     void visibility_changed(int ordinal, bool visible);
 
+    // Emitted when the user edits a layer's thickness spinbox. The
+    // value is in meters (the panel does the um -> m conversion).
+    // MainWindow listens and writes board_->stackup.layers[i].thickness
+    // so the next analysis uses the override.
+    void thickness_changed(int ordinal, double thickness_m);
+
 private:
     void clearRows();
 
