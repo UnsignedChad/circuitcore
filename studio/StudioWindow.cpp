@@ -14,6 +14,7 @@
 #include "BoardModel.h"
 #include "BoardTab.h"
 #include "SiTab.h"
+#include "PiTab.h"
 
 namespace circuitcore::studio {
 
@@ -62,12 +63,7 @@ StudioWindow::StudioWindow(QWidget* parent)
     board_tab_ = new BoardTab(model_.get(), tabs_);
     tabs_->addTab(board_tab_, "Board");
     tabs_->addTab(new SiTab(model_.get(), tabs_), "SI");
-    tabs_->addTab(
-        makePlaceholderTab(
-            "Power Integrity",
-            "IR-drop analysis, decap sensitivity, cavity model.\n"
-            "Wired in by Task #4."),
-        "PI");
+    tabs_->addTab(new PiTab(model_.get(), tabs_), "PI");
     tabs_->addTab(
         makePlaceholderTab(
             "EMI / EMC",
