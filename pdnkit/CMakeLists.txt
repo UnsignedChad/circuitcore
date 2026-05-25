@@ -18,6 +18,7 @@ add_library(pdnkit_pi STATIC
     pi/Vrm.cpp
     pi/Thermal.cpp
     pi/Roughness.cpp
+    pi/Sensitivity.cpp
     render/Camera2D.cpp
     render/ZoneMesher.cpp
     render/IrResultMesh.cpp
