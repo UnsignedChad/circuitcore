@@ -20,6 +20,7 @@ add_library(pdnkit_pi STATIC
     pi/Roughness.cpp
     pi/Sensitivity.cpp
     pi/Mor.cpp
+    StackupWriter.cpp
     render/Camera2D.cpp
     render/ZoneMesher.cpp
     render/IrResultMesh.cpp
@@ -34,6 +35,7 @@ target_link_libraries(pdnkit_pi PUBLIC
     circuitcore::board
     Eigen3::Eigen
     spdlog::spdlog
+    circuitcore::sexpr
 )
 if(CIRCUITCORE_HAVE_CHOLMOD)
     target_compile_definitions(pdnkit_pi PUBLIC PDNKIT_HAVE_CHOLMOD)

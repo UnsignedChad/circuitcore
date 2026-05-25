@@ -23,6 +23,7 @@ add_executable(pdnkit_tests
     touchstone_test.cpp
     vrm_test.cpp
     thermal_test.cpp
+    stackup_writer_test.cpp
     roughness_test.cpp
     sensitivity_test.cpp
     mor_test.cpp
