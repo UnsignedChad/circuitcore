@@ -20,7 +20,7 @@ namespace {
 constexpr double kMmToM = 1.0e-3;
 
 // Convert degrees → radians.
-constexpr double kDegToRad = 0.017453292519943295;  // M_PI / 180.0
+constexpr double kDegToRad = 0.017453292519943295;  // pi / 180
 
 [[noreturn]] void fail(const Node& n, const std::string& msg) {
     throw ParseError{msg, n.line, n.col};

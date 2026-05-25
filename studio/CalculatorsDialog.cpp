@@ -1,6 +1,7 @@
 #include "CalculatorsDialog.h"
 
 #include <cmath>
+#include <numbers>
 
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -133,7 +134,7 @@ CalculatorsDialog::CalculatorsDialog(QWidget* parent)
             [t, r, L, f]() {
                 pdnkit::pi::VrmModel m{r->value() * 1.0e-3,
                                         L->value() * 1.0e-6};
-                const double omega = 2.0 * M_PI * f->value();
+                const double omega = 2.0 * std::numbers::pi * f->value();
                 const auto z = pdnkit::pi::vrm_impedance(m, omega);
                 const double mag = std::abs(z);
                 t.result->setText(tr("<b>|Z_VRM| = %1 mOhm</b><br>"
@@ -186,7 +187,7 @@ CalculatorsDialog::CalculatorsDialog(QWidget* parent)
                 const double r_q_m = rq->value() * 1.0e-6;
                 const double k = pdnkit::pi::hj_roughness_multiplier(
                     r_q_m, f->value());
-                const double omega = 2.0 * M_PI * f->value();
+                const double omega = 2.0 * std::numbers::pi * f->value();
                 const double delta = pdnkit::pi::skin_depth_copper(omega);
                 t.result->setText(tr("<b>K_HJ = %1</b> (Rs_rough = K * Rs_smooth)<br>"
                                      "skin depth = %2 um<br>"

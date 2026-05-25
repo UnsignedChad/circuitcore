@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 #include "si/Fft.h"
 
@@ -10,7 +11,7 @@ namespace sikit::fdtd {
 double gaussian_modulated_sinusoid(double t, double t0, double spread,
                                     double fc) {
     const double x = (t - t0) / spread;
-    return std::exp(-x * x) * std::sin(2.0 * M_PI * fc * (t - t0));
+    return std::exp(-x * x) * std::sin(2.0 * std::numbers::pi * fc * (t - t0));
 }
 
 std::vector<double> make_gms_drive(int n_steps, double dt,
