@@ -19,8 +19,12 @@ add_library(circuitcore_ui STATIC
     src/SegmentMesher.cpp
     src/ViaMesher.cpp
     src/ZoneMesher.cpp
+    src/PcbCanvas.cpp
+    include/circuitcore/ui/PcbCanvas.h
 )
 add_library(circuitcore::ui ALIAS circuitcore_ui)
+
+set_target_properties(circuitcore_ui PROPERTIES AUTOMOC ON)
 
 target_include_directories(circuitcore_ui PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -34,6 +38,7 @@ target_link_libraries(circuitcore_ui
     PUBLIC
         circuitcore::board
         Qt6::Gui          # QMatrix4x4 / QVector* in Camera headers
+        Qt6::OpenGLWidgets   # PcbCanvas extends QOpenGLWidget
 )
 
 target_compile_options(circuitcore_ui PRIVATE -Wall -Wextra -Wpedantic)
