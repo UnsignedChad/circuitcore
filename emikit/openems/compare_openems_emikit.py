@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
-"""
-Feed openEMS's measured port-current spectrum into emikit's closed-form
-loop_e_field and compare to openEMS's full-wave far-field.
-
-If the two land within a few dB, emikit's algorithm is correct for the
-geometry it models -- and the entire 30-70 dB chamber gap on the TI
-EVM is purely scope (multi-net, activity factor, cable common-mode
-which is modeled separately).
-"""
+"""feeds openEMS's measured port-current spectrum into emikit's
+loop_e_field and compares to the full-wave far-field."""
 import math
 import h5py
 import numpy as np
