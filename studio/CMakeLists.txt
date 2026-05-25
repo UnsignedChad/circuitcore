@@ -38,7 +38,8 @@ target_link_libraries(circuitcore_studio PRIVATE
     circuitcore::kicad
     sikit_si              # SiStackup parsing + channel synthesis
     sikit::widgets        # SParamPlotWindow + EyeWindow
-    pdnkit_pi             # IrMesher + IrSolver for the PI tab
+    pdnkit::widgets       # PcbCanvas + AnalysisPanel + NetStatsPanel + ...
+    pdnkit_pi             # IrMesher + IrSolver + Thermal for PiTab slots
     emikit_emi            # analyze_board for the EMI tab
     Qt6::Widgets
 )

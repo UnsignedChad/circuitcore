@@ -1,50 +1,71 @@
-// Studio PI tab.
+// Studio PI tab -- full pdnkit feature parity.
 //
-// Same horizontal split as the SI tab: circuitcore::ui::PcbCanvas on
-// the left, an analysis panel on the right. v1 wires the headline
-// pdnkit workflow:
-//   - Net (typically a power rail) + layer pickers
-//   - "Run IR-drop" button: pdnkit::pi::IrMesher::build -> IrSolver::solve
-//   - Display Vmax/Vmin/drop in the panel
+// The tab is a QMainWindow internally so it can host QDockWidgets for
+// the pdnkit panels (AnalysisPanel, NetStatsPanel, CavityPanel,
+// TransientPanel, DrcPanel, LayerPanel) the same way pdnkit's own
+// MainWindow does. The central widget is pdnkit::PcbCanvas (heat-map,
+// markers, decap dots, cavity highlight, hotspot ring, probe-R).
 //
-// pdnkit's richer panels (AnalysisPanel, CavityPanel, TransientPanel,
-// DrcPanel, etc.) are not embedded yet -- they live in pdnkit/main.cpp
-// today and pulling them in needs the same pdnkit_widgets extraction
-// the sikit refactor in PR #65 did. That comes when we want more than
-// the IR-drop number on screen.
+// Wiring mirrors pdnkit/MainWindow.cpp -- studio is glue, not new
+// analysis code. The duplication with the standalone pdnkit GUI is
+// acceptable for v1; future cleanup can extract a shared PdnController.
 
 #pragma once
 
-#include <QWidget>
+#include <QMainWindow>
+#include <memory>
 
-class QComboBox;
+#include "pi/IrMesher.h"
+#include "pi/IrSolver.h"
+
+// Forward declarations -- everything below comes from pdnkit_widgets.
+class PcbCanvas;          // pdnkit's subclass of circuitcore::ui::PcbCanvas
+class AnalysisPanel;
+class NetStatsPanel;
+class CavityPanel;
+class TransientPanel;
+class DrcPanel;
+class LayerPanel;
+class ColorLegend;
 class QLabel;
-
-namespace circuitcore::ui {
-class PcbCanvas;
-}
 
 namespace circuitcore::studio {
 
 class BoardModel;
 
-class PiTab : public QWidget {
+class PiTab : public QMainWindow {
     Q_OBJECT
 public:
     explicit PiTab(BoardModel* model, QWidget* parent = nullptr);
+    ~PiTab() override;
 
 private slots:
     void onBoardLoaded();
-    void onRunIrDrop();
+    void onAnalyzeStaticIrDrop();
+    void onProbeRequested(int pad_a, int pad_b, int net_id, int layer_ord);
 
 private:
-    void refreshNetAndLayerLists();
+    void populateLayerPanel();
 
     BoardModel* model_;
-    ui::PcbCanvas* canvas_;
-    QComboBox* net_combo_;
-    QComboBox* layer_combo_;
-    QLabel* result_;
+
+    PcbCanvas*       canvas_ = nullptr;
+    ColorLegend*     legend_ = nullptr;
+    AnalysisPanel*   analysis_panel_ = nullptr;
+    NetStatsPanel*   netstats_panel_ = nullptr;
+    CavityPanel*     cavity_panel_   = nullptr;
+    TransientPanel*  transient_panel_ = nullptr;
+    DrcPanel*        drc_panel_      = nullptr;
+    LayerPanel*      layer_panel_    = nullptr;
+    QLabel*          hover_label_    = nullptr;
+
+    // Cache the last analysis result so the probe-R workflow can reuse
+    // the mesh + solution without re-running the solver.
+    pdnkit::pi::IrMesh   last_mesh_;
+    pdnkit::pi::Solution last_solution_;
+    double last_cell_size_       = 5.0e-4;
+    double last_copper_thickness_ = 35.0e-6;
+    double last_copper_rho_      = 1.68e-8;
 };
 
 }  // namespace circuitcore::studio
