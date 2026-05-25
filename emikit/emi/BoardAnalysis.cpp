@@ -61,7 +61,11 @@ AnalysisResult analyze_board(
     }
 
     // Per-frequency drive current envelope -- shared across all nets in v1.
-    const auto drive_a = spectrum_sweep(config.drive, freqs);
+    // Use the worst-case envelope (Montrose form) rather than the
+    // exact harmonic magnitudes. Real EMI receivers see the envelope
+    // -- their IF bandwidth catches multiple harmonics and real
+    // signals have edge jitter that fills in the sinc nulls.
+    const auto drive_a = envelope_sweep(config.drive, freqs);
 
     // Initialize worst-case envelope to -inf.
     R.worst_case_dbuv.assign(freqs.size(), -1000.0);
@@ -95,7 +99,50 @@ AnalysisResult analyze_board(
         R.nets.push_back(std::move(ne));
     }
 
-    if (R.nets.empty()) {
+    // Cables. Each cable carries a common-mode current derived from
+    // the shared drive spectrum (or supplied explicitly) and radiates
+    // independently of the loop. The two contributions are summed in
+    // power per frequency.
+    for (const auto& cable : config.cables) {
+        if (cable.length_m <= 0.0) continue;
+        CableEmission ce;
+        ce.length_m = cable.length_m;
+        ce.cm_current_a = estimate_cm_current(cable, drive_a);
+        ce.e_dbuv.assign(freqs.size(), -1000.0);
+
+        for (std::size_t k = 0; k < freqs.size(); ++k) {
+            CableSpec instant = cable;
+            instant.cm_current_a = ce.cm_current_a[k];
+            const double e_v =
+                cable_cm_e_field(instant, freqs[k], config.test_distance_m);
+            if (e_v <= 0.0) continue;
+            ce.e_dbuv[k] = 20.0 * std::log10(e_v * 1.0e6);
+
+            // Power-sum into the worst-case envelope.
+            const double loop_dbuv  = R.worst_case_dbuv[k];
+            const double loop_v     = (loop_dbuv > -900.0)
+                                      ? std::pow(10.0, loop_dbuv / 20.0)
+                                      : 0.0;
+            const double cable_v    = ce.e_dbuv[k] > -900.0
+                                      ? std::pow(10.0, ce.e_dbuv[k] / 20.0)
+                                      : 0.0;
+            const double total_v    = std::sqrt(loop_v * loop_v +
+                                                  cable_v * cable_v);
+            R.worst_case_dbuv[k]    = 20.0 * std::log10(total_v);
+
+            if (R.worst_case_dbuv[k] > worst_overall_value) {
+                worst_overall_value = R.worst_case_dbuv[k];
+                // Tag cables in the verdict with their length to
+                // distinguish from nets.
+                worst_overall_net = "<cable " +
+                    std::to_string(static_cast<int>(cable.length_m * 100.0)) +
+                    " cm>";
+            }
+        }
+        R.cables.push_back(std::move(ce));
+    }
+
+    if (R.nets.empty() && R.cables.empty()) {
         // Nothing matched -- absence of routed nets is not a PASS.
         R.verdict.status = Verdict::Status::NoData;
         return R;

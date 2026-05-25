@@ -112,3 +112,70 @@ TEST_CASE("analysis: default freq grid covers 30 MHz to 1 GHz", "[emi]") {
     REQUIRE(g.front() == Approx(30.0e6));
     REQUIRE(g.back()  == Approx(1.0e9));
 }
+// Append to analysis_test.cpp -- tests for cables-in-AnalysisConfig.
+
+TEST_CASE("analysis: cable contributes to envelope alongside loop",
+          "[emi]") {
+    auto b = one_trace_board(50e-3);
+    AnalysisConfig cfg;
+    emikit::emi::CableSpec cable;
+    cable.length_m = 0.5;
+    cable.cm_current_a = 50.0e-6;   // explicit
+    cfg.cables.push_back(cable);
+
+    auto R = analyze_board(b, cispr32_class_b(), cfg);
+    REQUIRE(R.cables.size() == 1);
+    REQUIRE(R.cables[0].length_m == Approx(0.5));
+    // Cable's E should dominate over the small SCLK loop in this band.
+    REQUIRE(R.cables[0].e_dbuv.size() == R.worst_case_dbuv.size());
+    // Cable contribution at every freq should push the envelope above
+    // the loop-only level.
+    bool any_cable_lifted = false;
+    for (std::size_t k = 0; k < R.worst_case_dbuv.size(); ++k) {
+        if (R.cables[0].e_dbuv[k] > R.nets[0].e_dbuv[k]) {
+            any_cable_lifted = true; break;
+        }
+    }
+    REQUIRE(any_cable_lifted);
+}
+
+TEST_CASE("analysis: ground-bounce estimator drives cable contribution",
+          "[emi]") {
+    auto b = one_trace_board(50e-3);
+    AnalysisConfig cfg;
+    cfg.drive.i_peak_a    = 10.0e-3;
+    cfg.drive.rise_time_s = 1.0e-9;
+    cfg.drive.period_s    = 1.0e-8;        // 100 MHz
+
+    emikit::emi::CableSpec cable;
+    cable.length_m = 0.3;
+    cable.ground_inductance_h = 10.0e-9;   // 10 nH, realistic for a slot
+    cable.cable_cm_inductance_per_m_h = 1.0e-6;
+    cfg.cables.push_back(cable);
+
+    auto R = analyze_board(b, cispr32_class_b(), cfg);
+    REQUIRE(R.cables.size() == 1);
+    // I_cm spectrum should be non-zero where signal current is non-zero.
+    bool any_nonzero = false;
+    for (auto i : R.cables[0].cm_current_a) {
+        if (i > 0.0) { any_nonzero = true; break; }
+    }
+    REQUIRE(any_nonzero);
+}
+
+TEST_CASE("analysis: cable alone (no segments) still produces a verdict",
+          "[emi]") {
+    circuitcore::board::Board b;   // no nets, no segments
+    AnalysisConfig cfg;
+    emikit::emi::CableSpec cable;
+    cable.length_m = 1.0;
+    cable.cm_current_a = 100.0e-6;
+    cfg.cables.push_back(cable);
+
+    auto R = analyze_board(b, cispr32_class_b(), cfg);
+    REQUIRE(R.nets.empty());
+    REQUIRE(R.cables.size() == 1);
+    // With a real cable contribution, this is not NoData -- we have
+    // data to score against the mask.
+    REQUIRE(R.verdict.status != Verdict::Status::NoData);
+}

@@ -75,3 +75,56 @@ TEST_CASE("cable: TI ADS8686S working point sanity check",
     REQUIRE(cable_cm_e_field_dbuv(c, 480e6, 10.0) ==
               Approx(54.71).margin(0.1));
 }
+// Append to cable_cm_test.cpp -- tests for estimate_cm_current and the
+// BoardAnalysis cable integration.
+
+TEST_CASE("estimator: explicit I_cm overrides L_gnd path", "[cable]") {
+    CableSpec c;
+    c.length_m = 0.3;
+    c.cm_current_a = 5.0e-6;
+    c.ground_inductance_h = 100.0e-9;   // would estimate much higher
+
+    auto out = estimate_cm_current(c, {1.0e-3, 2.0e-3, 3.0e-3});
+    REQUIRE(out.size() == 3);
+    for (auto v : out) REQUIRE(v == Approx(5.0e-6));
+}
+
+TEST_CASE("estimator: ground-bounce ratio matches hand calc", "[cable]") {
+    // L_gnd = 5 nH, cable 30 cm of 1 uH/m -> total cable L = 0.3 uH
+    // ratio = 2 * 5e-9 / 0.3e-6 = 3.33e-2
+    CableSpec c;
+    c.length_m = 0.3;
+    c.ground_inductance_h = 5.0e-9;
+    c.cable_cm_inductance_per_m_h = 1.0e-6;
+
+    auto out = estimate_cm_current(c, {1.0e-3, 5.0e-3, 10.0e-3});
+    REQUIRE(out[0] == Approx(3.333e-5).epsilon(0.001));
+    REQUIRE(out[1] == Approx(1.667e-4).epsilon(0.001));
+    REQUIRE(out[2] == Approx(3.333e-4).epsilon(0.001));
+}
+
+TEST_CASE("estimator: returns zeros when no model fields set", "[cable]") {
+    CableSpec c;
+    c.length_m = 0.3;  // length alone is not enough
+    auto out = estimate_cm_current(c, {1.0e-3, 2.0e-3});
+    for (auto v : out) REQUIRE(v == 0.0);
+}
+
+TEST_CASE("estimator: hand-computed cable contribution for TI working point",
+          "[cable][calibration]") {
+    // 30 cm USB cable, signal current 1 mA at 480 MHz, 5 nH ground bounce
+    // I_cm = (2 * 5e-9 / (1e-6 * 0.3)) * 1e-3 = 3.33e-2 * 1e-3 = 33.3 uA
+    // E = (eta0/c) * 33.3e-6 * 0.3 * 4.8e8 / 10 = 6.03e-4 V/m -> 55.6 dBuV/m
+    CableSpec c;
+    c.length_m = 0.3;
+    c.ground_inductance_h = 5.0e-9;
+    c.cable_cm_inductance_per_m_h = 1.0e-6;
+
+    auto i_cm = estimate_cm_current(c, {1.0e-3});
+    REQUIRE(i_cm[0] == Approx(33.33e-6).epsilon(0.001));
+
+    CableSpec instant = c;
+    instant.cm_current_a = i_cm[0];
+    REQUIRE(cable_cm_e_field_dbuv(instant, 480e6, 10.0) ==
+              Approx(55.59).margin(0.1));
+}

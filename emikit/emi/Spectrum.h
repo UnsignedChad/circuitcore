@@ -40,6 +40,16 @@ double harmonic_magnitude(const TrapezoidalSpec& spec, int n);
 std::vector<double> spectrum_sweep(const TrapezoidalSpec& spec,
                                     const std::vector<double>& freq_hz);
 
+// Worst-case envelope across all harmonics near f. Strips the sinc
+// nulls of harmonic_magnitude. Use this for pre-compliance prediction
+// -- real EMI receivers see the envelope across their IF bandwidth
+// and real signals have edge jitter that fills in the nulls.
+//
+// |I_env(f)| = 2 * I_peak * d * min(1, 1/(pi*f*tau)) * min(1, 1/(pi*f*t_r))
+double envelope_magnitude(const TrapezoidalSpec& spec, double freq_hz);
+std::vector<double> envelope_sweep(const TrapezoidalSpec& spec,
+                                    const std::vector<double>& freq_hz);
+
 // The two corner frequencies of the envelope. Useful for sanity-checking
 // the rise-time-vs-bit-rate trade-off the user is making.
 struct EnvelopeCorners {

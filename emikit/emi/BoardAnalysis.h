@@ -20,6 +20,7 @@
 #include "circuitcore/board/Board.h"
 #include "emi/LoopEmissions.h"
 #include "emi/Masks.h"
+#include "emi/CableCommonMode.h"
 #include "emi/Spectrum.h"
 
 namespace emikit::emi {
@@ -44,6 +45,13 @@ struct AnalysisConfig {
     // Only analyze nets whose names match any of these substrings
     // (case-insensitive). Empty -> all nets with at least one segment.
     std::vector<std::string> net_filter;
+
+    // Optional cables whose common-mode emission gets summed into the
+    // worst-case envelope. Each cable contributes via CableCommonMode;
+    // I_cm is either explicit (CableSpec::cm_current_a) or estimated
+    // from CableSpec::ground_inductance_h driven by the shared drive
+    // spectrum.
+    std::vector<CableSpec> cables;
 };
 
 struct NetEmission {
@@ -53,6 +61,14 @@ struct NetEmission {
     double total_length_m = 0.0;
     double loop_area_m2 = 0.0;
     // E-field in dBuV/m, one per AnalysisConfig::freq_hz entry.
+    std::vector<double> e_dbuv;
+};
+
+struct CableEmission {
+    double length_m = 0.0;
+    // Estimated or explicit common-mode current per frequency (A).
+    std::vector<double> cm_current_a;
+    // Resulting far-field E in dBuV/m per frequency.
     std::vector<double> e_dbuv;
 };
 
@@ -69,8 +85,10 @@ struct Verdict {
 
 struct AnalysisResult {
     std::vector<NetEmission> nets;
-    // For each freq_hz entry: the max E-field across all evaluated
-    // nets. This is the curve that gets compared to the mask.
+    std::vector<CableEmission> cables;
+    // For each freq_hz entry: the power-sum of all per-net loop
+    // contributions and all per-cable CM contributions. This is the
+    // curve that gets compared to the mask.
     std::vector<double> worst_case_dbuv;
     Verdict verdict;
 };
