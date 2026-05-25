@@ -71,14 +71,30 @@ target_link_libraries(sikit_si
 )
 target_compile_options(sikit_si PRIVATE -Wall -Wextra -Wpedantic)
 
+# Embeddable Qt widgets. Separated from the GUI executable so that
+# downstream apps (the studio shell, future tools) can link them without
+# pulling in sikit/main.cpp + MainWindow.cpp.
+add_library(sikit_widgets STATIC
+    EyeWindow.cpp
+    SParamPlotWindow.cpp
+    EyeWindow.h
+    SParamPlotWindow.h
+)
+add_library(sikit::widgets ALIAS sikit_widgets)
+set_target_properties(sikit_widgets PROPERTIES AUTOMOC ON)
+target_include_directories(sikit_widgets PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(sikit_widgets PUBLIC
+    sikit_si
+    Qt6::Widgets
+)
+target_compile_options(sikit_widgets PRIVATE -Wall -Wextra -Wpedantic)
+
 # GUI binary. Needs the KiCad adapter to open files, plus Qt.
 add_executable(sikit
     main.cpp
     MainWindow.cpp
     PcbCanvas.cpp
     LayerPanel.cpp
-    EyeWindow.cpp
-    SParamPlotWindow.cpp
 )
 set_target_properties(sikit PROPERTIES
     AUTOMOC ON
@@ -87,6 +103,7 @@ set_target_properties(sikit PROPERTIES
 )
 target_link_libraries(sikit PRIVATE
     sikit_si
+    sikit::widgets
     circuitcore::kicad
     Qt6::Widgets
     Qt6::OpenGLWidgets
