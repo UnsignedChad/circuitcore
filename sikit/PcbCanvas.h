@@ -72,6 +72,8 @@ protected:
 private:
     void uploadOverlay();
     void rebuildMesh3D();
+    void drawGizmo();
+
 
     ViewMode view_mode_ = ViewMode::D2;
     const sikit::si::SiStackup* si_stackup_ = nullptr;
