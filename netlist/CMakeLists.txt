@@ -9,4 +9,4 @@ add_library(circuitcore::netlist ALIAS circuitcore_netlist)
 target_include_directories(circuitcore_netlist PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-target_compile_options(circuitcore_netlist PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(circuitcore_netlist)

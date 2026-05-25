@@ -45,4 +45,4 @@ target_link_libraries(circuitcore_studio PRIVATE
     Qt6::Widgets
 )
 
-target_compile_options(circuitcore_studio PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(circuitcore_studio)

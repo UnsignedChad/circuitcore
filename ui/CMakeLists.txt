@@ -43,4 +43,4 @@ target_link_libraries(circuitcore_ui
         Qt6::OpenGLWidgets   # PcbCanvas extends QOpenGLWidget
 )
 
-target_compile_options(circuitcore_ui PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(circuitcore_ui)

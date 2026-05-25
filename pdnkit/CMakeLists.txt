@@ -39,7 +39,7 @@ if(CIRCUITCORE_HAVE_CHOLMOD)
     target_include_directories(pdnkit_pi PRIVATE ${CHOLMOD_INCLUDE_DIR})
     target_link_libraries(pdnkit_pi PUBLIC ${CHOLMOD_LIBRARY})
 endif()
-target_compile_options(pdnkit_pi PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(pdnkit_pi)
 
 # Embeddable Qt widgets. Separated from the GUI executable so that
 # downstream apps (the studio shell) can link them without pulling in
@@ -79,7 +79,7 @@ target_link_libraries(pdnkit_widgets PUBLIC
     Qt6::OpenGLWidgets
     Qt6::OpenGL
 )
-target_compile_options(pdnkit_widgets PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(pdnkit_widgets)
 
 # GUI binary. Needs the KiCad adapter to open files, plus Qt.
 add_executable(pdnkit
@@ -100,7 +100,7 @@ target_link_libraries(pdnkit PRIVATE
     Qt6::OpenGL
     CLI11::CLI11
 )
-target_compile_options(pdnkit PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(pdnkit)
 
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)

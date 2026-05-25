@@ -8,4 +8,4 @@ add_library(circuitcore::sexpr ALIAS circuitcore_sexpr)
 target_include_directories(circuitcore_sexpr PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-target_compile_options(circuitcore_sexpr PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(circuitcore_sexpr)

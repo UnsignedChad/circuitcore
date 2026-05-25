@@ -8,4 +8,4 @@ add_library(circuitcore::board ALIAS circuitcore_board)
 target_include_directories(circuitcore_board PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-target_compile_options(circuitcore_board PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(circuitcore_board)
