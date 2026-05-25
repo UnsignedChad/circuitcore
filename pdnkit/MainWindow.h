@@ -43,6 +43,7 @@ private slots:
     void onExportResultsCsv();
     void onSaveModifiedStackup();
     void onExportReducedSpice();
+    void onGenerateReport();
     void onExportTouchstone();
     void onAboutDialog();
     void onShortcutsDialog();

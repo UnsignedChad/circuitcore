@@ -30,6 +30,7 @@
 #include "NetStatsPanel.h"
 #include "LayerPanel.h"
 #include "StackupWriter.h"
+#include "Report.h"
 #include "PcbCanvas.h"
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
@@ -185,6 +186,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         "thicknesses applied. Source file is never overwritten.");
     connect(saveStackupAct, &QAction::triggered, this,
             &MainWindow::onSaveModifiedStackup);
+    auto* reportAct = fileMenu->addAction("&Generate PDN Report...");
+    connect(reportAct, &QAction::triggered, this,
+            &MainWindow::onGenerateReport);
     auto* exportTouchstoneAct = fileMenu->addAction(
         "Export &Touchstone (.s1p)...");
     connect(exportTouchstoneAct, &QAction::triggered, this,
@@ -877,5 +881,39 @@ void MainWindow::onSaveModifiedStackup() {
         QString("Wrote modified stackup to %1 (%2 layer(s) updated)")
             .arg(out_path).arg(r.layers_updated),
         10000);
+}
+
+void MainWindow::onGenerateReport() {
+    if (!board_) {
+        QMessageBox::information(this, "Generate PDN Report",
+            "Open a KiCad PCB first.");
+        return;
+    }
+    const QString suggested = current_board_path_.isEmpty()
+        ? QString("pdnkit_report.html")
+        : QFileInfo(current_board_path_).completeBaseName() + "_pdn.html";
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Generate PDN Report", suggested,
+        "HTML (*.html);;All files (*)");
+    if (path.isEmpty()) return;
+
+    pdnkit::SignoffReport r;
+    r.board = board_.get();
+    r.board_path = current_board_path_.toStdString();
+    if (!last_mesh_.nodes.empty() && last_solution_.ok) {
+        r.ir_mesh     = &last_mesh_;
+        r.ir_solution = &last_solution_;
+    }
+    if (cavity_panel_ && cavity_panel_->hasLastSweep()) {
+        r.zf_freqs = cavity_panel_->lastSweepFreqs();
+        r.zf_z     = cavity_panel_->lastSweepZ();
+    }
+    if (!pdnkit::write_signoff_html(r, path.toStdString())) {
+        QMessageBox::critical(this, "Generate PDN Report",
+            "Failed to write " + path);
+        return;
+    }
+    statusBar()->showMessage(
+        QString("Wrote PDN signoff report to %1").arg(path), 8000);
 }
 
