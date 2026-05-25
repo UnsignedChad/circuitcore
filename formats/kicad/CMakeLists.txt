@@ -15,4 +15,4 @@ target_link_libraries(circuitcore_kicad
             circuitcore::netlist
     PRIVATE circuitcore::sexpr
 )
-target_compile_options(circuitcore_kicad PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(circuitcore_kicad)

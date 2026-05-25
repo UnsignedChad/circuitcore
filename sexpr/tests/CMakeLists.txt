@@ -6,7 +6,5 @@ target_link_libraries(circuitcore_sexpr_tests PRIVATE
     circuitcore::sexpr
     Catch2::Catch2WithMain
 )
-target_compile_options(circuitcore_sexpr_tests PRIVATE
-    -Wall -Wextra -Wpedantic
-)
+circuitcore_warnings(circuitcore_sexpr_tests)
 catch_discover_tests(circuitcore_sexpr_tests)

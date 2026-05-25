@@ -6,7 +6,5 @@ target_link_libraries(circuitcore_kicad_tests PRIVATE
     circuitcore::kicad
     Catch2::Catch2WithMain
 )
-target_compile_options(circuitcore_kicad_tests PRIVATE
-    -Wall -Wextra -Wpedantic
-)
+circuitcore_warnings(circuitcore_kicad_tests)
 catch_discover_tests(circuitcore_kicad_tests)

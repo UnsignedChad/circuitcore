@@ -10,7 +10,7 @@ add_library(emikit_emi STATIC
 )
 target_include_directories(emikit_emi PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(emikit_emi PUBLIC circuitcore::board)
-target_compile_options(emikit_emi PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(emikit_emi)
 
 add_executable(emikit
     main.cpp
@@ -20,13 +20,13 @@ target_link_libraries(emikit PRIVATE
     circuitcore::kicad
     CLI11::CLI11
 )
-target_compile_options(emikit PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(emikit)
 
 add_executable(emikit_validate_ti
     tools/validate_ti.cpp
 )
 target_link_libraries(emikit_validate_ti PRIVATE emikit_emi)
-target_compile_options(emikit_validate_ti PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(emikit_validate_ti)
 
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)

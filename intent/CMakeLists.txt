@@ -13,7 +13,7 @@ target_include_directories(circuitcore_intent PUBLIC
 target_link_libraries(circuitcore_intent
     PUBLIC circuitcore::board circuitcore::netlist
 )
-target_compile_options(circuitcore_intent PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(circuitcore_intent)
 
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)

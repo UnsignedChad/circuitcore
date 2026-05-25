@@ -36,7 +36,5 @@ target_link_libraries(pdnkit_tests PRIVATE
     circuitcore::kicad
     Catch2::Catch2WithMain
 )
-target_compile_options(pdnkit_tests PRIVATE
-    -Wall -Wextra -Wpedantic
-)
+circuitcore_warnings(pdnkit_tests)
 catch_discover_tests(pdnkit_tests)

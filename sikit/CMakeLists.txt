@@ -69,7 +69,7 @@ target_link_libraries(sikit_si
         spdlog::spdlog
         ${CMAKE_DL_LIBS}     # for AMI dlopen
 )
-target_compile_options(sikit_si PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(sikit_si)
 
 # Embeddable Qt widgets. Separated from the GUI executable so that
 # downstream apps (the studio shell, future tools) can link them without
@@ -97,7 +97,7 @@ target_link_libraries(sikit_widgets PUBLIC
     Qt6::OpenGLWidgets
     Qt6::OpenGL
 )
-target_compile_options(sikit_widgets PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(sikit_widgets)
 
 # GUI binary. Needs the KiCad adapter to open files, plus Qt.
 add_executable(sikit
@@ -119,7 +119,7 @@ target_link_libraries(sikit PRIVATE
     Qt6::OpenGL
     CLI11::CLI11
 )
-target_compile_options(sikit PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(sikit)
 
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)

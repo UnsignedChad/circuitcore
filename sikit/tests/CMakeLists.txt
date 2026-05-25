@@ -78,5 +78,5 @@ target_compile_definitions(sikit_tests PRIVATE
     SIKIT_TEST_STUB_AMI_PATH="$<TARGET_FILE:stub_ami_sikit>"
 )
 add_dependencies(sikit_tests stub_ami_sikit)
-target_compile_options(sikit_tests PRIVATE -Wall -Wextra -Wpedantic)
+circuitcore_warnings(sikit_tests)
 catch_discover_tests(sikit_tests)

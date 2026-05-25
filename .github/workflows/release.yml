@@ -25,6 +25,11 @@ jobs:
   build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      # vcpkg binary caching via the built-in GitHub Actions cache.
+      # First run on a fresh runner still compiles from source; every
+      # later run on the same OS reuses the cached binary archives.
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
     strategy:
       fail-fast: false
       matrix:
@@ -41,6 +46,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # -- Export GitHub Actions cache endpoints so vcpkg's x-gha
+      #    binary cache can read/write.
+      - name: Export GitHub Actions cache env
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       # -- Qt6: prebuilt binaries, ~3 min vs ~45 min if vcpkg built from source.
       - name: Install Qt6
@@ -73,8 +87,8 @@ jobs:
         run: |
           # vcpkg lives at C:\vcpkg on windows-latest runners.
           vcpkg install eigen3:x64-windows spdlog:x64-windows `
-                         cli11:x64-windows catch2:x64-windows `
-                         boost-headers:x64-windows
+                         suitesparse:x64-windows cli11:x64-windows `
+                         catch2:x64-windows boost-headers:x64-windows
           echo "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
 
       # -- Pin MSVC on Windows so vcpkg's x64-windows ABI matches.

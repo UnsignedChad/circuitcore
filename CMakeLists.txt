@@ -17,6 +17,18 @@ find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(spdlog REQUIRED)
 find_package(CLI11 REQUIRED)
 
+# Cross-compiler warning preset. GCC/Clang get the full -Wall -Wextra
+# -Wpedantic trio; MSVC gets /W4 (its /Wall is famously too noisy for
+# real codebases). Call as: circuitcore_warnings(target_name).
+function(circuitcore_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endfunction()
+
+
 # CHOLMOD is optional -- falls back to Eigen::SimplicialLLT.
 find_path(CHOLMOD_INCLUDE_DIR cholmod.h PATHS /usr/include/suitesparse)
 find_library(CHOLMOD_LIBRARY cholmod)
