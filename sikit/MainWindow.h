@@ -13,8 +13,8 @@
 #include "si/Touchstone.h"
 #include "si/Project.h"
 
-class PcbCanvas;
-class LayerPanel;
+namespace sikit { class PcbCanvas; }
+namespace sikit { class LayerPanel; }
 class QAction;
 class QLabel;
 
@@ -67,8 +67,8 @@ private:
         double sample_rate_hz, double bit_time_s,
         std::vector<double>& wave);
 
-    PcbCanvas* canvas_;
-    LayerPanel* layer_panel_;
+    sikit::PcbCanvas* canvas_;
+    sikit::LayerPanel* layer_panel_;
     QLabel* hover_label_;
     QAction* use_fdm_action_;
     std::unique_ptr<circuitcore::board::Board> board_;

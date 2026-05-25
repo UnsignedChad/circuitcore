@@ -35,7 +35,7 @@ PiTab::PiTab(BoardModel* model, QWidget* parent)
     setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowTabbedDocks);
 
     // --- Central widget: pdnkit's flavoured canvas + color legend ---
-    canvas_ = new PcbCanvas(this);
+    canvas_ = new pdnkit::PcbCanvas(this);
     legend_ = new ColorLegend(this);
     auto* central = new QWidget(this);
     auto* central_layout = new QHBoxLayout(central);
@@ -46,7 +46,7 @@ PiTab::PiTab(BoardModel* model, QWidget* parent)
     setCentralWidget(central);
 
     // --- Layers dock (right) ---
-    layer_panel_ = new LayerPanel(this);
+    layer_panel_ = new pdnkit::LayerPanel(this);
     {
         auto* scroll = new QScrollArea(this);
         scroll->setWidget(layer_panel_);
@@ -56,8 +56,8 @@ PiTab::PiTab(BoardModel* model, QWidget* parent)
         dock->setWidget(scroll);
         dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
         addDockWidget(Qt::RightDockWidgetArea, dock);
-        connect(layer_panel_, &LayerPanel::visibility_changed,
-                canvas_, &PcbCanvas::setLayerVisibility);
+        connect(layer_panel_, &pdnkit::LayerPanel::visibility_changed,
+                canvas_, &pdnkit::PcbCanvas::setLayerVisibility);
     }
 
     // --- Analysis dock (right) ---
@@ -110,9 +110,9 @@ PiTab::PiTab(BoardModel* model, QWidget* parent)
         addDockWidget(Qt::RightDockWidgetArea, dock);
         if (an_dock) tabifyDockWidget(an_dock, dock);
         connect(cavity_panel_, &CavityPanel::decapsChanged,
-                canvas_, &PcbCanvas::setDecapMarkers);
+                canvas_, &pdnkit::PcbCanvas::setDecapMarkers);
         connect(cavity_panel_, &CavityPanel::cavityChanged,
-                canvas_, &PcbCanvas::setCavityHighlight);
+                canvas_, &pdnkit::PcbCanvas::setCavityHighlight);
         connect(netstats_panel_, &NetStatsPanel::netSelected,
                 cavity_panel_, &CavityPanel::setNetById);
         connect(cavity_panel_, &CavityPanel::modeShapeMesh, this,
@@ -158,11 +158,11 @@ PiTab::PiTab(BoardModel* model, QWidget* parent)
     hover_label_ = new QLabel(this);
     hover_label_->setMinimumWidth(300);
     statusBar()->addPermanentWidget(hover_label_);
-    connect(canvas_, &PcbCanvas::hoverInfo, hover_label_, &QLabel::setText);
-    connect(canvas_, &PcbCanvas::probeHint, this, [this](const QString& m) {
+    connect(canvas_, &pdnkit::PcbCanvas::hoverInfo, hover_label_, &QLabel::setText);
+    connect(canvas_, &pdnkit::PcbCanvas::probeHint, this, [this](const QString& m) {
         statusBar()->showMessage(m, 8000);
     });
-    connect(canvas_, &PcbCanvas::probeRequested,
+    connect(canvas_, &pdnkit::PcbCanvas::probeRequested,
             this, &PiTab::onProbeRequested);
 
     // --- Model wiring -- BoardModel is the single source of truth ---
@@ -192,10 +192,10 @@ void PiTab::populateLayerPanel() {
     }
     // Same shape pdnkit/MainWindow.cpp uses: copper layers only, with
     // thickness converted to micrometres.
-    std::vector<LayerPanel::Entry> entries;
+    std::vector<pdnkit::LayerPanel::Entry> entries;
     for (const auto& L : b->stackup.layers) {
         if (!L.is_copper()) continue;
-        LayerPanel::Entry e;
+        pdnkit::LayerPanel::Entry e;
         e.ordinal      = L.ordinal;
         e.name         = QString::fromStdString(L.name);
         e.thickness_um = L.thickness * 1.0e6;

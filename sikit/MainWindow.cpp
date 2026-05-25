@@ -44,10 +44,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setMinimumSize(480, 320);
     resize(1280, 800);
 
-    canvas_ = new PcbCanvas(this);
+    canvas_ = new sikit::PcbCanvas(this);
     setCentralWidget(canvas_);
 
-    layer_panel_ = new LayerPanel(this);
+    layer_panel_ = new sikit::LayerPanel(this);
     auto* layers_scroll = new QScrollArea(this);
     layers_scroll->setWidget(layer_panel_);
     layers_scroll->setWidgetResizable(true);
@@ -56,8 +56,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     dock->setWidget(layers_scroll);
     dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     addDockWidget(Qt::RightDockWidgetArea, dock);
-    connect(layer_panel_, &LayerPanel::visibility_changed,
-            canvas_, &PcbCanvas::setLayerVisibility);
+    connect(layer_panel_, &sikit::LayerPanel::visibility_changed,
+            canvas_, &sikit::PcbCanvas::setLayerVisibility);
 
     auto* fileMenu = menuBar()->addMenu("&File");
     auto* openAct = fileMenu->addAction("&Open KiCad PCB...");
@@ -98,13 +98,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     auto* viewMenu = menuBar()->addMenu("&View");
     auto* fitAct = viewMenu->addAction("&Fit to Board");
     fitAct->setShortcut(QKeySequence(Qt::Key_Home));
-    connect(fitAct, &QAction::triggered, canvas_, &PcbCanvas::fitToBoard);
+    connect(fitAct, &QAction::triggered, canvas_, &sikit::PcbCanvas::fitToBoard);
     auto* threeDAct = viewMenu->addAction("&3D mode");
     threeDAct->setShortcut(QKeySequence("Ctrl+D"));
     threeDAct->setCheckable(true);
     connect(threeDAct, &QAction::toggled, canvas_, [this](bool on) {
-        canvas_->setViewMode(on ? PcbCanvas::ViewMode::D3
-                                : PcbCanvas::ViewMode::D2);
+        canvas_->setViewMode(on ? sikit::PcbCanvas::ViewMode::D3
+                                : sikit::PcbCanvas::ViewMode::D2);
     });
     viewMenu->addAction(dock->toggleViewAction());
 
@@ -132,7 +132,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
             [this]() { showDiffPairOverlay(100.0); });
     auto* clearAct = analyzeMenu->addAction("&Clear overlay");
     clearAct->setShortcut(QKeySequence("Ctrl+0"));
-    connect(clearAct, &QAction::triggered, canvas_, &PcbCanvas::clearImpedanceOverlay);
+    connect(clearAct, &QAction::triggered, canvas_, &sikit::PcbCanvas::clearImpedanceOverlay);
     analyzeMenu->addSeparator();
     use_fdm_action_ = analyzeMenu->addAction("Use FDM solver for impedance (slower, more accurate)");
     use_fdm_action_->setCheckable(true);
@@ -162,7 +162,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     hover_label_ = new QLabel(this);
     hover_label_->setMinimumWidth(0);
     statusBar()->addPermanentWidget(hover_label_);
-    connect(canvas_, &PcbCanvas::hoverInfo, hover_label_, &QLabel::setText);
+    connect(canvas_, &sikit::PcbCanvas::hoverInfo, hover_label_, &QLabel::setText);
 
     statusBar()->showMessage("Ready");
 }
@@ -909,7 +909,7 @@ void MainWindow::populateLayerPanel() {
         layer_panel_->setLayers({});
         return;
     }
-    std::vector<LayerPanel::Entry> entries;
+    std::vector<sikit::LayerPanel::Entry> entries;
     for (const auto& L : board_->stackup.layers) {
         if (!L.is_copper()) continue;
         entries.push_back({L.ordinal, QString::fromStdString(L.name)});

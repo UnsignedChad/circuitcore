@@ -7,6 +7,8 @@
 
 class QVBoxLayout;
 
+namespace sikit {
+
 // Dockable panel listing copper layers in the loaded board with a
 // per-layer visibility checkbox and color swatch. Emits visibility
 // changes; the canvas listens to redraw with the new set of layers.
@@ -31,3 +33,6 @@ private:
 
     QVBoxLayout* rows_layout_ = nullptr;
 };
+
+
+}  // namespace sikit
