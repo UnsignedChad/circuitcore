@@ -26,6 +26,7 @@
 
 #include "ZfPlotWidget.h"
 #include "pi/CavityModel.h"
+#include "pi/Sensitivity.h"
 #include "pi/Vrm.h"
 #include "pi/TargetZ.h"
 #include "pi/DecapOptimizer.h"
@@ -234,7 +235,83 @@ CavityPanel::CavityPanel(QWidget* parent) : QWidget(parent) {
     dec_btn_row->addWidget(add_decap_btn_);
     dec_btn_row->addWidget(remove_decap_btn_);
     dec_btn_row->addWidget(auto_decap_btn_);
+    auto* sens_btn = new QPushButton("Rank");
+    sens_btn->setToolTip(
+        "Leave-one-out sensitivity: for each decap, compute how much "
+        "Z(f) changes if you remove that one cap. Top of the ranked "
+        "list = critical to keep. Bottom = slack, candidate for removal.");
+    dec_btn_row->addWidget(sens_btn);
     outer->addLayout(dec_btn_row);
+
+    connect(sens_btn, &QPushButton::clicked, this, [this]() {
+        if (!board_ || net_combo_->count() == 0 ||
+            decap_table_->rowCount() == 0) return;
+        const int net = net_combo_->currentData().toInt();
+        constexpr int kPrimaryLayer = 0;
+        const Bbox bb = zone_bbox(*board_, net, kPrimaryLayer);
+        if (!bb.ok) return;
+
+        pdnkit::pi::CavityConfig cfg;
+        cfg.a = bb.hi_x - bb.lo_x;
+        cfg.b = bb.hi_y - bb.lo_y;
+        cfg.d = thickness_spin_->value() * 1.0e-3;
+        cfg.eps_r = eps_r_spin_->value();
+        cfg.tan_delta = tan_delta_spin_->value();
+        cfg.max_modes = modes_spin_->value();
+
+        auto pos = read_decap_positions(decap_table_, 0.0, 0.0);
+        std::vector<pdnkit::pi::Decap> decaps;
+        for (int row = 0; row < decap_table_->rowCount(); ++row) {
+            auto read = [&](int col) -> double {
+                auto* item = decap_table_->item(row, col);
+                return item ? item->text().toDouble() : 0.0;
+            };
+            pdnkit::pi::Decap d;
+            d.x   = read(0) * 1.0e-3;
+            d.y   = read(1) * 1.0e-3;
+            d.C   = read(2) * 1.0e-6;
+            d.esr = read(3) * 1.0e-3;
+            d.esl = read(4) * 1.0e-9;
+            if (d.C > 0.0) decaps.push_back(d);
+        }
+        if (decaps.empty()) return;
+
+        const double f_lo = f_min_spin_->value();
+        const double f_hi = f_max_spin_->value();
+        const int N = std::min(points_spin_->value(), 80);
+        std::vector<double> freqs;
+        freqs.reserve(N);
+        const double log_lo = std::log10(f_lo);
+        const double log_hi = std::log10(f_hi);
+        for (int i = 0; i < N; ++i) {
+            const double t = (N == 1) ? 0.0 :
+                              static_cast<double>(i) / (N - 1);
+            freqs.push_back(std::pow(10.0, log_lo + t * (log_hi - log_lo)));
+        }
+
+        const double xo = port1_x_->value() * 1.0e-3;
+        const double yo = port1_y_->value() * 1.0e-3;
+        auto report = pdnkit::pi::sensitivity_sweep(cfg, xo, yo,
+                                                     decaps, freqs);
+
+        QString text;
+        text += "Decap sensitivity (leave-one-out)\n";
+        text += QString("Observation port: (%1, %2) mm\n\n")
+                    .arg(port1_x_->value(), 0, 'f', 2)
+                    .arg(port1_y_->value(), 0, 'f', 2);
+        text += "Idx | Pos (mm)        | Peak freq    | max dZ/Z\n";
+        text += "----+-----------------+--------------+----------\n";
+        for (const auto& sample : report) {
+            const auto& d = decaps[sample.decap_index];
+            text += QString("%1 | (%2, %3) | %4 Hz | %5\n")
+                        .arg(sample.decap_index, 3)
+                        .arg(d.x * 1000.0, 6, 'f', 2)
+                        .arg(d.y * 1000.0, 6, 'f', 2)
+                        .arg(sample.peak_freq_hz, 12, 'e', 3)
+                        .arg(sample.max_relative_change, 9, 'f', 4);
+        }
+        QMessageBox::information(this, "Decap sensitivity", text);
+    });
 
     auto* mode_btn = new QPushButton("Show mode shape at peak");
     mode_btn->setToolTip(
