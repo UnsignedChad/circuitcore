@@ -116,6 +116,35 @@ struct OutlineSegment {
     Point2 end;
 };
 
+// Non-copper graphical item parsed from KiCad's gr_line / gr_arc /
+// gr_circle / gr_poly / fp_text and their fp_* footprint-local twins.
+// Used by the renderer for solder mask, silkscreen, courtyard, and
+// fab-layer overlays. Footprint-local items have already been
+// transformed by the footprint position + rotation at parse time, so
+// `points` is always in board coordinates.
+//
+// Geometry is pre-tessellated for arcs and circles (matches what the
+// existing outline parser does). Polygons keep their outline as-is so
+// the renderer can fill them with the same earcut pipeline that zones
+// use.
+struct GraphicItem {
+    enum class Kind {
+        Line,     // points = [start, end]
+        Arc,      // points = polyline (~24 segments) approximating the arc
+        Circle,   // points = closed 48-gon outline
+        Polygon,  // points = outline (open or closed -- renderer wraps)
+        Text,     // points = [position]; see `text`, `text_angle`, `text_size`
+    };
+    Kind kind = Kind::Line;
+    int layer_ordinal = 0;
+    double stroke_width = 0.0;     // m, 0 = use default thin line
+    std::vector<Point2> points;
+    std::string text;              // Text only
+    double text_angle = 0.0;       // radians, Text only
+    double text_size  = 0.0;       // m, Text only (vertical glyph size)
+};
+
+
 struct Board {
     Stackup stackup;
     std::vector<Net> nets;
@@ -124,6 +153,7 @@ struct Board {
     std::vector<Pad> pads;
     std::vector<Zone> zones;
     std::vector<OutlineSegment> outline;
+    std::vector<GraphicItem> graphics;
 
     const Net* find_net(int id) const noexcept {
         auto it = std::find_if(nets.begin(), nets.end(),

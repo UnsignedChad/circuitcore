@@ -93,6 +93,7 @@ public:
         parse_zones();
         parse_outline();
         parse_footprints();
+        parse_graphics();
         return std::move(board_);
     }
 
@@ -435,6 +436,202 @@ private:
         }
     }
 
+
+    // -- Graphic items (silkscreen, mask, courtyard, fab) -----------------
+
+    static void tessellate_arc(circuitcore::board::Point2 P0,
+                                circuitcore::board::Point2 P1,
+                                circuitcore::board::Point2 P2,
+                                std::vector<circuitcore::board::Point2>& out) {
+        const double ax = P1.x - P0.x, ay = P1.y - P0.y;
+        const double bx = P2.x - P1.x, by = P2.y - P1.y;
+        const double d  = 2.0 * (ax * by - ay * bx);
+        if (std::abs(d) < 1.0e-18) { out = {P0, P2}; return; }
+        const double aa = P0.x * P0.x + P0.y * P0.y;
+        const double bb = P1.x * P1.x + P1.y * P1.y;
+        const double cc = P2.x * P2.x + P2.y * P2.y;
+        const double cx = ((bb - aa) * by - (cc - bb) * ay) / d;
+        const double cy = ((cc - bb) * ax - (bb - aa) * bx) / d;
+        const double r  = std::hypot(P0.x - cx, P0.y - cy);
+        const double a0 = std::atan2(P0.y - cy, P0.x - cx);
+        const double a1 = std::atan2(P1.y - cy, P1.x - cx);
+        const double a2 = std::atan2(P2.y - cy, P2.x - cx);
+        auto wrap = [](double a) {
+            while (a >  3.141592653589793) a -= 2.0 * 3.141592653589793;
+            while (a < -3.141592653589793) a += 2.0 * 3.141592653589793;
+            return a;
+        };
+        double da_ccw = wrap(a2 - a0);
+        if (da_ccw <= 0.0) da_ccw += 2.0 * 3.141592653589793;
+        const double da_cw = da_ccw - 2.0 * 3.141592653589793;
+        const double off_ccw = std::abs(wrap(a1 - (a0 + 0.5 * da_ccw)));
+        const double off_cw  = std::abs(wrap(a1 - (a0 + 0.5 * da_cw)));
+        const double sweep = (off_ccw < off_cw) ? da_ccw : da_cw;
+        constexpr int N = 24;
+        out.clear(); out.reserve(N + 1);
+        out.push_back(P0);
+        for (int i = 1; i <= N; ++i) {
+            const double a = a0 + sweep * (static_cast<double>(i) / N);
+            out.push_back({cx + r * std::cos(a), cy + r * std::sin(a)});
+        }
+    }
+
+    // Edge.Cuts and copper layers are filtered out -- outline parser
+    // already covers Edge.Cuts, and copper graphics aren't meaningful as
+    // silk/mask overlays.
+    int graphic_layer_ordinal(const std::string& name) const {
+        if (name == "Edge.Cuts") return -1;
+        auto it = layer_name_to_id_.find(name);
+        if (it == layer_name_to_id_.end()) return -1;
+        const int ord = it->second;
+        for (const auto& L : board_.stackup.layers)
+            if (L.ordinal == ord && L.is_copper()) return -1;
+        return ord;
+    }
+
+    std::string single_layer_name(const Node& n) const {
+        if (const Node* lay = find_child(n, "layer")) {
+            if (lay->children.size() >= 2 &&
+                (lay->children[1].is_string() || lay->children[1].is_symbol()))
+                return lay->children[1].text;
+        }
+        if (const Node* lays = find_child(n, "layers")) {
+            for (std::size_t i = 1; i < lays->children.size(); ++i) {
+                const auto& c = lays->children[i];
+                if (c.is_string() || c.is_symbol()) return c.text;
+            }
+        }
+        return {};
+    }
+
+    static double stroke_width(const Node& n) {
+        if (const Node* sr = find_child(n, "stroke")) {
+            if (const Node* w = find_child(*sr, "width"))
+                if (w->children.size() >= 2 && w->children[1].is_number())
+                    return w->children[1].number * kMmToM;
+        }
+        if (const Node* w = find_child(n, "width"))
+            if (w->children.size() >= 2 && w->children[1].is_number())
+                return w->children[1].number * kMmToM;
+        return 0.0;
+    }
+
+    static circuitcore::board::Point2 xform_fp(circuitcore::board::Point2 p,
+                                                 circuitcore::board::Point2 fp_at,
+                                                 double fp_rot) {
+        const double cs = std::cos(fp_rot), sn = std::sin(fp_rot);
+        return {fp_at.x + cs * p.x - sn * p.y,
+                fp_at.y + sn * p.x + cs * p.y};
+    }
+
+    // Convert a (gr_line | fp_line)-shaped node into a GraphicItem.
+    bool node_to_line(const Node& ln, circuitcore::board::GraphicItem& g) const {
+        const int ord = graphic_layer_ordinal(single_layer_name(ln));
+        if (ord < 0) return false;
+        const Node* st = find_child(ln, "start");
+        const Node* en = find_child(ln, "end");
+        if (!st || !en) return false;
+        g.kind = circuitcore::board::GraphicItem::Kind::Line;
+        g.layer_ordinal = ord;
+        g.stroke_width  = stroke_width(ln);
+        g.points = {read_xy_tail(*st), read_xy_tail(*en)};
+        return true;
+    }
+
+    bool node_to_arc(const Node& arc, circuitcore::board::GraphicItem& g) const {
+        const int ord = graphic_layer_ordinal(single_layer_name(arc));
+        if (ord < 0) return false;
+        const Node* st  = find_child(arc, "start");
+        const Node* mid = find_child(arc, "mid");
+        const Node* en  = find_child(arc, "end");
+        if (!st || !mid || !en) return false;
+        g.kind = circuitcore::board::GraphicItem::Kind::Arc;
+        g.layer_ordinal = ord;
+        g.stroke_width  = stroke_width(arc);
+        tessellate_arc(read_xy_tail(*st), read_xy_tail(*mid),
+                        read_xy_tail(*en), g.points);
+        return !g.points.empty();
+    }
+
+    bool node_to_circle(const Node& circ, circuitcore::board::GraphicItem& g) const {
+        const int ord = graphic_layer_ordinal(single_layer_name(circ));
+        if (ord < 0) return false;
+        const Node* cn = find_child(circ, "center");
+        const Node* en = find_child(circ, "end");
+        if (!cn || !en) return false;
+        const auto C = read_xy_tail(*cn);
+        const auto E = read_xy_tail(*en);
+        const double r = std::hypot(E.x - C.x, E.y - C.y);
+        g.kind = circuitcore::board::GraphicItem::Kind::Circle;
+        g.layer_ordinal = ord;
+        g.stroke_width  = stroke_width(circ);
+        constexpr int N = 48;
+        g.points.reserve(N + 1);
+        for (int i = 0; i <= N; ++i) {
+            const double a = 2.0 * 3.141592653589793 *
+                              static_cast<double>(i) / N;
+            g.points.push_back({C.x + r * std::cos(a),
+                                 C.y + r * std::sin(a)});
+        }
+        return true;
+    }
+
+    bool node_to_poly(const Node& poly, circuitcore::board::GraphicItem& g) const {
+        const int ord = graphic_layer_ordinal(single_layer_name(poly));
+        if (ord < 0) return false;
+        const Node* pts = find_child(poly, "pts");
+        if (!pts) return false;
+        g.kind = circuitcore::board::GraphicItem::Kind::Polygon;
+        g.layer_ordinal = ord;
+        g.stroke_width  = stroke_width(poly);
+        g.points = read_pts(*pts);
+        return g.points.size() >= 3;
+    }
+
+    bool node_to_text(const Node& tx, std::size_t text_index,
+                       circuitcore::board::GraphicItem& g) const {
+        if (tx.children.size() <= text_index) return false;
+        const auto& tn = tx.children[text_index];
+        if (!tn.is_string() && !tn.is_symbol()) return false;
+        const int ord = graphic_layer_ordinal(single_layer_name(tx));
+        if (ord < 0) return false;
+        g.kind = circuitcore::board::GraphicItem::Kind::Text;
+        g.layer_ordinal = ord;
+        g.text = tn.text;
+        if (const Node* at = find_child(tx, "at")) {
+            g.points.push_back(read_xy_tail(*at));
+            if (at->children.size() >= 4 && at->children[3].is_number())
+                g.text_angle = at->children[3].number * kDegToRad;
+        }
+        if (const Node* eff = find_child(tx, "effects"))
+            if (const Node* font = find_child(*eff, "font"))
+                if (const Node* sz = find_child(*font, "size"))
+                    if (sz->children.size() >= 3 && sz->children[1].is_number())
+                        g.text_size = sz->children[1].number * kMmToM;
+        return !g.points.empty();
+    }
+
+    void parse_graphics() {
+        circuitcore::board::GraphicItem g;
+        // gr_line / gr_arc / gr_circle / gr_poly are board-level.
+        for (const Node* n : find_children(root_, "gr_line")) {
+            g = {}; if (node_to_line  (*n, g)) board_.graphics.push_back(std::move(g));
+        }
+        for (const Node* n : find_children(root_, "gr_arc")) {
+            g = {}; if (node_to_arc   (*n, g)) board_.graphics.push_back(std::move(g));
+        }
+        for (const Node* n : find_children(root_, "gr_circle")) {
+            g = {}; if (node_to_circle(*n, g)) board_.graphics.push_back(std::move(g));
+        }
+        for (const Node* n : find_children(root_, "gr_poly")) {
+            g = {}; if (node_to_poly  (*n, g)) board_.graphics.push_back(std::move(g));
+        }
+        for (const Node* n : find_children(root_, "gr_text")) {
+            g = {}; if (node_to_text(*n, /*text_index=*/1, g))
+                board_.graphics.push_back(std::move(g));
+        }
+    }
+
     void parse_footprints() {
         for (const Node* fp : find_children(root_, "footprint")) {
             // Reference designator -- KiCad stores it as a (property "Reference" "C12" ...) child.
@@ -517,6 +714,42 @@ private:
                 }
                 p.parent_ref = fp_ref;
                 board_.pads.push_back(p);
+            }
+
+            // Footprint-local graphic items (silk / mask / courtyard / fab).
+            // Transform from footprint frame to board frame.
+            auto push_fp = [&](circuitcore::board::GraphicItem g) {
+                for (auto& pt : g.points) pt = xform_fp(pt, fp_at, fp_rot);
+                board_.graphics.push_back(std::move(g));
+            };
+            for (const Node* ln : find_children(*fp, "fp_line")) {
+                circuitcore::board::GraphicItem g;
+                if (node_to_line(*ln, g)) push_fp(std::move(g));
+            }
+            for (const Node* arc : find_children(*fp, "fp_arc")) {
+                circuitcore::board::GraphicItem g;
+                if (node_to_arc(*arc, g)) push_fp(std::move(g));
+            }
+            for (const Node* circ : find_children(*fp, "fp_circle")) {
+                circuitcore::board::GraphicItem g;
+                if (node_to_circle(*circ, g)) push_fp(std::move(g));
+            }
+            for (const Node* poly : find_children(*fp, "fp_poly")) {
+                circuitcore::board::GraphicItem g;
+                if (node_to_poly(*poly, g)) push_fp(std::move(g));
+            }
+            for (const Node* tx : find_children(*fp, "fp_text")) {
+                // fp_text form: (fp_text <kind> "<value>" ...).
+                // <kind> is one of reference / value / user. v1 skips
+                // reference / value -- they're component designators
+                // already exposed via property -- and renders only
+                // user-placed text.
+                if (tx->children.size() < 3) continue;
+                const auto& kind = tx->children[1];
+                if (kind.is_symbol() && kind.text != "user") continue;
+                circuitcore::board::GraphicItem g;
+                if (node_to_text(*tx, /*text_index=*/2, g))
+                    push_fp(std::move(g));
             }
         }
     }

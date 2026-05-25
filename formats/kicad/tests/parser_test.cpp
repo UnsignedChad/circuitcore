@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <cmath>
 
 #include "circuitcore/formats/kicad/PcbParser.h"
 
@@ -168,4 +169,81 @@ TEST_CASE("parser: parent_ref populated from footprint Reference property",
     REQUIRE(b.pads.size() == 2);
     REQUIRE(b.pads[0].parent_ref == "R1");
     REQUIRE(b.pads[1].parent_ref == "R1");
+}
+
+// Fixture for the GraphicItem parser: one of each shape on silk + mask
+// + courtyard layers, plus one footprint-local fp_line that has to be
+// transformed by the footprint's (at 40 50 0) position.
+constexpr auto kGraphicsBoard = R"(
+(kicad_pcb
+    (version 20240108) (generator "pcbnew")
+    (general (thickness 1.6))
+    (layers
+        (0 "F.Cu" signal)
+        (31 "B.Cu" signal)
+        (36 "B.SilkS" user)
+        (37 "F.SilkS" user)
+        (38 "B.Mask"  user)
+        (39 "F.Mask"  user)
+        (48 "B.CrtYd" user)
+        (49 "F.CrtYd" user)
+    )
+    (gr_line  (start 0 0) (end 10 0)  (layer "F.SilkS") (stroke (width 0.15)))
+    (gr_arc   (start 0 0) (mid 5 5) (end 10 0) (layer "F.SilkS") (stroke (width 0.15)))
+    (gr_circle (center 5 5) (end 7 5) (layer "F.SilkS") (stroke (width 0.15)))
+    (gr_poly  (pts (xy 0 0) (xy 10 0) (xy 5 10)) (layer "F.Mask") (width 0))
+    (gr_text "HELLO" (at 5 5 0) (layer "F.SilkS")
+        (effects (font (size 1 1))))
+    (footprint "Test:FP"
+        (at 40 50 0)
+        (property "Reference" "U1" (at 40 50 0))
+        (fp_line (start 0 0) (end 1 0) (layer "F.CrtYd")
+                 (stroke (width 0.05)))
+    )
+)
+)";
+TEST_CASE("parser: graphic items on non-copper layers", "[parser][graphics]") {
+    auto b = PcbParser::parse_string(kGraphicsBoard).value();
+    REQUIRE(b.graphics.size() >= 6);  // 5 board-level + 1 fp_line
+
+    int line = 0, arc = 0, circ = 0, poly = 0, text = 0;
+    bool found_fp_line = false;
+    for (const auto& g : b.graphics) {
+        using K = circuitcore::board::GraphicItem::Kind;
+        switch (g.kind) {
+            case K::Line:    ++line;    break;
+            case K::Arc:     ++arc;     break;
+            case K::Circle:  ++circ;    break;
+            case K::Polygon: ++poly;    break;
+            case K::Text:    ++text;    break;
+        }
+        // The fp_line is on F.CrtYd (ordinal 49) and starts at the
+        // footprint's (40, 50) origin -- if the transform worked.
+        if (g.kind == K::Line && g.layer_ordinal == 49) {
+            REQUIRE(g.points.size() == 2);
+            REQUIRE(std::abs(g.points[0].x - 0.040) < 1e-9);
+            REQUIRE(std::abs(g.points[0].y - 0.050) < 1e-9);
+            REQUIRE(std::abs(g.points[1].x - 0.041) < 1e-9);
+            REQUIRE(std::abs(g.points[1].y - 0.050) < 1e-9);
+            found_fp_line = true;
+        }
+    }
+    REQUIRE(line >= 2);  // gr_line + fp_line
+    REQUIRE(arc  >= 1);
+    REQUIRE(circ >= 1);
+    REQUIRE(poly >= 1);
+    REQUIRE(text >= 1);
+    REQUIRE(found_fp_line);
+}
+
+TEST_CASE("parser: graphic items skip Edge.Cuts and copper layers",
+          "[parser][graphics]") {
+    // Edge.Cuts gr_line still ends up in the outline list, not graphics.
+    auto b = PcbParser::parse_string(kGraphicsBoard).value();
+    for (const auto& g : b.graphics) {
+        const auto* L = b.find_layer(g.layer_ordinal);
+        REQUIRE(L != nullptr);
+        REQUIRE_FALSE(L->is_copper());
+        REQUIRE(L->name != "Edge.Cuts");
+    }
 }
