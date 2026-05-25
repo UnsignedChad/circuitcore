@@ -51,6 +51,7 @@ add_subdirectory(ui)        # circuitcore::ui -- shared renderer modules
 add_subdirectory(pdnkit)
 add_subdirectory(sikit)
 add_subdirectory(emikit)
+add_subdirectory(studio)   # circuitcore_studio -- unified browser-tab GUI
                             # (see sikit/MIGRATION.md)
 
 # --- Test discovery for the core libs ---
