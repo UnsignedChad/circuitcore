@@ -48,6 +48,9 @@ FDTD3D::FDTD3D(const GridSpec& g) : g_(g) {
     sigma_x_.resize(ex_.nx(), ex_.ny(), ex_.nz());
     sigma_y_.resize(ey_.nx(), ey_.ny(), ey_.nz());
     sigma_z_.resize(ez_.nx(), ez_.ny(), ez_.nz());
+    pec_x_.resize(ex_.nx(), ex_.ny(), ex_.nz());
+    pec_y_.resize(ey_.nx(), ey_.ny(), ey_.nz());
+    pec_z_.resize(ez_.nx(), ez_.ny(), ez_.nz());
     set_uniform_material(1.0, 0.0);
 }
 
@@ -117,6 +120,45 @@ void FDTD3D::set_material_box(int ilo, int jlo, int klo,
     fill_box(sigma_y_, ilo, jlo, klo, ihi, jhi, khi, sigma);
     fill_box(sigma_z_, ilo, jlo, klo, ihi, jhi, khi, sigma);
 }
+
+void FDTD3D::mark_pec_box(int ilo, int jlo, int klo,
+                            int ihi, int jhi, int khi) {
+    auto fill = [&](ByteField3D& f) {
+        const int imin = std::max(ilo, 0);
+        const int jmin = std::max(jlo, 0);
+        const int kmin = std::max(klo, 0);
+        const int imax = std::min(ihi, f.nx - 1);
+        const int jmax = std::min(jhi, f.ny - 1);
+        const int kmax = std::min(khi, f.nz - 1);
+        for (int k = kmin; k <= kmax; ++k) {
+            for (int j = jmin; j <= jmax; ++j) {
+                for (int i = imin; i <= imax; ++i) {
+                    f.at(i, j, k) = 1;
+                }
+            }
+        }
+    };
+    fill(pec_x_);
+    fill(pec_y_);
+    fill(pec_z_);
+}
+
+void FDTD3D::mark_pec_cell(EComp c, int i, int j, int k) {
+    switch (c) {
+        case EComp::Ex: pec_x_.at(i, j, k) = 1; break;
+        case EComp::Ey: pec_y_.at(i, j, k) = 1; break;
+        case EComp::Ez: pec_z_.at(i, j, k) = 1; break;
+    }
+}
+
+std::size_t FDTD3D::pec_cell_count() const {
+    std::size_t n = 0;
+    for (char v : pec_x_.data) n += (v != 0);
+    for (char v : pec_y_.data) n += (v != 0);
+    for (char v : pec_z_.data) n += (v != 0);
+    return n;
+}
+
 
 
 // --- core curl updates ---------------------------------------------------
@@ -223,6 +265,33 @@ void FDTD3D::update_e() {
                     bx * (hy_.at(i, j, k) - hy_.at(i - 1, j, k))
                   - by * (hx_.at(i, j, k) - hx_.at(i, j - 1, k));
                 ez_.at(i, j, k) = Ca * ez_.at(i, j, k) + base_cb * curl_h;
+            }
+        }
+    }
+
+    // PEC enforcement: any E component at a flagged cell is forced
+    // back to zero. We do this AFTER the curl update so the curl
+    // properly sees the boundary jump (the H field on either side of
+    // a PEC sheet sees Ez=0 in the slab, which produces the correct
+    // image-current response).
+    for (int k = 0; k < ex_.nz(); ++k) {
+        for (int j = 0; j < ex_.ny(); ++j) {
+            for (int i = 0; i < ex_.nx(); ++i) {
+                if (pec_x_.at(i, j, k)) ex_.at(i, j, k) = 0.0;
+            }
+        }
+    }
+    for (int k = 0; k < ey_.nz(); ++k) {
+        for (int j = 0; j < ey_.ny(); ++j) {
+            for (int i = 0; i < ey_.nx(); ++i) {
+                if (pec_y_.at(i, j, k)) ey_.at(i, j, k) = 0.0;
+            }
+        }
+    }
+    for (int k = 0; k < ez_.nz(); ++k) {
+        for (int j = 0; j < ez_.ny(); ++j) {
+            for (int i = 0; i < ez_.nx(); ++i) {
+                if (pec_z_.at(i, j, k)) ez_.at(i, j, k) = 0.0;
             }
         }
     }
