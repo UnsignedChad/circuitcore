@@ -13,10 +13,14 @@
 
 #include <QMainWindow>
 #include <QString>
+#include <QStringList>
 #include <memory>
 
 class QLabel;
+class QMenu;
 class QTabWidget;
+class QDragEnterEvent;
+class QDropEvent;
 
 namespace circuitcore::studio {
 
@@ -33,19 +37,34 @@ public:
     // Convenience: load a board from CLI argv.
     bool loadKicadPcb(const QString& path);
 
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+
 private slots:
     void onOpenKicadPcb();
     void onParseFailed(const QString& message);
     void onBoardLoaded();
     void onHover(double x_m, double y_m);
     void onAbout();
+    void onShowCalculators();
+    void onSaveCanvasAsImage();
+    void onShowShortcuts();
+    void onOpenRecentFromAction();
 
 private:
+    void rebuildRecentMenu();
+    void pushRecent(const QString& path);
+    QStringList loadRecentList() const;
+    void saveRecentList(const QStringList& list);
+
     std::unique_ptr<BoardModel> model_;
     QTabWidget* tabs_ = nullptr;
     BoardTab*   board_tab_ = nullptr;
     QLabel* status_path_ = nullptr;
     QLabel* status_hover_ = nullptr;
+    class CalculatorsDialog* calculators_ = nullptr;
+    QMenu*  recent_menu_  = nullptr;
 };
 
 }  // namespace circuitcore::studio

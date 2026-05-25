@@ -22,6 +22,8 @@ int main(int argc, char** argv) {
     QSurfaceFormat::setDefaultFormat(fmt);
 
     QApplication app(argc, argv);
+    QApplication::setOrganizationName("circuitcore");
+    QApplication::setOrganizationName("circuitcore");
     QApplication::setApplicationName("circuitcore-studio");
     QApplication::setApplicationVersion("0.0.1");
 
