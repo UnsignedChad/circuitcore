@@ -49,6 +49,13 @@ private slots:
 
     void onView3DToggled(bool on);
 
+    void onSaveHtmlReport();
+    void onDeembedTouchstone();
+    void onCompareOverlay();
+    void onCheckSkew();
+    void onCheckReturnPath();
+    void onDeriveTopology();
+
 private:
     void refreshNetList();
     int  currentNetId() const;
