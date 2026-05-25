@@ -41,20 +41,47 @@ if(CIRCUITCORE_HAVE_CHOLMOD)
 endif()
 target_compile_options(pdnkit_pi PRIVATE -Wall -Wextra -Wpedantic)
 
+# Embeddable Qt widgets. Separated from the GUI executable so that
+# downstream apps (the studio shell) can link them without pulling in
+# pdnkit/main.cpp + MainWindow.cpp.
+add_library(pdnkit_widgets STATIC
+    PcbCanvas.cpp
+    PcbCanvas.h
+    LayerPanel.cpp
+    LayerPanel.h
+    AnalysisPanel.cpp
+    AnalysisPanel.h
+    ColorLegend.cpp
+    ColorLegend.h
+    DrcPanel.cpp
+    DrcPanel.h
+    CavityPanel.cpp
+    CavityPanel.h
+    NetStatsPanel.cpp
+    NetStatsPanel.h
+    TransientPanel.cpp
+    TransientPanel.h
+    ZfPlotWidget.cpp
+    ZfPlotWidget.h
+    TransientPlotWidget.cpp
+    TransientPlotWidget.h
+)
+add_library(pdnkit::widgets ALIAS pdnkit_widgets)
+set_target_properties(pdnkit_widgets PROPERTIES AUTOMOC ON)
+target_include_directories(pdnkit_widgets PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pdnkit_widgets PUBLIC
+    circuitcore::ui
+    pdnkit_pi
+    Qt6::Widgets
+    Qt6::OpenGLWidgets
+    Qt6::OpenGL
+)
+target_compile_options(pdnkit_widgets PRIVATE -Wall -Wextra -Wpedantic)
+
 # GUI binary. Needs the KiCad adapter to open files, plus Qt.
 add_executable(pdnkit
     main.cpp
     MainWindow.cpp
-    PcbCanvas.cpp
-    LayerPanel.cpp
-    AnalysisPanel.cpp
-    ColorLegend.cpp
-    DrcPanel.cpp
-    CavityPanel.cpp
-    NetStatsPanel.cpp
-    TransientPanel.cpp
-    ZfPlotWidget.cpp
-    TransientPlotWidget.cpp
 )
 set_target_properties(pdnkit PROPERTIES
     AUTOMOC ON
@@ -62,7 +89,7 @@ set_target_properties(pdnkit PROPERTIES
     AUTORCC ON
 )
 target_link_libraries(pdnkit PRIVATE
-    circuitcore::ui
+    pdnkit::widgets
     pdnkit_pi
     circuitcore::kicad
     Qt6::Widgets
