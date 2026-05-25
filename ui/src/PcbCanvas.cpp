@@ -44,6 +44,7 @@ void main() {
 // between. This is purely a paint-order choice -- the depth test is
 // disabled in 2D mode.
 int render_priority(int ord) {
+    if (ord == kDrillOrdinal) return 9999;  // drill holes on top of all copper
     if (ord == 0)  return 1000;
     if (ord == 31) return 500;
     return 100 - ord;

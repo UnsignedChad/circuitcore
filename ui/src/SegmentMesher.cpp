@@ -63,8 +63,8 @@ std::vector<LayerMesh> SegmentMesher::build(const circuitcore::board::Board& boa
         // KiCad draws trace ends). The disks overlap the rectangle on
         // the inside; the half that extends past each endpoint is the
         // visible cap.
-        append_disk(m, s.start.x, s.start.y, hw, 16);
-        append_disk(m, s.end.x,   s.end.y,   hw, 16);
+        append_disk(m, s.start.x, s.start.y, hw, 24);
+        append_disk(m, s.end.x,   s.end.y,   hw, 24);
     }
 
     return meshes;

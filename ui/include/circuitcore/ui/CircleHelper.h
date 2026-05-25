@@ -15,7 +15,7 @@ namespace circuitcore::ui {
 // radius `r` into the given mesh. Default 24 sides → visually smooth at all
 // realistic via sizes without bloating vertex counts.
 inline void append_disk(LayerMesh& mesh, double cx, double cy, double r,
-                        int sides = 24) {
+                        int sides = 32) {
     if (r <= 0.0 || sides < 3) return;
     const auto base = static_cast<std::uint32_t>(mesh.vertex_count());
 

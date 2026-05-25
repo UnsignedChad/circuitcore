@@ -28,8 +28,8 @@ TEST_CASE("segments: horizontal segment yields 4 vertices, 2 triangles", "[segme
 
     auto m = SegmentMesher::build(b);
     REQUIRE(m.size() == 1);
-    REQUIRE(m[0].vertex_count() == 38);  // 4 rect + 2 * 17 cap (16-sided)
-    REQUIRE(m[0].triangle_count() == 34);  // 2 rect + 2 * 16 cap
+    REQUIRE(m[0].vertex_count() == 54);  // 4 rect + 2 * (1 + 24-side cap)
+    REQUIRE(m[0].triangle_count() == 50);  // 2 rect + 2 * 24 cap
     // Width is along Y; first vertex should be at (0, +0.5mm).
     REQUIRE(m[0].vertices[0] == Approx(0.0f));
     REQUIRE(m[0].vertices[1] == Approx(0.0005f));   // a + perp*hw
@@ -48,7 +48,7 @@ TEST_CASE("segments: vertical segment width offset along X", "[segments]") {
 
     auto m = SegmentMesher::build(b);
     REQUIRE(m.size() == 1);
-    REQUIRE(m[0].vertex_count() == 38);  // 4 rect + 2 * 17 cap (16-sided)
+    REQUIRE(m[0].vertex_count() == 54);  // 4 rect + 2 * (1 + 24-side cap)
     // perp of (0, +1) is (-1, 0). First vertex = (5mm - 1mm, 0) = (4mm, 0).
     REQUIRE(m[0].vertices[0] == Approx(0.004f));
     REQUIRE(m[0].vertices[1] == Approx(0.0f));
@@ -100,8 +100,8 @@ TEST_CASE("segments: many segments on same layer aggregate", "[segments]") {
 
     auto m = SegmentMesher::build(b);
     REQUIRE(m.size() == 1);
-    REQUIRE(m[0].vertex_count() == 190);   // 5 * (4 rect + 2*17 cap)
-    REQUIRE(m[0].triangle_count() == 170); // 5 * (2 rect + 2*16 cap)
+    REQUIRE(m[0].vertex_count() == 270);   // 5 * (4 rect + 2*(1+24) cap)
+    REQUIRE(m[0].triangle_count() == 250); // 5 * (2 rect + 2*24 cap)
 }
 
 TEST_CASE("build_all_meshes: combines zones and segments on same layer", "[segments]") {
@@ -126,8 +126,8 @@ TEST_CASE("build_all_meshes: combines zones and segments on same layer", "[segme
     auto m = build_all_meshes(b);
     REQUIRE(m.size() == 1);
     REQUIRE(m[0].layer_ordinal == 0);
-    REQUIRE(m[0].vertex_count() == 42);   // 4 zone + 1 seg (4 rect + 2*17 cap)
-    REQUIRE(m[0].triangle_count() == 36); // 2 zone + 1 seg (2 rect + 2*16 cap)
+    REQUIRE(m[0].vertex_count() == 58);   // 4 zone + 1 seg (4 rect + 2*(1+24) cap)
+    REQUIRE(m[0].triangle_count() == 52); // 2 zone + 1 seg (2 rect + 2*24 cap)
 }
 
 TEST_CASE("build_all_meshes: zones-only and segments-only layers stay separate", "[segments]") {

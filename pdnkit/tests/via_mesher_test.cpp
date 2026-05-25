@@ -21,10 +21,10 @@ TEST_CASE("via: 2-layer through-via produces a disk on each copper layer", "[via
     b.vias.push_back(v);
 
     auto m = ViaMesher::build(b);
-    REQUIRE(m.size() == 2);
+    REQUIRE(m.size() == 3);  // 2 copper + 1 drill pseudo-layer
     for (const auto& lm : m) {
-        REQUIRE(lm.vertex_count() == 25);   // 1 center + 24 rim
-        REQUIRE(lm.triangle_count() == 24); // 24-sided fan
+        REQUIRE(lm.vertex_count() == 33);   // 1 center + 32 rim
+        REQUIRE(lm.triangle_count() == 32); // 32-sided fan
     }
 }
 
@@ -43,7 +43,7 @@ TEST_CASE("via: 4-layer through-via covers all intermediate copper", "[via]") {
     b.vias.push_back(v);
 
     auto m = ViaMesher::build(b);
-    REQUIRE(m.size() == 4);  // F.Cu, In1, In2, B.Cu all see the disk
+    REQUIRE(m.size() == 4);  // F.Cu, In1, In2, B.Cu (no drill since v.drill = 0)
 }
 
 TEST_CASE("via: blind via covers only its endpoint range", "[via]") {
@@ -89,7 +89,7 @@ TEST_CASE("pad: pads draw a disk on each listed copper layer", "[pad]") {
     // Only the copper layer (0); silkscreen (32) is skipped.
     REQUIRE(m.size() == 1);
     REQUIRE(m[0].layer_ordinal == 0);
-    REQUIRE(m[0].vertex_count() == 25);
+    REQUIRE(m[0].vertex_count() == 33);
 }
 
 TEST_CASE("pad: multiple pads on same layer aggregate", "[pad]") {
@@ -105,6 +105,6 @@ TEST_CASE("pad: multiple pads on same layer aggregate", "[pad]") {
 
     auto m = PadMesher::build(b);
     REQUIRE(m.size() == 1);
-    REQUIRE(m[0].vertex_count() == 75);   // 3 * 25
-    REQUIRE(m[0].triangle_count() == 72); // 3 * 24
+    REQUIRE(m[0].vertex_count() == 99);   // 3 * 33
+    REQUIRE(m[0].triangle_count() == 96); // 3 * 32
 }
