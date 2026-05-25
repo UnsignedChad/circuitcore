@@ -80,6 +80,33 @@ void append_rect(LayerMesh& mesh, double cx, double cy, double hw, double hh,
                                               base + 0, base + 2, base + 3});
 }
 
+// Append a rotated rounded rectangle: two overlapping inner rects that
+// together make the cross-shape outline, plus 4 corner disks at radius r.
+// When r >= min(hw, hh) this collapses to a capsule (Oval pad); when r is
+// small it's a chamfered rect (RoundRect pad).
+void append_round_rect(LayerMesh& mesh, double cx, double cy,
+                        double hw, double hh, double r, double angle) {
+    if (hw <= 0.0 || hh <= 0.0) return;
+    if (r <= 0.0) { append_rect(mesh, cx, cy, hw, hh, angle); return; }
+    if (r > hw) r = hw;
+    if (r > hh) r = hh;
+    // Cross body: two overlapping rects so the union covers the rounded
+    // outline minus the four corner quarter-circles.
+    if (hh - r > 0.0) append_rect(mesh, cx, cy, hw,      hh - r, angle);
+    if (hw - r > 0.0) append_rect(mesh, cx, cy, hw - r,  hh,     angle);
+    // 4 corner disks at (±(hw-r), ±(hh-r)) in local coords, rotated.
+    const double cs = std::cos(angle), sn = std::sin(angle);
+    auto corner = [&](double lx, double ly) {
+        const double wx = cx + cs * lx - sn * ly;
+        const double wy = cy + sn * lx + cs * ly;
+        append_disk(mesh, wx, wy, r, 16);
+    };
+    corner( (hw - r),  (hh - r));
+    corner(-(hw - r),  (hh - r));
+    corner( (hw - r), -(hh - r));
+    corner(-(hw - r), -(hh - r));
+}
+
 }  // namespace
 
 std::vector<LayerMesh> PadMesher::build(const circuitcore::board::Board& board) {
@@ -91,25 +118,54 @@ std::vector<LayerMesh> PadMesher::build(const circuitcore::board::Board& board) 
             const circuitcore::board::Layer* L = board.find_layer(ord);
             if (!L || !L->is_copper()) continue;
             LayerMesh& m = mesh_for(meshes, idx, ord);
+            const double hw = 0.5 * p.size.x;
+            const double hh = 0.5 * p.size.y;
+            const bool have_size = (p.size.x > 0.0 && p.size.y > 0.0);
             switch (p.shape) {
                 case circuitcore::board::PadShape::Circle: {
-                    // size.x is the diameter for SMD round pads. Fallback to
-                    // kDefaultPadRadius when size is unknown.
-                    const double r = (p.size.x > 0.0)
-                        ? 0.5 * p.size.x : kDefaultPadRadius;
+                    const double r = (p.size.x > 0.0) ? hw : kDefaultPadRadius;
                     append_disk(m, p.at.x, p.at.y, r);
                     break;
                 }
-                case circuitcore::board::PadShape::Rect:
-                case circuitcore::board::PadShape::RoundRect:
-                case circuitcore::board::PadShape::Oval:    // approximated as Rect for v0
-                case circuitcore::board::PadShape::Custom: {
-                    if (p.size.x > 0.0 && p.size.y > 0.0) {
-                        append_rect(m, p.at.x, p.at.y, 0.5 * p.size.x,
-                                    0.5 * p.size.y, p.rotation);
+                case circuitcore::board::PadShape::Rect: {
+                    if (have_size)
+                        append_rect(m, p.at.x, p.at.y, hw, hh, p.rotation);
+                    else
+                        append_disk(m, p.at.x, p.at.y, kDefaultPadRadius);
+                    break;
+                }
+                case circuitcore::board::PadShape::Oval: {
+                    // Capsule: corner radius = half the short axis so the
+                    // ends are full half-disks.
+                    if (have_size) {
+                        const double r = std::min(hw, hh);
+                        append_round_rect(m, p.at.x, p.at.y, hw, hh, r,
+                                           p.rotation);
                     } else {
                         append_disk(m, p.at.x, p.at.y, kDefaultPadRadius);
                     }
+                    break;
+                }
+                case circuitcore::board::PadShape::RoundRect: {
+                    // ~25% corner-radius ratio is the KiCad default for
+                    // RoundRect when the .kicad_pcb doesn't carry an
+                    // explicit roundrect_rratio (which v0 doesn't parse).
+                    if (have_size) {
+                        const double r = 0.25 * std::min(hw, hh);
+                        append_round_rect(m, p.at.x, p.at.y, hw, hh, r,
+                                           p.rotation);
+                    } else {
+                        append_disk(m, p.at.x, p.at.y, kDefaultPadRadius);
+                    }
+                    break;
+                }
+                case circuitcore::board::PadShape::Custom: {
+                    // Custom shapes need the polygon outline KiCad records;
+                    // v0 doesn't parse it. Fall back to a plain rect.
+                    if (have_size)
+                        append_rect(m, p.at.x, p.at.y, hw, hh, p.rotation);
+                    else
+                        append_disk(m, p.at.x, p.at.y, kDefaultPadRadius);
                     break;
                 }
             }
