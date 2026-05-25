@@ -31,6 +31,8 @@
 // sikit's flavoured canvas. Lives in the global namespace so existing
 // MainWindow code that just says "PcbCanvas* canvas_;" keeps working
 // without a namespace touch.
+namespace sikit {
+
 class PcbCanvas : public circuitcore::ui::PcbCanvas {
     Q_OBJECT
 public:
@@ -104,3 +106,6 @@ private:
     bool panning_3d_ = false;
     QPoint last_mouse_3d_;
 };
+
+
+}  // namespace sikit

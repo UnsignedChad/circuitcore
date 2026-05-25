@@ -11,6 +11,8 @@
 #include <QVector4D>
 #include <QWheelEvent>
 
+namespace sikit {
+
 namespace {
 
 constexpr auto kVcolVertSrc = R"(
@@ -401,3 +403,6 @@ void PcbCanvas::wheelEvent(QWheelEvent* e) {
     }
     circuitcore::ui::PcbCanvas::wheelEvent(e);
 }
+
+
+}  // namespace sikit

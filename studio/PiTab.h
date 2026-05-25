@@ -19,13 +19,13 @@
 #include "pi/IrSolver.h"
 
 // Forward declarations -- everything below comes from pdnkit_widgets.
-class PcbCanvas;          // pdnkit's subclass of circuitcore::ui::PcbCanvas
+namespace pdnkit { class PcbCanvas; }
 class AnalysisPanel;
 class NetStatsPanel;
 class CavityPanel;
 class TransientPanel;
 class DrcPanel;
-class LayerPanel;
+namespace pdnkit { class LayerPanel; }
 class ColorLegend;
 class QLabel;
 
@@ -49,14 +49,14 @@ private:
 
     BoardModel* model_;
 
-    PcbCanvas*       canvas_ = nullptr;
+    pdnkit::PcbCanvas*       canvas_ = nullptr;
     ColorLegend*     legend_ = nullptr;
     AnalysisPanel*   analysis_panel_ = nullptr;
     NetStatsPanel*   netstats_panel_ = nullptr;
     CavityPanel*     cavity_panel_   = nullptr;
     TransientPanel*  transient_panel_ = nullptr;
     DrcPanel*        drc_panel_      = nullptr;
-    LayerPanel*      layer_panel_    = nullptr;
+    pdnkit::LayerPanel*      layer_panel_    = nullptr;
     QLabel*          hover_label_    = nullptr;
 
     // Cache the last analysis result so the probe-R workflow can reuse

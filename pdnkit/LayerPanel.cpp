@@ -7,6 +7,8 @@
 
 #include "circuitcore/ui/LayerColors.h"
 
+namespace pdnkit {
+
 namespace {
 
 // Build a small (14x14) flat-colored swatch label.
@@ -83,3 +85,6 @@ void LayerPanel::setLayers(const std::vector<Entry>& layers) {
         rows_layout_->addWidget(row);
     }
 }
+
+
+}  // namespace pdnkit

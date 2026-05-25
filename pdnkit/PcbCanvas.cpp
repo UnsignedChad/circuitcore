@@ -13,6 +13,8 @@
 #include "circuitcore/board/HitTest.h"
 #include "circuitcore/ui/CircleHelper.h"
 
+namespace pdnkit {
+
 namespace {
 
 // Heat-map shader: per-vertex scalar t in [0,1] -> viridis colormap.
@@ -579,3 +581,6 @@ void PcbCanvas::mouseMoveEvent(QMouseEvent* e) {
         emit hoverInfo(info);
     }
 }
+
+
+}  // namespace pdnkit

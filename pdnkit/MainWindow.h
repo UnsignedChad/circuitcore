@@ -9,8 +9,8 @@
 #include "pi/IrMesher.h"
 #include "pi/IrSolver.h"
 
-class PcbCanvas;
-class LayerPanel;
+namespace pdnkit { class PcbCanvas; }
+namespace pdnkit { class LayerPanel; }
 class AnalysisPanel;
 class ColorLegend;
 class NetStatsPanel;
@@ -52,8 +52,8 @@ private:
     void updateRecentMenu();
     void addRecent(const QString& path);
 
-    PcbCanvas* canvas_;
-    LayerPanel* layer_panel_;
+    pdnkit::PcbCanvas* canvas_;
+    pdnkit::LayerPanel* layer_panel_;
     AnalysisPanel* analysis_panel_;
     NetStatsPanel* netstats_panel_;
     CavityPanel* cavity_panel_;

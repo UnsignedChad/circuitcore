@@ -76,9 +76,13 @@ target_compile_options(sikit_si PRIVATE -Wall -Wextra -Wpedantic)
 # pulling in sikit/main.cpp + MainWindow.cpp.
 add_library(sikit_widgets STATIC
     EyeWindow.cpp
-    SParamPlotWindow.cpp
     EyeWindow.h
+    SParamPlotWindow.cpp
     SParamPlotWindow.h
+    PcbCanvas.cpp
+    PcbCanvas.h
+    LayerPanel.cpp
+    LayerPanel.h
 )
 add_library(sikit::widgets ALIAS sikit_widgets)
 set_target_properties(sikit_widgets PROPERTIES AUTOMOC ON)
@@ -88,7 +92,10 @@ target_include_directories(sikit_widgets PUBLIC
 )
 target_link_libraries(sikit_widgets PUBLIC
     sikit_si
+    circuitcore::ui
     Qt6::Widgets
+    Qt6::OpenGLWidgets
+    Qt6::OpenGL
 )
 target_compile_options(sikit_widgets PRIVATE -Wall -Wextra -Wpedantic)
 
@@ -96,8 +103,6 @@ target_compile_options(sikit_widgets PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(sikit
     main.cpp
     MainWindow.cpp
-    PcbCanvas.cpp
-    LayerPanel.cpp
 )
 set_target_properties(sikit PROPERTIES
     AUTOMOC ON

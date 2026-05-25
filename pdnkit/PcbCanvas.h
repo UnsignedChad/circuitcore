@@ -28,6 +28,8 @@
 #include "render/IrResultMesh.h"
 #include "pi/IrSolver.h"
 
+namespace pdnkit {
+
 class PcbCanvas : public circuitcore::ui::PcbCanvas {
     Q_OBJECT
 public:
@@ -137,3 +139,6 @@ private:
     bool panning_ = false;
     QPoint last_mouse_;
 };
+
+
+}  // namespace pdnkit
