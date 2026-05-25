@@ -6,12 +6,14 @@
 
 #include <QMatrix4x4>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QSettings>
 #include <QString>
 #include <QVector4D>
 #include <QWheelEvent>
 
 #include "circuitcore/board/HitTest.h"
+#include "circuitcore/ui/GraphicsMesher.h"
 #include "circuitcore/ui/LayerColors.h"
 #include "circuitcore/ui/SegmentMesher.h"
 #include "circuitcore/ui/ViaMesher.h"
@@ -70,6 +72,7 @@ void PcbCanvas::setBoard(const board::Board* board) {
     if (board_) {
         pending_meshes_ = build_all_meshes(*board_);
         meshes_dirty_ = true;
+        graphics_dirty_ = true;
         if (isValid()) {
             // initializeGL has already run -- safe to refresh outline now.
             makeCurrent();
@@ -175,6 +178,18 @@ void PcbCanvas::initializeGL() {
     board_vbo_.release();
     board_ibo_.release();
 
+    auto bind_flat = [&](QOpenGLVertexArrayObject& vao,
+                          QOpenGLBuffer& vbo, QOpenGLBuffer& ibo) {
+        vao.create(); vbo.create(); ibo.create();
+        vao.bind(); vbo.bind(); ibo.bind();
+        flat_prog_.enableAttributeArray(0);
+        flat_prog_.setAttributeBuffer(0, GL_FLOAT, 0, 2);
+        vao.release(); vbo.release(); ibo.release();
+    };
+    bind_flat(silk_vao_, silk_vbo_, silk_ibo_);
+    bind_flat(mask_vao_, mask_vbo_, mask_ibo_);
+    bind_flat(cyd_vao_,  cyd_vbo_,  cyd_ibo_);
+
     initializeGLOverlays();
 }
 
@@ -264,6 +279,45 @@ void PcbCanvas::uploadBoardMeshes() {
     meshes_dirty_ = false;
 }
 
+void PcbCanvas::uploadGraphics() {
+    if (!board_) {
+        silk_index_count_ = mask_index_count_ = cyd_index_count_ = 0;
+        pending_text_.clear();
+        graphics_dirty_ = false;
+        return;
+    }
+    auto bundle = GraphicsMesher::build(*board_);
+    auto upload = [&](LayerMesh& src, QOpenGLBuffer& vbo,
+                       QOpenGLBuffer& ibo, QOpenGLVertexArrayObject& vao,
+                       int& out_index_count) {
+        out_index_count = static_cast<int>(src.indices.size());
+        if (out_index_count == 0) return;
+        vao.bind(); vbo.bind();
+        vbo.allocate(src.vertices.data(),
+                      static_cast<int>(src.vertices.size() * sizeof(float)));
+        ibo.bind();
+        ibo.allocate(src.indices.data(),
+                      static_cast<int>(src.indices.size() *
+                                        sizeof(std::uint32_t)));
+        flat_prog_.enableAttributeArray(0);
+        flat_prog_.setAttributeBuffer(0, GL_FLOAT, 0, 2);
+        vao.release(); vbo.release(); ibo.release();
+    };
+    upload(bundle.silk,      silk_vbo_, silk_ibo_, silk_vao_, silk_index_count_);
+    upload(bundle.mask,      mask_vbo_, mask_ibo_, mask_vao_, mask_index_count_);
+    upload(bundle.courtyard, cyd_vbo_,  cyd_ibo_,  cyd_vao_,  cyd_index_count_);
+    pending_text_.clear();
+    pending_text_.reserve(bundle.silk_text.size());
+    for (auto& t : bundle.silk_text) {
+        SilkText st;
+        st.x = t.x; st.y = t.y;
+        st.size_m = t.size; st.angle = t.angle;
+        st.text = std::move(t.text);
+        pending_text_.push_back(std::move(st));
+    }
+    graphics_dirty_ = false;
+}
+
 void PcbCanvas::resizeGL(int w, int h) {
     glViewport(0, 0, w, h);
 }
@@ -312,9 +366,67 @@ void PcbCanvas::paintGL() {
         outline_vao_.release();
     }
 
+    // Silk / mask / courtyard from the parser's Board::graphics.
+    if (graphics_dirty_) { flat_prog_.release(); uploadGraphics();
+                            flat_prog_.bind();
+                            flat_prog_.setUniformValue("u_proj", proj); }
+    // Mask: translucent green, under silk but on top of copper.
+    if (mask_index_count_ > 0) {
+        flat_prog_.setUniformValue("u_color",
+                                    QVector4D(0.18f, 0.50f, 0.22f, 0.45f));
+        mask_vao_.bind();
+        glDrawElements(GL_TRIANGLES, mask_index_count_, GL_UNSIGNED_INT, nullptr);
+        mask_vao_.release();
+    }
+    // Silk: opaque white-ish on top of everything (except courtyard).
+    if (silk_index_count_ > 0) {
+        flat_prog_.setUniformValue("u_color",
+                                    QVector4D(0.92f, 0.92f, 0.92f, 1.0f));
+        silk_vao_.bind();
+        glDrawElements(GL_TRIANGLES, silk_index_count_, GL_UNSIGNED_INT, nullptr);
+        silk_vao_.release();
+    }
+    // Courtyard: thin magenta -- usually a debug aid, drawn last.
+    if (cyd_index_count_ > 0) {
+        flat_prog_.setUniformValue("u_color",
+                                    QVector4D(0.78f, 0.30f, 0.78f, 0.60f));
+        cyd_vao_.bind();
+        glDrawElements(GL_TRIANGLES, cyd_index_count_, GL_UNSIGNED_INT, nullptr);
+        cyd_vao_.release();
+    }
+
     flat_prog_.release();
 
     paintOverlays2D();
+
+    // Silkscreen text via QPainter -- the GL pipeline doesn't rasterize
+    // text. Only attempt this when we have something to draw to avoid
+    // the QPainter setup cost on bare boards.
+    if (!pending_text_.empty()) {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setRenderHint(QPainter::TextAntialiasing);
+        painter.setPen(QColor(235, 235, 235));
+        for (const auto& t : pending_text_) {
+            double sx = 0, sy = 0;
+            camera_.world_to_screen({t.x, t.y}, width(), height(), sx, sy);
+            // Map text size from world metres to screen pixels via the
+            // current zoom. Floor at 6 px so small labels are still
+            // readable when zoomed out.
+            const double px = std::max(6.0, t.size_m * camera_.pixels_per_meter);
+            QFont f = painter.font();
+            f.setPixelSize(static_cast<int>(px));
+            painter.setFont(f);
+            painter.save();
+            painter.translate(sx, sy);
+            if (std::abs(t.angle) > 1e-6) {
+                painter.rotate(-t.angle * 180.0 / 3.141592653589793);
+            }
+            painter.drawText(QPointF(-px * 0.5 * t.text.size() / 2.0, px * 0.5),
+                              QString::fromStdString(t.text));
+            painter.restore();
+        }
+    }
 }
 
 void PcbCanvas::mousePressEvent(QMouseEvent* e) {
