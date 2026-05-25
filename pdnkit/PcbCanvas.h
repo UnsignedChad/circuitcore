@@ -11,10 +11,10 @@
 #include <QPoint>
 
 #include "circuitcore/board/Board.h"
-#include "render/Camera2D.h"
+#include "circuitcore/ui/Camera2D.h"
 #include "render/IrResultMesh.h"
 #include "pi/IrSolver.h"
-#include "render/SegmentMesher.h"
+#include "circuitcore/ui/SegmentMesher.h"
 
 class PcbCanvas : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     Q_OBJECT
@@ -87,7 +87,7 @@ private:
         int index_count = 0;
     };
 
-    pdnkit::render::Camera2D camera_;
+    circuitcore::ui::Camera2D camera_;
     const circuitcore::board::Board* board_ = nullptr;
 
     QOpenGLShaderProgram flat_prog_;  // grid + board layer fills
@@ -105,7 +105,7 @@ private:
     QOpenGLBuffer board_ibo_{QOpenGLBuffer::IndexBuffer};
     QOpenGLVertexArrayObject board_vao_;
     std::vector<LayerRange> layer_ranges_;
-    std::vector<pdnkit::render::LayerMesh> pending_meshes_;
+    std::vector<circuitcore::ui::LayerMesh> pending_meshes_;
     bool meshes_dirty_ = false;
 
     QOpenGLBuffer heat_vbo_{QOpenGLBuffer::VertexBuffer};

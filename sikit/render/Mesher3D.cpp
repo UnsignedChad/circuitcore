@@ -7,7 +7,7 @@
 #include <optional>
 #include <unordered_map>
 
-#include "render/LayerColors.h"
+#include "circuitcore/ui/LayerColors.h"
 
 namespace sikit::render {
 
@@ -367,7 +367,7 @@ BoardMesh3D build_board_mesh_3d(const circuitcore::board::Board& board,
         if (!lz) continue;
         const double z_lo = lz->z_center - 0.5 * lz->thickness;
         const double z_hi = lz->z_center + 0.5 * lz->thickness;
-        const auto rgba = layer_color(s.layer_ordinal);
+        const auto rgba = circuitcore::ui::layer_color(s.layer_ordinal);
         const Color c{rgba[0], rgba[1], rgba[2], 1.0f};
         append_segment_box(out.copper, s, z_lo, z_hi, c);
     }

@@ -44,6 +44,9 @@ add_subdirectory(intent)          # circuitcore::intent -- board vs schematic
 # add_subdirectory(formats/altium)  # future
 # add_subdirectory(formats/ipc2581) # future
 
+# --- Layer 2.5: shared Qt UI ---
+add_subdirectory(ui)        # circuitcore::ui -- shared renderer modules
+
 # --- Layer 3: analysis tools ---
 add_subdirectory(pdnkit)
 add_subdirectory(sikit)

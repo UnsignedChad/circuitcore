@@ -1,4 +1,4 @@
-#include "render/ZoneMesher.h"
+#include "circuitcore/ui/ZoneMesher.h"
 
 #include <unordered_map>
 
@@ -20,7 +20,7 @@ struct nth<1, circuitcore::board::Point2> {
 }  // namespace util
 }  // namespace mapbox
 
-namespace pdnkit::render {
+namespace circuitcore::ui {
 
 std::vector<LayerMesh> ZoneMesher::build(const circuitcore::board::Board& board) {
     // Layer ordinal → index into result vector. Lets us append per zone.
@@ -76,4 +76,4 @@ std::vector<LayerMesh> ZoneMesher::build(const circuitcore::board::Board& board)
     return meshes;
 }
 
-}  // namespace pdnkit::render
+}  // namespace circuitcore::ui

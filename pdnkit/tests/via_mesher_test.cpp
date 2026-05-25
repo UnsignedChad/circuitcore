@@ -1,10 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "circuitcore/board/Board.h"
-#include "render/ViaMesher.h"
+#include "circuitcore/ui/ViaMesher.h"
 
-using pdnkit::render::ViaMesher;
-using pdnkit::render::PadMesher;
+using circuitcore::ui::ViaMesher;
+using circuitcore::ui::PadMesher;
 using namespace circuitcore::board;
 
 TEST_CASE("via: 2-layer through-via produces a disk on each copper layer", "[via]") {

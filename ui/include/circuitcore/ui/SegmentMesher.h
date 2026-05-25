@@ -7,9 +7,9 @@
 #pragma once
 
 #include "circuitcore/board/Board.h"
-#include "render/ZoneMesher.h"  // for LayerMesh
+#include "circuitcore/ui/ZoneMesher.h"  // for LayerMesh
 
-namespace pdnkit::render {
+namespace circuitcore::ui {
 
 class SegmentMesher {
 public:
@@ -20,4 +20,4 @@ public:
 // per copper layer. This is what the renderer consumes.
 std::vector<LayerMesh> build_all_meshes(const circuitcore::board::Board& board);
 
-}  // namespace pdnkit::render
+}  // namespace circuitcore::ui

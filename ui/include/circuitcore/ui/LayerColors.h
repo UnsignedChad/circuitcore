@@ -1,12 +1,12 @@
 // Shared per-layer color palette. Returns RGBA in [0,1] so both the Qt
 // (UI) side and the GL (shader) side can consume it without converting
-// through Qt-specific types in pdnkit_core.
+// through Qt-specific types in circuitcore_ui.
 
 #pragma once
 
 #include <array>
 
-namespace pdnkit::render {
+namespace circuitcore::ui {
 
 // RGBA in [0,1]. Front copper (0) is warm red; back copper (31) is cool
 // blue; inner copper cycles through a small palette by ordinal.
@@ -27,4 +27,4 @@ inline std::array<float, 4> layer_color(int ordinal) {
     return palette[((ordinal - 1) % n + n) % n];
 }
 
-}  // namespace pdnkit::render
+}  // namespace circuitcore::ui

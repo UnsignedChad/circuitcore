@@ -1,8 +1,8 @@
-#include "render/Camera2D.h"
+#include "circuitcore/ui/Camera2D.h"
 
 #include <algorithm>
 
-namespace pdnkit::render {
+namespace circuitcore::ui {
 
 using circuitcore::board::Point2;
 
@@ -68,4 +68,4 @@ std::array<float, 16> Camera2D::ortho_matrix(int w, int h) const {
     };
 }
 
-}  // namespace pdnkit::render
+}  // namespace circuitcore::ui

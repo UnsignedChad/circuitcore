@@ -51,13 +51,9 @@ add_library(sikit_si STATIC
     si/TouchstoneWriter.cpp
     si/TraceImpedance.cpp
     si/ViaModel.cpp
-    # Rendering
-    render/Camera2D.cpp
+    # 3D renderer stays sikit-side -- depends on SiStackup
     render/Camera3D.cpp
     render/Mesher3D.cpp
-    render/SegmentMesher.cpp
-    render/ViaMesher.cpp
-    render/ZoneMesher.cpp
 )
 target_include_directories(sikit_si PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -68,6 +64,7 @@ target_link_libraries(sikit_si
         circuitcore::board
         circuitcore::sexpr   # SiStackup parses (setup (stackup ...)) directly
         circuitcore::netlist # SchematicTopology consumes parsed netlists
+        circuitcore::ui      # shared Qt renderer (Camera, meshers, 3D)
         Eigen3::Eigen
         spdlog::spdlog
         ${CMAKE_DL_LIBS}     # for AMI dlopen

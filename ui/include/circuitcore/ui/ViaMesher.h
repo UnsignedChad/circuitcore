@@ -11,9 +11,9 @@
 #pragma once
 
 #include "circuitcore/board/Board.h"
-#include "render/ZoneMesher.h"  // for LayerMesh
+#include "circuitcore/ui/ZoneMesher.h"  // for LayerMesh
 
-namespace sikit::render {
+namespace circuitcore::ui {
 
 class ViaMesher {
 public:
@@ -28,4 +28,4 @@ public:
     static std::vector<LayerMesh> build(const circuitcore::board::Board& board);
 };
 
-}  // namespace sikit::render
+}  // namespace circuitcore::ui

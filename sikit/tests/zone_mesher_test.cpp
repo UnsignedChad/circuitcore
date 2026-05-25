@@ -1,10 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "circuitcore/board/Board.h"
-#include "render/ZoneMesher.h"
+#include "circuitcore/ui/ZoneMesher.h"
 
-using sikit::render::ZoneMesher;
-using sikit::render::LayerMesh;
+using circuitcore::ui::ZoneMesher;
+using circuitcore::ui::LayerMesh;
 using namespace circuitcore::board;
 
 namespace {

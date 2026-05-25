@@ -11,7 +11,7 @@
 
 #include "circuitcore/board/Board.h"
 
-namespace sikit::render {
+namespace circuitcore::ui {
 
 struct LayerMesh {
     int layer_ordinal = 0;
@@ -31,4 +31,4 @@ public:
     static std::vector<LayerMesh> build(const circuitcore::board::Board& board);
 };
 
-}  // namespace sikit::render
+}  // namespace circuitcore::ui

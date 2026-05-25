@@ -1,9 +1,9 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "render/Camera2D.h"
+#include "circuitcore/ui/Camera2D.h"
 
-using pdnkit::render::Camera2D;
+using circuitcore::ui::Camera2D;
 using circuitcore::board::Point2;
 using Catch::Approx;
 

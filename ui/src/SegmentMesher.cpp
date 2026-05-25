@@ -1,12 +1,12 @@
-#include "render/SegmentMesher.h"
+#include "circuitcore/ui/SegmentMesher.h"
 
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
 
-#include "render/ViaMesher.h"
+#include "circuitcore/ui/ViaMesher.h"
 
-namespace pdnkit::render {
+namespace circuitcore::ui {
 
 std::vector<LayerMesh> SegmentMesher::build(const circuitcore::board::Board& board) {
     std::unordered_map<int, std::size_t> layer_to_mesh;
@@ -92,4 +92,4 @@ std::vector<LayerMesh> build_all_meshes(const circuitcore::board::Board& board) 
     return result;
 }
 
-}  // namespace pdnkit::render
+}  // namespace circuitcore::ui
