@@ -67,6 +67,12 @@ pdnkit --eps-f --frequency 1e9 --eps-inf 3.8 --delta-eps 1.0
 ```
 Prints eps_r' / eps_r" / tan(delta) at one frequency under the causal Djordjevic-Sarkar fit. Defaults are a generic FR-4 (eps_inf=3.8, delta=1.0, f1=1 kHz, f2=1 GHz).
 
+### Conductor surface roughness (Hammerstad-Jensen)
+```
+pdnkit --rough-k --rough-rq 1.0 --rough-f 10e9
+```
+Multiplier K = 1 + (2/pi)*atan(1.4*(Rq/delta_s)^2) for the effective copper resistance at high frequency. At 10 GHz with std rolled Cu (Rq ~ 1 um), K ~ 1.8 -- roughness inflates loss by 80%. K -> 2 in the high-freq asymptote.
+
 ### IR drop with thermal coupling
 ```
 pdnkit --thermal --net VRAIL --layer F.Cu --current 5.0 \
