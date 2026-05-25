@@ -7,9 +7,9 @@
 #include <cstdint>
 #include <numbers>
 
-#include "render/ZoneMesher.h"  // for LayerMesh
+#include "circuitcore/ui/ZoneMesher.h"  // for LayerMesh
 
-namespace sikit::render {
+namespace circuitcore::ui {
 
 // Append `sides` triangles forming a filled disk centered at (cx, cy) with
 // radius `r` into the given mesh. Default 24 sides → visually smooth at all
@@ -37,4 +37,4 @@ inline void append_disk(LayerMesh& mesh, double cx, double cy, double r,
     }
 }
 
-}  // namespace sikit::render
+}  // namespace circuitcore::ui

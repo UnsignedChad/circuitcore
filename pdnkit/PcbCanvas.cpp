@@ -12,8 +12,8 @@
 #include <QWheelEvent>
 
 #include "circuitcore/board/HitTest.h"
-#include "render/CircleHelper.h"
-#include "render/LayerColors.h"
+#include "circuitcore/ui/CircleHelper.h"
+#include "circuitcore/ui/LayerColors.h"
 
 namespace {
 
@@ -94,7 +94,7 @@ void PcbCanvas::setBoard(const circuitcore::board::Board* board) {
     setIrResult({});  // clear any heat-map from a previous board
 
     if (board_) {
-        pending_meshes_ = pdnkit::render::build_all_meshes(*board_);
+        pending_meshes_ = circuitcore::ui::build_all_meshes(*board_);
         meshes_dirty_ = true;
         fitToBoard();
     }
@@ -371,11 +371,11 @@ void PcbCanvas::uploadIrResult() {
     // The radius is in world units; choose ~3 cells worth so they stay
     // visible at typical zooms.
     {
-        pdnkit::render::LayerMesh src_mesh, snk_mesh;
+        circuitcore::ui::LayerMesh src_mesh, snk_mesh;
         const double r = 0.5e-3;  // 0.5mm marker radius
         for (const auto& m : pending_heat_.markers) {
-            if (m.current > 0.0)      pdnkit::render::append_disk(src_mesh, m.x, m.y, r, 24);
-            else if (m.current < 0.0) pdnkit::render::append_disk(snk_mesh, m.x, m.y, r, 24);
+            if (m.current > 0.0)      circuitcore::ui::append_disk(src_mesh, m.x, m.y, r, 24);
+            else if (m.current < 0.0) circuitcore::ui::append_disk(snk_mesh, m.x, m.y, r, 24);
         }
         std::vector<float> verts;
         std::vector<std::uint32_t> idx;
@@ -510,7 +510,7 @@ void PcbCanvas::paintGL() {
             const bool visible = (vis_it == layer_visible_.end()) || vis_it->second;
             if (!visible) continue;
             flat_prog_.setUniformValue("u_color",
-                                       toQVec(pdnkit::render::layer_color(r.ordinal)));
+                                       toQVec(circuitcore::ui::layer_color(r.ordinal)));
             glDrawElements(GL_TRIANGLES, r.index_count, GL_UNSIGNED_INT,
                            reinterpret_cast<const void*>(
                                static_cast<std::uintptr_t>(r.index_start *
@@ -571,10 +571,10 @@ void PcbCanvas::paintGL() {
     // Decap markers: blue dots over everything (rebuilt lazily here so the
     // GL context is current when we touch buffers).
     if (decaps_dirty_) {
-        pdnkit::render::LayerMesh dm;
+        circuitcore::ui::LayerMesh dm;
         const double r = 0.6e-3;
         for (const auto& p : pending_decaps_) {
-            pdnkit::render::append_disk(dm, p.x, p.y, r, 24);
+            circuitcore::ui::append_disk(dm, p.x, p.y, r, 24);
         }
         decap_index_count_ = static_cast<int>(dm.indices.size());
 
@@ -684,10 +684,10 @@ void PcbCanvas::paintGL() {
         cavity_rect_vbo_.release();
 
         // Port markers (small filled disks).
-        pdnkit::render::LayerMesh pm;
+        circuitcore::ui::LayerMesh pm;
         const double r = 0.8e-3;
         for (const auto& p : cavity_ports_) {
-            pdnkit::render::append_disk(pm, p.x, p.y, r, 24);
+            circuitcore::ui::append_disk(pm, p.x, p.y, r, 24);
         }
         cavity_port_index_count_ = static_cast<int>(pm.indices.size());
 

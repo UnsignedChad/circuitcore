@@ -13,10 +13,10 @@
 #include "si/TraceImpedance.h"
 #include "circuitcore/board/Board.h"
 #include "si/SiStackup.h"
-#include "render/Camera2D.h"
+#include "circuitcore/ui/Camera2D.h"
 #include "render/Camera3D.h"
 #include "render/Mesher3D.h"
-#include "render/SegmentMesher.h"
+#include "circuitcore/ui/SegmentMesher.h"
 
 class PcbCanvas : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     Q_OBJECT
@@ -63,7 +63,7 @@ private:
         int index_count = 0;
     };
 
-    sikit::render::Camera2D camera_;
+    circuitcore::ui::Camera2D camera_;
     sikit::render::Camera3D camera3d_;
     ViewMode view_mode_ = ViewMode::D2;
     const circuitcore::board::Board* board_ = nullptr;
@@ -82,7 +82,7 @@ private:
     QOpenGLBuffer board_ibo_{QOpenGLBuffer::IndexBuffer};
     QOpenGLVertexArrayObject board_vao_;
     std::vector<LayerRange> layer_ranges_;
-    std::vector<sikit::render::LayerMesh> pending_meshes_;
+    std::vector<circuitcore::ui::LayerMesh> pending_meshes_;
     bool meshes_dirty_ = false;
 
     // Impedance overlay: 6 floats per vertex (x, y, r, g, b, a), 2 triangles

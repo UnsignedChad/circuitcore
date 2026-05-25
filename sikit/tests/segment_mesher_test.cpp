@@ -2,10 +2,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "circuitcore/board/Board.h"
-#include "render/SegmentMesher.h"
+#include "circuitcore/ui/SegmentMesher.h"
 
-using sikit::render::SegmentMesher;
-using sikit::render::build_all_meshes;
+using circuitcore::ui::SegmentMesher;
+using circuitcore::ui::build_all_meshes;
 using namespace circuitcore::board;
 using Catch::Approx;
 

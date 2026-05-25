@@ -11,7 +11,7 @@
 #include <QWheelEvent>
 
 #include "circuitcore/board/HitTest.h"
-#include "render/LayerColors.h"
+#include "circuitcore/ui/LayerColors.h"
 
 namespace {
 
@@ -117,7 +117,7 @@ void PcbCanvas::setBoard(const circuitcore::board::Board* board) {
     clearImpedanceOverlay();
 
     if (board_) {
-        pending_meshes_ = sikit::render::build_all_meshes(*board_);
+        pending_meshes_ = circuitcore::ui::build_all_meshes(*board_);
         meshes_dirty_ = true;
         pending_mesh3d_ = sikit::render::build_board_mesh_3d(
             *board_, si_stackup_ ? *si_stackup_ : sikit::si::SiStackup{});
@@ -516,7 +516,7 @@ void PcbCanvas::paintGL() {
             const bool visible = (vis_it == layer_visible_.end()) || vis_it->second;
             if (!visible) continue;
             flat_prog_.setUniformValue("u_color",
-                                       toQVec(sikit::render::layer_color(r.ordinal)));
+                                       toQVec(circuitcore::ui::layer_color(r.ordinal)));
             glDrawElements(GL_TRIANGLES, r.index_count, GL_UNSIGNED_INT,
                            reinterpret_cast<const void*>(
                                static_cast<std::uintptr_t>(r.index_start *

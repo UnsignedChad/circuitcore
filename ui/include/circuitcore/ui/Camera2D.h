@@ -9,7 +9,7 @@
 
 #include "circuitcore/board/Board.h"
 
-namespace pdnkit::render {
+namespace circuitcore::ui {
 
 class Camera2D {
 public:
@@ -42,4 +42,4 @@ public:
     std::array<float, 16> ortho_matrix(int widget_w, int widget_h) const;
 };
 
-}  // namespace pdnkit::render
+}  // namespace circuitcore::ui

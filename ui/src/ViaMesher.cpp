@@ -1,12 +1,12 @@
-#include "render/ViaMesher.h"
+#include "circuitcore/ui/ViaMesher.h"
 
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
 
-#include "render/CircleHelper.h"
+#include "circuitcore/ui/CircleHelper.h"
 
-namespace pdnkit::render {
+namespace circuitcore::ui {
 
 namespace {
 
@@ -105,4 +105,4 @@ std::vector<LayerMesh> PadMesher::build(const circuitcore::board::Board& board) 
     return meshes;
 }
 
-}  // namespace pdnkit::render
+}  // namespace circuitcore::ui

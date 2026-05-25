@@ -21,11 +21,7 @@ add_library(pdnkit_pi STATIC
     pi/Sensitivity.cpp
     pi/Mor.cpp
     StackupWriter.cpp
-    render/Camera2D.cpp
-    render/ZoneMesher.cpp
     render/IrResultMesh.cpp
-    render/SegmentMesher.cpp
-    render/ViaMesher.cpp
 )
 target_include_directories(pdnkit_pi PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -33,6 +29,7 @@ target_include_directories(pdnkit_pi PUBLIC
 )
 target_link_libraries(pdnkit_pi PUBLIC
     circuitcore::board
+    circuitcore::ui      # shared Qt renderer (Camera, meshers)
     Eigen3::Eigen
     spdlog::spdlog
     circuitcore::sexpr

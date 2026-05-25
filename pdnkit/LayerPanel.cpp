@@ -5,13 +5,13 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
-#include "render/LayerColors.h"
+#include "circuitcore/ui/LayerColors.h"
 
 namespace {
 
 // Build a small (14x14) flat-colored swatch label.
 QLabel* makeSwatch(int ordinal) {
-    auto rgba = pdnkit::render::layer_color(ordinal);
+    auto rgba = circuitcore::ui::layer_color(ordinal);
     const int r = static_cast<int>(rgba[0] * 255.0f);
     const int g = static_cast<int>(rgba[1] * 255.0f);
     const int b = static_cast<int>(rgba[2] * 255.0f);
