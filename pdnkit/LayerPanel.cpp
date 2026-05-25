@@ -1,6 +1,7 @@
 #include "LayerPanel.h"
 
 #include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -71,13 +72,26 @@ void LayerPanel::setLayers(const std::vector<Entry>& layers) {
         name->setMinimumWidth(70);
         h->addWidget(name);
 
-        // Thickness label -- pulled from the LayerPanel Entry. Empty if the
-        // (setup (stackup ...)) block did not supply a value for this layer.
-        if (L.thickness_um > 0.0) {
-            auto* t = new QLabel(QString::number(L.thickness_um, 'f', 1) + " um");
+        // Thickness spinbox -- pre-loaded from the parsed stackup. Editing
+        // it propagates a thickness_changed() so MainWindow can override
+        // board_->stackup.layers[i].thickness in memory. Persisting back
+        // to the .kicad_pcb file needs an S-expr emitter -- separate work.
+        auto* t = new QDoubleSpinBox();
+        t->setRange(0.0, 1000.0);
+        t->setDecimals(2);
+        t->setSingleStep(1.0);
+        t->setSuffix(" um");
+        t->setValue(L.thickness_um);
+        t->setMaximumWidth(110);
+        if (L.thickness_um <= 0.0) {
             t->setStyleSheet("color: #888;");
-            h->addWidget(t);
+            t->setSpecialValueText("(unset)");
         }
+        connect(t, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [this, ord](double v) {
+                    emit thickness_changed(ord, v * 1.0e-6);
+                });
+        h->addWidget(t);
         h->addStretch();
 
         rows_layout_->addWidget(row);

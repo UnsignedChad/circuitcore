@@ -67,6 +67,22 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     dock->setWidget(layers_scroll);
     dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     addDockWidget(Qt::RightDockWidgetArea, dock);
+    connect(layer_panel_, &LayerPanel::thickness_changed,
+            this, [this](int ord, double thickness_m) {
+                if (!board_) return;
+                for (auto& L : board_->stackup.layers) {
+                    if (L.ordinal == ord) {
+                        L.thickness = thickness_m;
+                        break;
+                    }
+                }
+                statusBar()->showMessage(
+                    QString("Layer %1 thickness updated to %2 um "
+                            "(in-memory, next analysis will use it)")
+                        .arg(ord)
+                        .arg(thickness_m * 1.0e6, 0, 'f', 1),
+                    6000);
+            });
     connect(layer_panel_, &LayerPanel::visibility_changed,
             canvas_, &PcbCanvas::setLayerVisibility);
 
