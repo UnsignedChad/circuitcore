@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "circuitcore/ui/CircleHelper.h"
+#include "circuitcore/ui/LayerColors.h"
 
 namespace circuitcore::ui {
 
@@ -33,12 +34,24 @@ std::vector<LayerMesh> ViaMesher::build(const circuitcore::board::Board& board) 
         if (v.outer_diameter <= 0.0) continue;
         const int lo = std::min(v.from_layer, v.to_layer);
         const int hi = std::max(v.from_layer, v.to_layer);
-        const double r = 0.5 * v.outer_diameter;
+        const double r_pad   = 0.5 * v.outer_diameter;
+        const double r_drill = (v.drill > 0.0) ? 0.5 * v.drill : 0.0;
 
+        // Annular pad disks on every copper layer in the span.
         for (const auto& L : board.stackup.layers) {
             if (!L.is_copper()) continue;
             if (L.ordinal < lo || L.ordinal > hi) continue;
-            append_disk(mesh_for(meshes, idx, L.ordinal), v.at.x, v.at.y, r);
+            append_disk(mesh_for(meshes, idx, L.ordinal),
+                         v.at.x, v.at.y, r_pad);
+        }
+
+        // Drill-hole punch in the canvas background color, drawn on the
+        // reserved kDrillOrdinal pseudo-layer. Has higher render priority
+        // than copper layers (see render_priority in PcbCanvas) so it
+        // lands on top, making the via visibly drilled-through.
+        if (r_drill > 0.0) {
+            append_disk(mesh_for(meshes, idx, kDrillOrdinal),
+                         v.at.x, v.at.y, r_drill);
         }
     }
     return meshes;
