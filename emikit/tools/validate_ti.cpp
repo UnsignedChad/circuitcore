@@ -10,11 +10,8 @@
 //      controller to the host PC (new CableCommonMode; short electric
 //      dipole over a ground plane, per Hockanson 1996).
 //
-// A single CM-current estimate is used across all three test cases --
-// 10 uA, representative of "moderately noisy digital ground" on a USB
-// cable. This is the parameter to defend in real validation work; for
-// this comparison we want to see how much of the gap closes with a
-// single, non-tuned value.
+// 10 uA cable CM applied to all three tests (estimate -- comes from
+// a few mV ground bounce / ~200 ohm typical cable CM impedance).
 
 #include <algorithm>
 #include <cmath>
@@ -113,11 +110,8 @@ int main() {
     std::printf("Cable:     30 cm USB cable, CM current 10 uA assumed\n");
     std::printf("           (single value across all three tests)\n");
 
-    // PHI USB cable length ~30 cm, CM current ~10 uA estimated from a
-    // few mV of ground bounce on the EVM divided by ~200 ohm typical
-    // cable CM impedance. Same value used across all tests so we are
-    // not fitting -- showing what one physically motivated estimate
-    // does to the prediction.
+    // 30 cm USB cable. I_cm ~10 uA from a few mV ground bounce over
+    // ~200 ohm typical CM impedance. one value for all three tests.
     const double cable_L  = 0.30;
     const double cable_I  = 10.0e-6;
 
