@@ -18,6 +18,7 @@ add_executable(circuitcore_studio
     StudioWindow.cpp
     BoardModel.cpp
     BoardTab.cpp
+    SiTab.cpp
 )
 
 target_include_directories(circuitcore_studio PRIVATE
@@ -33,7 +34,8 @@ target_link_libraries(circuitcore_studio PRIVATE
     circuitcore::ui
     circuitcore::board
     circuitcore::kicad
-    sikit_si              # SiStackup parsing
+    sikit_si              # SiStackup parsing + channel synthesis
+    sikit::widgets        # SParamPlotWindow + EyeWindow
     Qt6::Widgets
 )
 
