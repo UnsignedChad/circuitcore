@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <cstdint>
 #include <vector>
 
@@ -190,8 +191,8 @@ void PcbCanvas::uploadIrResult() {
         verts.reserve(kSeg * 8);
         idx.reserve(kSeg * 6);
         for (int k = 0; k < kSeg; ++k) {
-            const double a0 = (2.0 * M_PI) * k / kSeg;
-            const double a1 = (2.0 * M_PI) * (k + 1) / kSeg;
+            const double a0 = (2.0 * std::numbers::pi) * k / kSeg;
+            const double a1 = (2.0 * std::numbers::pi) * (k + 1) / kSeg;
             const float ox0 = static_cast<float>(hotspot_x_ + r_outer * std::cos(a0));
             const float oy0 = static_cast<float>(hotspot_y_ + r_outer * std::sin(a0));
             const float ix0 = static_cast<float>(hotspot_x_ + r_inner * std::cos(a0));
