@@ -1,6 +1,7 @@
 #include "StudioWindow.h"
 
 #include <QApplication>
+#include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDragEnterEvent>
@@ -28,6 +29,16 @@
 #include "EmiTab.h"
 
 namespace circuitcore::studio {
+
+// Stripe Payment Link for donations. Replace with the real
+// https://buy.stripe.com/... URL once the dashboard issues one.
+// Falls back to the project Sponsors page if the placeholder is still
+// here at build time -- safer than dead-ending the user on a 404.
+namespace {
+constexpr const char* kDonateUrl =
+    "https://github.com/sponsors/UnsignedChad";
+}
+
 
 
 
@@ -74,6 +85,11 @@ StudioWindow::StudioWindow(QWidget* parent)
     auto* shortcutsAct = helpMenu->addAction("&Keyboard shortcuts");
     connect(shortcutsAct, &QAction::triggered,
             this, &StudioWindow::onShowShortcuts);
+    helpMenu->addSeparator();
+    auto* donateAct = helpMenu->addAction("&Donate...");
+    connect(donateAct, &QAction::triggered,
+            this, &StudioWindow::onShowDonate);
+    helpMenu->addSeparator();
     auto* aboutAct = helpMenu->addAction("&About");
     connect(aboutAct, &QAction::triggered, this, &StudioWindow::onAbout);
 
@@ -274,6 +290,11 @@ void StudioWindow::rebuildRecentMenu() {
         saveRecentList({});
         rebuildRecentMenu();
     });
+}
+
+
+void StudioWindow::onShowDonate() {
+    QDesktopServices::openUrl(QUrl(kDonateUrl));
 }
 
 }  // namespace circuitcore::studio
