@@ -1,7 +1,5 @@
 # emikit validation
 
-Three checks ship with the code.
-
 ## 1. Loop formula calibration
 
 `emikit/tests/calibration_test.cpp` -- pins `loop_e_field` against the
