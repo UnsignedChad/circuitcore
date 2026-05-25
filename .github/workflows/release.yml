@@ -73,9 +73,16 @@ jobs:
         run: |
           # vcpkg lives at C:\vcpkg on windows-latest runners.
           vcpkg install eigen3:x64-windows spdlog:x64-windows `
-                         suitesparse:x64-windows cli11:x64-windows `
-                         catch2:x64-windows boost-headers:x64-windows
+                         cli11:x64-windows catch2:x64-windows `
+                         boost-headers:x64-windows
           echo "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+
+      # -- Pin MSVC on Windows so vcpkg's x64-windows ABI matches.
+      #    The runner's default PATH leads with MinGW gcc-15, which
+      #    cannot link against the MSVC-built vcpkg libraries.
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
 
       # -- Configure + build. We only build the GUIs + headless CLIs
       #    we want to ship; skipping tests keeps the release leg short
