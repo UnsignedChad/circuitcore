@@ -21,6 +21,8 @@
 #include "si/TraceImpedance.h"
 #include "si/Skew.h"
 #include "si/SchematicTopology.h"
+#include "si/Fdtd3d.h"
+#include "si/FdtdRasterize.h"
 #include "circuitcore/netlist/Netlist.h"
 #include "si/VectorFit.h"
 
@@ -566,6 +568,66 @@ int derive_topology_op(const circuitcore::netlist::Netlist& nl,
     std::printf("\n%zu signal nets analysed, %d flagged\n",
                   all.size(), problems);
     return problems > 0 ? 1 : 0;
+}
+
+
+int fdtd_info_op(const circuitcore::board::Board& board, double dx_mm) {
+    using sikit::fdtd::FDTD3D;
+    using sikit::fdtd::GridSpec;
+
+    // Find the board bbox.
+    double xmin =  1e18, ymin =  1e18, zmin = 0.0;
+    double xmax = -1e18, ymax = -1e18;
+    for (const auto& s : board.segments) {
+        xmin = std::min({xmin, s.start.x, s.end.x});
+        ymin = std::min({ymin, s.start.y, s.end.y});
+        xmax = std::max({xmax, s.start.x, s.end.x});
+        ymax = std::max({ymax, s.start.y, s.end.y});
+    }
+    for (const auto& v : board.vias) {
+        xmin = std::min(xmin, v.at.x); ymin = std::min(ymin, v.at.y);
+        xmax = std::max(xmax, v.at.x); ymax = std::max(ymax, v.at.y);
+    }
+    for (const auto& z : board.zones) {
+        for (const auto& p : z.outline.outline) {
+            xmin = std::min(xmin, p.x); ymin = std::min(ymin, p.y);
+            xmax = std::max(xmax, p.x); ymax = std::max(ymax, p.y);
+        }
+    }
+    if (xmax < xmin) {
+        std::fprintf(stderr, "fdtd info: empty board\n");
+        return 5;
+    }
+    const double dx = dx_mm * 1e-3;
+    const int nx = static_cast<int>(std::ceil((xmax - xmin) / dx)) + 1;
+    const int ny = static_cast<int>(std::ceil((ymax - ymin) / dx)) + 1;
+    const int nz = std::max<int>(8, static_cast<int>(
+        std::ceil(board.stackup.total_thickness / dx)) + 1);
+
+    GridSpec g{nx, ny, nz, dx, dx, dx};
+    FDTD3D s(g);
+    s.set_dt_from_cfl();
+    const auto m = sikit::fdtd::make_default_mapping(board);
+    const auto r = sikit::fdtd::rasterize_board(s, board, m);
+
+    std::printf("FDTD3D grid summary\n");
+    std::printf("  Grid    : %d x %d x %d cells @ %.3f mm = "
+                  "%.1f x %.1f x %.1f mm\n",
+                  nx, ny, nz, dx_mm,
+                  nx * dx * 1e3, ny * dx * 1e3, nz * dx * 1e3);
+    std::printf("  Yee arrays bytes : %.1f MB\n", s.bytes() / 1.0e6);
+    std::printf("  Time step       : %.3e s (CFL bound at safety 0.99)\n",
+                  s.dt());
+    std::printf("\nRasterised\n");
+    std::printf("  Segments         : %d -> %zu PEC cells\n",
+                  r.n_segments_processed, r.segment_pec_cells);
+    std::printf("  Zones            : %d -> %zu PEC cells\n",
+                  r.n_zones_processed, r.zone_pec_cells);
+    std::printf("  Vias             : %d -> %zu PEC cells\n",
+                  r.n_vias_processed, r.via_pec_cells);
+    std::printf("  Substrate        : %zu cells\n", r.substrate_cells);
+    std::printf("  Total PEC cells  : %zu\n", s.pec_cell_count());
+    return 0;
 }
 
 }  // namespace sikit::cli

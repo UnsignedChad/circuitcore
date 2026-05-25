@@ -311,6 +311,24 @@ void FDTD3D::apply_sources() {
     }
 }
 
+void FDTD3D::add_soft_e_source(SoftESource src) {
+    soft_sources_.push_back(std::move(src));
+}
+
+void FDTD3D::apply_soft_sources() {
+    for (const auto& s : soft_sources_) {
+        if (s.samples.empty()) continue;
+        const int n = std::min<int>(static_cast<int>(s.samples.size()) - 1,
+                                       n_steps_);
+        const double v = s.samples[n];
+        switch (s.comp) {
+            case SoftESource::Comp::Ex: ex_.at(s.i, s.j, s.k) += v; break;
+            case SoftESource::Comp::Ey: ey_.at(s.i, s.j, s.k) += v; break;
+            case SoftESource::Comp::Ez: ez_.at(s.i, s.j, s.k) += v; break;
+        }
+    }
+}
+
 // --- Mur 1st-order ABC ---------------------------------------------------
 //
 // For a face perpendicular to x (here, the -x face at i=0), tangential
@@ -563,6 +581,7 @@ void FDTD3D::step() {
     update_e();
     apply_mur_abc();
     apply_sources();
+    apply_soft_sources();
     ++n_steps_;
 }
 

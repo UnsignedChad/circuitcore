@@ -94,4 +94,13 @@ int report_op(const circuitcore::board::Board& board,
 int derive_topology_op(const circuitcore::netlist::Netlist& nl,
                         const std::string& net_name);
 
+
+// Print a summary of a Board rasterised into an FDTD3D grid: per-axis
+// cell count, memory footprint, per-feature PEC cell counts. Doesn't
+// actually run the solver -- the report is the value here. Caller
+// chooses the cell pitch via dx_mm; nx/ny/nz are sized from the
+// board bbox.
+int fdtd_info_op(const circuitcore::board::Board& board,
+                  double dx_mm);
+
 }  // namespace sikit::cli

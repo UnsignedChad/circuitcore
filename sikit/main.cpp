@@ -258,6 +258,20 @@ int main(int argc, char** argv) {
                          "If set, only report this net; otherwise every "
                          "non-power net.");
 
+    // -------- fdtd info --------
+    auto* fdtd_cmd = app.add_subcommand(
+        "fdtd",
+        "Full-wave FDTD3D commands");
+    std::string fdtd_pcb;
+    double fdtd_dx_mm = 0.5;
+    auto* fdtd_info_cmd = fdtd_cmd->add_subcommand(
+        "info",
+        "Print grid + per-feature PEC cell counts for a board");
+    fdtd_info_cmd->add_option("pcb", fdtd_pcb, ".kicad_pcb file")
+        ->required()->check(CLI::ExistingFile);
+    fdtd_info_cmd->add_option("--dx-mm", fdtd_dx_mm,
+                                 "Cell pitch in mm (default 0.5)");
+
     // -------- list-specs --------
     auto* list_specs_cmd = app.add_subcommand(
         "list-specs", "List all built-in compliance specifications");
@@ -334,6 +348,11 @@ int main(int argc, char** argv) {
             return 2;
         }
         return sikit::cli::derive_topology_op(r.value(), dt_net_name);
+    }
+    if (fdtd_info_cmd->parsed()) {
+        circuitcore::board::Board b; sikit::si::SiStackup sis;
+        if (!load_board(fdtd_pcb, b, sis)) return 2;
+        return sikit::cli::fdtd_info_op(b, fdtd_dx_mm);
     }
     if (list_specs_cmd->parsed()) {
         return sikit::cli::list_specs_op();

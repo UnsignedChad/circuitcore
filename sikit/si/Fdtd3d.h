@@ -155,6 +155,17 @@ public:
     };
     void add_hard_e_source(HardESource src);
 
+    // Soft (additive) E-field source. Adds the sample value to the
+    // chosen E component each step after the curl update, so the cell
+    // remains transparent to incoming waves (vs. HardESource which
+    // overwrites and reflects). Use this for port excitation.
+    struct SoftESource {
+        int i, j, k;
+        enum class Comp { Ex, Ey, Ez } comp = Comp::Ez;
+        std::vector<double> samples;
+    };
+    void add_soft_e_source(SoftESource src);
+
     void step();
 
     // Per-cell dielectric. Each E component on the Yee grid has its
@@ -263,6 +274,7 @@ private:
     };
     ByteField3D pec_x_, pec_y_, pec_z_;
     std::vector<HardESource> sources_;
+    std::vector<SoftESource> soft_sources_;
 
     // Mur ABC: store E at the boundary cell + the cell one step in,
     // both at the *previous* time step. Each face needs the two
@@ -293,6 +305,7 @@ private:
     void update_h();
     void update_e();
     void apply_sources();
+    void apply_soft_sources();
     void allocate_mur_buffers();
     void apply_mur_abc();
 };
