@@ -1,4 +1,5 @@
 #include "circuitcore/sexpr/SExpr.h"
+#include <sstream>
 
 #include <cctype>
 #include <charconv>
@@ -241,6 +242,131 @@ Node parse(std::string_view src) {
         // Discard trailing errors silently.
     }
     return root;
+}
+
+namespace {
+
+// Number formatter: shortest representation that round-trips. Uses %.15g,
+// then strips trailing zeros after a decimal point so "1.5" doesn't
+// emit as "1.50000000000000". Scientific notation is preserved as-is.
+std::string format_number(double n) {
+    auto s = std::format("{:.15g}", n);
+    if (s.find('e') == std::string::npos &&
+        s.find('.') != std::string::npos) {
+        while (s.back() == '0') s.pop_back();
+        if (s.back() == '.') s.pop_back();
+    }
+    return s;
+}
+
+// Escape a string atom for emission as a quoted string. Matches the parser's
+// accepted escapes: \" \\ \n \t.
+std::string escape_string(const std::string& v) {
+    std::string out;
+    out.reserve(v.size() + 2);
+    for (char c : v) {
+        switch (c) {
+            case '\\': out += "\\\\"; break;
+            case '"':  out += "\\\""; break;
+            case '\n': out += "\\n";   break;
+            case '\t': out += "\\t";   break;
+            default:   out += c;
+        }
+    }
+    return out;
+}
+
+// Forward decl so emit_list can recurse.
+void emit_node(std::ostringstream& out, const Node& n,
+               int depth, const EmitConfig& cfg);
+
+// Compute the inline width of a node (parentheses + atoms + separating
+// spaces) without actually emitting. Used to decide list-breaking.
+std::size_t inline_width(const Node& n) {
+    using K = Node::Kind;
+    switch (n.kind) {
+        case K::Symbol: return n.text.size();
+        case K::String: return n.text.size() + 2;  // quotes
+        case K::Number: return format_number(n.number).size();
+        case K::List: break;
+    }
+    std::size_t w = 2;  // ( )
+    bool first = true;
+    for (const auto& c : n.children) {
+        if (!first) ++w;  // separating space
+        w += inline_width(c);
+        first = false;
+    }
+    return w;
+}
+
+bool has_nested_lists(const Node& n) {
+    for (const auto& c : n.children) {
+        if (c.is_list() && !c.children.empty()) return true;
+    }
+    return false;
+}
+
+void emit_list_inline(std::ostringstream& out, const Node& n,
+                      int depth, const EmitConfig& cfg) {
+    out << '(';
+    bool first = true;
+    for (const auto& c : n.children) {
+        if (!first) out << ' ';
+        emit_node(out, c, depth, cfg);
+        first = false;
+    }
+    out << ')';
+}
+
+void emit_list_block(std::ostringstream& out, const Node& n,
+                     int depth, const EmitConfig& cfg) {
+    out << '(';
+    // First child stays on the same line as the open paren (KiCad-style:
+    // the form tag).
+    bool first = true;
+    for (const auto& c : n.children) {
+        if (first) {
+            emit_node(out, c, depth, cfg);
+            first = false;
+        } else {
+            out << '\n';
+            for (int j = 0; j <= depth; ++j) out << cfg.indent;
+            emit_node(out, c, depth + 1, cfg);
+        }
+    }
+    out << ')';
+}
+
+void emit_node(std::ostringstream& out, const Node& n,
+               int depth, const EmitConfig& cfg) {
+    using K = Node::Kind;
+    switch (n.kind) {
+        case K::Symbol: out << n.text; return;
+        case K::String: out << '"' << escape_string(n.text) << '"'; return;
+        case K::Number: out << format_number(n.number); return;
+        case K::List: break;
+    }
+    if (n.children.empty()) {
+        out << "()";
+        return;
+    }
+    const bool short_enough =
+        inline_width(n) <= static_cast<std::size_t>(cfg.inline_width_threshold);
+    if (!has_nested_lists(n) && short_enough) {
+        emit_list_inline(out, n, depth, cfg);
+    } else {
+        emit_list_block(out, n, depth, cfg);
+    }
+}
+
+}  // namespace
+
+std::string emit(const Node& root, const EmitConfig& cfg) {
+    std::ostringstream out;
+    emit_node(out, root, 0, cfg);
+    out << '\n';
+    return out.str();
 }
 
 }  // namespace circuitcore::sexpr
