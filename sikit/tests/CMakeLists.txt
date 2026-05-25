@@ -65,6 +65,7 @@ add_executable(sikit_tests
     schematic_topology_test.cpp
     fdtd3d_test.cpp
     fdtd_rasterize_test.cpp
+    fdtd_port_test.cpp
 )
 target_link_libraries(sikit_tests PRIVATE
     sikit_si
