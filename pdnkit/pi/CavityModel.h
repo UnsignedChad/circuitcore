@@ -34,6 +34,15 @@ struct CavityConfig {
     double mu_r = 1.0;         // relative permeability (~1 for PCB dielectrics)
     double tan_delta = 0.020;  // dielectric loss tangent (FR-4 default)
     int max_modes = 30;        // m, n each summed 0..max_modes inclusive
+
+    // Optional conductor surface roughness contribution. When > 0 the
+    // effective dielectric loss tangent is augmented per-frequency with
+    // K_HJ * (delta_s / d) -- the surface-loss term for a parallel-plate
+    // cavity, multiplied by the Hammerstad-Jensen roughness factor.
+    // Default 0 = smooth, preserves existing behavior.
+    // Typical values: 0.4e-6 (smooth ED foil), 1.0e-6 (standard rolled),
+    // 2.0-5.0e-6 (black-oxide treated).
+    double conductor_roughness_rq_m = 0.0;
 };
 
 // Self/transfer impedance at angular frequency omega (rad/s) between ports
