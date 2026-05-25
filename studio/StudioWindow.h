@@ -50,6 +50,7 @@ private slots:
     void onShowCalculators();
     void onSaveCanvasAsImage();
     void onShowShortcuts();
+    void onShowDonate();
     void onOpenRecentFromAction();
 
 private:
