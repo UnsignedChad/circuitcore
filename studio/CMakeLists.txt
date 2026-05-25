@@ -20,6 +20,7 @@ add_executable(circuitcore_studio
     BoardTab.cpp
     SiTab.cpp
     PiTab.cpp
+    EmiTab.cpp
 )
 
 target_include_directories(circuitcore_studio PRIVATE
@@ -38,6 +39,7 @@ target_link_libraries(circuitcore_studio PRIVATE
     sikit_si              # SiStackup parsing + channel synthesis
     sikit::widgets        # SParamPlotWindow + EyeWindow
     pdnkit_pi             # IrMesher + IrSolver for the PI tab
+    emikit_emi            # analyze_board for the EMI tab
     Qt6::Widgets
 )
 
