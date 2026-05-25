@@ -34,6 +34,11 @@ scratchpad for ideas, not commitments. order is rough priority.
   noise + Monte Carlo, then tie back to PCB layout effects (e.g.
   feedback trace parasitic L degrades gain). LTspice can do the sim
   part but does not know about your PCB; that is the angle.
+- **rfkit** -- board-level RF. smith chart, matching network synthesis
+  (L / pi / T), antenna param extraction from S-params (S11, return
+  loss, bandwidth), Rollet K stability + mu-factor, noise figure
+  cascading, group delay. bones already there: FDTD3D, S-param math,
+  vector fitting. could be a sikit extension or sister tool.
 
 ## tier 3 -- strategic / new tools
 
