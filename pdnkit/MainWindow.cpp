@@ -33,6 +33,7 @@
 #include "circuitcore/formats/kicad/PcbParser.h"
 #include "pi/IrMesher.h"
 #include "pi/IrSolver.h"
+#include "pi/Mor.h"
 #include "pi/Thermal.h"
 #include "pi/Touchstone.h"
 #include "render/IrResultMesh.h"
@@ -203,6 +204,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         canvas_->setIrResult({});
         legend_->setRange(0, 0);
     });
+
+    auto* reduceAct = analyzeMenu->addAction("Export Reduced SPICE Subcircuit...");
+    connect(reduceAct, &QAction::triggered, this,
+            &MainWindow::onExportReducedSpice);
 
     auto* helpMenu = menuBar()->addMenu("&Help");
     auto* shortcutsAct = helpMenu->addAction("&Keyboard Shortcuts...");
@@ -781,5 +786,57 @@ void MainWindow::onExportTouchstone() {
         QString("Wrote Touchstone to %1 (%2 frequency points)")
             .arg(path).arg(samples.size()),
         8000);
+}
+
+void MainWindow::onExportReducedSpice() {
+    if (last_mesh_.nodes.empty()) {
+        QMessageBox::information(this, "Export Reduced SPICE",
+            "Run an IR-drop analysis first; there is no mesh to reduce.");
+        return;
+    }
+    // Use the last solve's source + sink nodes as the kept ports.
+    std::vector<int> ports;
+    for (int id : last_mesh_.source_node_ids) ports.push_back(id);
+    for (int id : last_mesh_.sink_node_ids)   ports.push_back(id);
+    if (ports.empty()) {
+        QMessageBox::warning(this, "Export Reduced SPICE",
+            "The last mesh has no source/sink nodes to use as ports.");
+        return;
+    }
+
+    const QString suggested = current_board_path_.isEmpty()
+        ? QString("pdnkit_reduced.sub")
+        : QFileInfo(current_board_path_).completeBaseName() + "_reduced.sub";
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Export Reduced SPICE Subcircuit", suggested,
+        "SPICE subcircuit (*.sub *.cir);;All files (*)");
+    if (path.isEmpty()) return;
+
+    auto reduced = pdnkit::pi::reduce_to_ports(last_mesh_, ports);
+    if (reduced.port_node_ids.empty()) {
+        QMessageBox::critical(this, "Export Reduced SPICE",
+            "Reduction failed (singular internal block?).");
+        return;
+    }
+    const std::string title =
+        std::string("pdnkit reduced PDN -- ") +
+        QFileInfo(current_board_path_).fileName().toStdString() +
+        " (" + std::to_string(last_mesh_.nodes.size()) + " nodes -> " +
+        std::to_string(ports.size()) + " ports)";
+    const auto netlist = pdnkit::pi::export_reduced_spice(reduced, title);
+
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(this, "Export Reduced SPICE",
+            "Failed to open " + path);
+        return;
+    }
+    f.write(netlist.c_str());
+    f.close();
+    statusBar()->showMessage(
+        QString("Wrote reduced subcircuit to %1 "
+                "(%2 nodes -> %3 ports)")
+            .arg(path).arg(last_mesh_.nodes.size()).arg(ports.size()),
+        10000);
 }
 
