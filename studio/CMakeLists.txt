@@ -21,6 +21,7 @@ add_executable(circuitcore_studio
     SiTab.cpp
     PiTab.cpp
     EmiTab.cpp
+    CalculatorsDialog.cpp
 )
 
 target_include_directories(circuitcore_studio PRIVATE

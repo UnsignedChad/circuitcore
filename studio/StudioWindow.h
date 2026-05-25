@@ -39,6 +39,7 @@ private slots:
     void onBoardLoaded();
     void onHover(double x_m, double y_m);
     void onAbout();
+    void onShowCalculators();
 
 private:
     std::unique_ptr<BoardModel> model_;
@@ -46,6 +47,7 @@ private:
     BoardTab*   board_tab_ = nullptr;
     QLabel* status_path_ = nullptr;
     QLabel* status_hover_ = nullptr;
+    class CalculatorsDialog* calculators_ = nullptr;
 };
 
 }  // namespace circuitcore::studio

@@ -15,6 +15,7 @@
 #include "BoardTab.h"
 #include "SiTab.h"
 #include "PiTab.h"
+#include "CalculatorsDialog.h"
 #include "EmiTab.h"
 
 namespace circuitcore::studio {
@@ -45,6 +46,11 @@ StudioWindow::StudioWindow(QWidget* parent)
     auto* quitAct = fileMenu->addAction("E&xit");
     quitAct->setShortcut(QKeySequence::Quit);
     connect(quitAct, &QAction::triggered, qApp, &QApplication::quit);
+
+    auto* toolsMenu = menuBar()->addMenu("&Tools");
+    auto* calcAct = toolsMenu->addAction("&Calculators...");
+    connect(calcAct, &QAction::triggered,
+            this, &StudioWindow::onShowCalculators);
 
     auto* helpMenu = menuBar()->addMenu("&Help");
     auto* aboutAct = helpMenu->addAction("&About");
@@ -102,6 +108,14 @@ void StudioWindow::onAbout() {
         "Browser-tab UI: one window, one tab per analysis. The Board tab "
         "is shared geometry; each analysis tab brings its own toolbar "
         "and panels.");
+}
+
+
+void StudioWindow::onShowCalculators() {
+    if (!calculators_) calculators_ = new CalculatorsDialog(this);
+    calculators_->show();
+    calculators_->raise();
+    calculators_->activateWindow();
 }
 
 }  // namespace circuitcore::studio
