@@ -56,6 +56,11 @@ private slots:
     void onCheckReturnPath();
     void onDeriveTopology();
 
+    void onStatEyePda();
+    void onCrosstalkVictim();
+    void onSpiceExport();
+    void onConnectorLibrary();
+
 private:
     void refreshNetList();
     int  currentNetId() const;

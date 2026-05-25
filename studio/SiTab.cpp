@@ -17,11 +17,13 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QInputDialog>
+#include <QMenu>
 #include <QLabel>
 #include <QMessageBox>
 #include <QScrollArea>
 #include <QStatusBar>
 #include <QToolBar>
+#include <QToolButton>
 
 #include "BoardModel.h"
 
@@ -37,6 +39,10 @@
 #include "si/SchematicTopology.h"
 #include "si/SParam.h"
 #include "si/Skew.h"
+#include "si/SpiceExport.h"
+#include "si/StatEye.h"
+#include "si/Crosstalk.h"
+#include "si/Connector.h"
 #include "circuitcore/formats/kicad/NetlistParser.h"
 #include "si/ChannelSynthesis.h"
 #include "si/DiffPair.h"
@@ -68,6 +74,19 @@ std::pair<double, double> net_geometry(const board::Board& board, int net_id) {
     if (widths.empty()) return {0.0, 0.0};
     std::sort(widths.begin(), widths.end());
     return {widths[widths.size() / 2], total_length};
+}
+
+sikit::analysis::ChannelSpec build_spec(const board::Board& board,
+                                         const sikit::si::SiStackup& stackup,
+                                         double trace_w, double length_m) {
+    sikit::analysis::ChannelSpec spec;
+    spec.trace_width   = trace_w;
+    spec.layer_ordinal = 0;
+    spec.length_m      = length_m;
+    spec.stackup       =
+        sikit::analysis::AnalysisStackup::from_board(board, stackup);
+    spec.engine        = sikit::analysis::Engine::ClosedForm;
+    return spec;
 }
 
 }  // namespace
@@ -136,6 +155,20 @@ SiTab::SiTab(BoardModel* model, QWidget* parent)
     add("Skew",                   &SiTab::onCheckSkew);
     add("Return path",            &SiTab::onCheckReturnPath);
     add("Topology from .net...",  &SiTab::onDeriveTopology);
+    tb->addSeparator();
+    auto* tools_menu = new QMenu(this);
+    tools_menu->addAction("Statistical eye (PDA)", this, &SiTab::onStatEyePda);
+    tools_menu->addAction("Crosstalk eye for victim net", this,
+                            &SiTab::onCrosstalkVictim);
+    tools_menu->addAction("Export channel as SPICE...", this,
+                            &SiTab::onSpiceExport);
+    tools_menu->addAction("Connector library...", this,
+                            &SiTab::onConnectorLibrary);
+    auto* tools_btn = new QToolButton(tb);
+    tools_btn->setText("Tools");
+    tools_btn->setMenu(tools_menu);
+    tools_btn->setPopupMode(QToolButton::InstantPopup);
+    tb->addWidget(tools_btn);
     tb->addSeparator();
     fdm_action_ = tb->addAction("FDM");
     fdm_action_->setCheckable(true);
@@ -878,6 +911,187 @@ void SiTab::onDeriveTopology() {
     headers << "Net" << "Endpoints" << "Drivers" << "Receivers"
             << "Passives" << "Sanity";
     showResultsDialog(this, tr("Schematic-derived topology"), headers, rows);
+}
+
+
+
+void SiTab::onStatEyePda() {
+    if (!model_->board()) return;
+    const int net_id = currentNetId();
+    if (net_id <= 0) {
+        QMessageBox::information(this, tr("Statistical eye"),
+                                  tr("Pick a net first."));
+        return;
+    }
+    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    if (tw <= 0.0) {
+        QMessageBox::warning(this, tr("Statistical eye"),
+                              tr("Net has no F.Cu segments."));
+        return;
+    }
+    bool ok = false;
+    const double baud_gbps = QInputDialog::getDouble(
+        this, tr("Statistical eye"), tr("Bit rate (Gbps):"),
+        10.0, 0.01, 100.0, 2, &ok);
+    if (!ok) return;
+    const double baud = baud_gbps * 1e9;
+    auto spec = build_spec(*model_->board(), model_->siStackup(), tw, tl);
+    std::vector<double> freqs;
+    constexpr int kSpu = 32;
+    const double fs = baud * kSpu;
+    for (double f = baud / 50.0; f <= fs / 2.0; f += baud / 50.0)
+        freqs.push_back(f);
+    sikit::touchstone::TouchstoneFile ch;
+    sikit::eye::PdaEyeEnvelope env;
+    try {
+        ch  = sikit::analysis::synthesize_channel(spec, freqs, 50.0);
+        auto sbr = sikit::eye::compute_sbr(ch, baud, kSpu, 64);
+        env = sikit::eye::peak_distortion_eye(sbr, kSpu);
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Statistical eye"), e.what());
+        return;
+    }
+    QMessageBox::information(this, tr("Statistical eye -- PDA"),
+        tr("<b>%1 at %2 Gbps</b><br><br>"
+           "Eye height: <b>%3 mV</b><br>"
+           "Eye width (zero-margin): <b>%4 %5 UI</b><br><br>"
+           "Peak-distortion worst-case bound (no random ISI averaging).")
+            .arg(net_combo_->currentText())
+            .arg(baud_gbps, 0, 'f', 2)
+            .arg(env.eye_height * 1000.0, 0, 'f', 1)
+            .arg(env.eye_width * 100.0, 0, 'f', 1)
+            .arg("%"));
+}
+
+void SiTab::onCrosstalkVictim() {
+    if (!model_->board() || net_combo_->count() < 2) {
+        QMessageBox::information(this, tr("Crosstalk eye"),
+                                  tr("Need at least two high-speed nets."));
+        return;
+    }
+    const int victim_id = currentNetId();
+    if (victim_id <= 0) return;
+    bool ok = false;
+    QStringList agg_items;
+    for (int i = 0; i < net_combo_->count(); ++i) {
+        if (net_combo_->itemData(i).toInt() != victim_id)
+            agg_items << net_combo_->itemText(i);
+    }
+    const QString agg_choice = QInputDialog::getItem(
+        this, tr("Crosstalk eye"), tr("Pick the aggressor net:"),
+        agg_items, 0, false, &ok);
+    if (!ok) return;
+    const int agg_id =
+        model_->board()->find_net_by_name(agg_choice.toStdString())->id;
+    auto [vw, vl] = net_geometry(*model_->board(), victim_id);
+    auto [aw, al] = net_geometry(*model_->board(), agg_id);
+    if (vw <= 0.0 || aw <= 0.0) {
+        QMessageBox::warning(this, tr("Crosstalk eye"),
+                              tr("Both nets need F.Cu segments."));
+        return;
+    }
+    const double baud = 10e9;
+    constexpr int kSpu = 32;
+    auto vs = build_spec(*model_->board(), model_->siStackup(), vw, vl);
+    auto as = build_spec(*model_->board(), model_->siStackup(), aw, al);
+    std::vector<double> freqs;
+    for (double f = baud / 50.0; f <= baud * kSpu / 2.0; f += baud / 50.0)
+        freqs.push_back(f);
+    sikit::eye::EyeGrid eye;
+    try {
+        sikit::analysis::CrosstalkScenario sc;
+        sc.victim_thru =
+            sikit::analysis::synthesize_channel(vs, freqs, 50.0);
+        // Aggressor coupling proxy: the aggressor's own through-channel
+        // scaled by a fixed -25 dB coupling (rough order-of-magnitude
+        // when no measured FEXT is available; a real workflow would
+        // load a measured S4P).
+        auto agg_thru =
+            sikit::analysis::synthesize_channel(as, freqs, 50.0);
+        for (auto& s : agg_thru.s_matrices) for (auto& v : s) v *= 0.056;
+        sc.aggressor_to_victim_coupling.push_back(std::move(agg_thru));
+        eye = sikit::analysis::simulate_crosstalk_eye(sc, baud);
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Crosstalk eye"), e.what());
+        return;
+    }
+    auto* w = new EyeWindow();
+    w->setWindowFlag(Qt::Window);
+    w->setAttribute(Qt::WA_DeleteOnClose);
+    w->setEye(eye);
+    w->setTitleSubtext(QString("%1 victim, %2 aggressor (-25 dB coupling)")
+                            .arg(net_combo_->currentText())
+                            .arg(agg_choice));
+    w->show();
+}
+
+void SiTab::onSpiceExport() {
+    if (!model_->board()) return;
+    const int net_id = currentNetId();
+    if (net_id <= 0) {
+        QMessageBox::information(this, tr("Export SPICE"),
+                                  tr("Pick a net first."));
+        return;
+    }
+    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    if (tw <= 0.0) return;
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Save SPICE subcircuit"),
+        net_combo_->currentText() + ".sp", tr("SPICE (*.sp *.cir)"));
+    if (path.isEmpty()) return;
+    auto spec = build_spec(*model_->board(), model_->siStackup(), tw, tl);
+    std::vector<double> freqs;
+    for (int i = 0; i < 401; ++i) {
+        const double t = static_cast<double>(i) / 400.0;
+        freqs.push_back(10e6 + t * (40e9 - 10e6));
+    }
+    try {
+        auto ts = sikit::analysis::synthesize_channel(spec, freqs, 50.0);
+        sikit::si::SpiceExportOptions opts;
+        opts.subckt_name = net_combo_->currentText().toStdString();
+        sikit::si::write_spice_subckt(ts, path.toStdString(), opts);
+        status_label_->setText(tr("Wrote %1")
+                                    .arg(QFileInfo(path).fileName()));
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Export SPICE"), e.what());
+    }
+}
+
+void SiTab::onConnectorLibrary() {
+    auto names = sikit::si::available_connector_presets();
+    QStringList items;
+    for (const auto& n : names) items << QString::fromStdString(n);
+    bool ok = false;
+    const QString choice = QInputDialog::getItem(
+        this, tr("Connector library"),
+        tr("Pick a preset (Touchstone is generated, not measured):"),
+        items, 0, false, &ok);
+    if (!ok) return;
+    sikit::si::ConnectorSpec spec;
+    try {
+        spec = sikit::si::connector_preset_by_name(choice.toStdString());
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Connector library"), e.what());
+        return;
+    }
+    std::vector<double> freqs;
+    for (int i = 0; i < 401; ++i) {
+        const double t = static_cast<double>(i) / 400.0;
+        freqs.push_back(10e6 + t * (40e9 - 10e6));
+    }
+    sikit::touchstone::TouchstoneFile ts;
+    try {
+        ts = sikit::si::generate_connector_touchstone(spec, freqs);
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Connector library"), e.what());
+        return;
+    }
+    auto* w = new SParamPlotWindow();
+    w->setWindowFlag(Qt::Window);
+    w->setAttribute(Qt::WA_DeleteOnClose);
+    w->setData(ts);
+    w->setTitleSubtext(QString("%1 (parametric placeholder)").arg(choice));
+    w->show();
 }
 
 }  // namespace circuitcore::studio
