@@ -1,113 +1,82 @@
+// pdnkit's PCB canvas.
+//
+// Subclasses circuitcore::ui::PcbCanvas to inherit the shared 2D
+// pipeline (grid, layer fills, outline, camera, pan/zoom, settings
+// save/restore). Adds the pdnkit-specific overlays:
+//   - IR-drop heat-map (viridis colormap on per-vertex scalar)
+//   - Source / sink markers (green / red disks)
+//   - Decap position markers (blue disks)
+//   - Cavity highlight (dashed bbox + cyan port markers)
+//   - Hotspot ring (yellow annulus around the worst node)
+//   - Right-click probe-R workflow (pick two pads on a net, emit
+//     probeRequested -- MainWindow runs the solver and shows the result)
+//   - Hover voltage probe (sample IrSolver::Solution at cursor)
+//
+// All the analysis-agnostic plumbing lives in the base class; this
+// file is just the PI overlays plus the probe interaction.
+
 #pragma once
 
-#include <unordered_map>
 #include <vector>
 
 #include <QOpenGLBuffer>
-#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
-#include <QOpenGLWidget>
-#include <QPoint>
 
 #include "circuitcore/board/Board.h"
-#include "circuitcore/ui/Camera2D.h"
+#include "circuitcore/ui/PcbCanvas.h"
 #include "render/IrResultMesh.h"
 #include "pi/IrSolver.h"
-#include "circuitcore/ui/SegmentMesher.h"
 
-class PcbCanvas : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
+class PcbCanvas : public circuitcore::ui::PcbCanvas {
     Q_OBJECT
 public:
     explicit PcbCanvas(QWidget* parent = nullptr);
 
-    void setBoard(const circuitcore::board::Board* board);
-    void setLayerVisibility(int ordinal, bool visible);
-    void fitToBoard();
-
-    // Persist / restore the cameras center and zoom across launches.
-    // QSettings is passed by reference so MainWindow can group with its own
-    // geometry/state save under a common organisation/app namespace.
-    void saveSettings(class QSettings& settings) const;
-    void restoreSettings(class QSettings& settings);
-
     // Attach (or clear, with an empty mesh) an IR-drop heat-map overlay.
-    // Uploaded lazily on the next paintGL.
     void setIrResult(pdnkit::render::IrResultMesh result);
 
-    // Optionally pass the underlying IR-drop mesh + solution so the hover
-    // probe can sample voltage at the cursor location. Pass an empty
-    // mesh/solution (mesh.nodes.empty()) to clear.
+    // Optional probe source: hover voltage sampling against this mesh +
+    // solution. Pass an empty mesh to clear.
     void setProbeSource(pdnkit::pi::IrMesh mesh,
-                        pdnkit::pi::Solution solution);
+                         pdnkit::pi::Solution solution);
 
-    // Decoupling-cap position markers (world coords in meters), rendered
-    // as blue dots over everything. CavityPanel pushes this list whenever
-    // the user adds/removes/edits a decap.
+    // Decoupling-cap position markers (world meters), rendered as blue
+    // dots on top of everything.
     void setDecapMarkers(const std::vector<circuitcore::board::Point2>& positions);
 
-    // Cavity highlight: dashed bbox around the meshed plane, plus port
-    // markers (cyan dots). Pass an empty Point2 list to clear ports;
-    // pass hi <= lo on bbox to clear the rectangle.
-    void setCavityHighlight(double lo_x, double lo_y, double hi_x, double hi_y,
-                            const std::vector<circuitcore::board::Point2>& ports);
+    // Cavity highlight: dashed bbox + port markers.
+    void setCavityHighlight(double lo_x, double lo_y,
+                             double hi_x, double hi_y,
+                             const std::vector<circuitcore::board::Point2>& ports);
 
 signals:
-    void hoverInfo(const QString& info);
-
-    // Right-click probe-R workflow. Emitted on the second right-click,
-    // after the user has picked two pads on the same net. MainWindow
-    // runs the solver and shows the result.
+    // Right-click probe-R workflow. Emitted on the second right-click
+    // after the user has picked two pads on the same net.
     void probeRequested(int pad_a_index, int pad_b_index,
-                        int net_id, int layer_ordinal);
+                         int net_id, int layer_ordinal);
 
-    // Status hint emitted when the first probe pad is selected (or the
-    // selection is cancelled). MainWindow forwards to the status bar.
+    // Status hint as the user makes their pick (or cancels).
     void probeHint(const QString& msg);
 
 protected:
-    void initializeGL() override;
-    void resizeGL(int w, int h) override;
-    void paintGL() override;
+    void initializeGLOverlays() override;
+    void paintOverlays2D() override;
+    void onBoardChanged() override;
+    void onMousePressOverlay(QMouseEvent* e) override;
 
+    // mouseMoveEvent is taken over entirely so we can augment the base
+    // hover hit-test with the live voltage at the cursor; this means we
+    // also manage our own pan state instead of leaning on the base's.
     void mousePressEvent(QMouseEvent* e) override;
     void mouseMoveEvent(QMouseEvent* e) override;
     void mouseReleaseEvent(QMouseEvent* e) override;
-    void wheelEvent(QWheelEvent* e) override;
 
 private:
-    void buildGrid();
-    void buildOutline();
-    void uploadBoardMeshes();
     void uploadIrResult();
 
-    struct LayerRange {
-        int ordinal = 0;
-        int index_start = 0;
-        int index_count = 0;
-    };
-
-    circuitcore::ui::Camera2D camera_;
-    const circuitcore::board::Board* board_ = nullptr;
-
-    QOpenGLShaderProgram flat_prog_;  // grid + board layer fills
-    QOpenGLShaderProgram heat_prog_;  // IR-drop overlay (viridis)
-
-    QOpenGLBuffer grid_vbo_{QOpenGLBuffer::VertexBuffer};
-    QOpenGLVertexArrayObject grid_vao_;
-    int grid_vertex_count_ = 0;
-
-    QOpenGLBuffer outline_vbo_{QOpenGLBuffer::VertexBuffer};
-    QOpenGLVertexArrayObject outline_vao_;
-    int outline_vertex_count_ = 0;
-
-    QOpenGLBuffer board_vbo_{QOpenGLBuffer::VertexBuffer};
-    QOpenGLBuffer board_ibo_{QOpenGLBuffer::IndexBuffer};
-    QOpenGLVertexArrayObject board_vao_;
-    std::vector<LayerRange> layer_ranges_;
-    std::vector<circuitcore::ui::LayerMesh> pending_meshes_;
-    bool meshes_dirty_ = false;
-
+    // Heat-map overlay.
+    QOpenGLShaderProgram heat_prog_;
     QOpenGLBuffer heat_vbo_{QOpenGLBuffer::VertexBuffer};
     QOpenGLBuffer heat_ibo_{QOpenGLBuffer::IndexBuffer};
     QOpenGLVertexArrayObject heat_vao_;
@@ -116,12 +85,7 @@ private:
     int heat_index_count_ = 0;
     bool heat_dirty_ = false;
 
-    // Mesh + solution backing the active heat overlay, used for cursor-probe
-    // voltage sampling. Empty when no IR-drop result is loaded.
-    pdnkit::pi::IrMesh probe_mesh_;
-    pdnkit::pi::Solution probe_solution_;
-
-    // Marker overlay for sources/sinks (rendered with flat shader after heat).
+    // Source / sink marker overlay -- single VBO, two index ranges.
     QOpenGLBuffer marker_vbo_{QOpenGLBuffer::VertexBuffer};
     QOpenGLBuffer marker_ibo_{QOpenGLBuffer::IndexBuffer};
     QOpenGLVertexArrayObject marker_vao_;
@@ -130,8 +94,7 @@ private:
     int marker_sink_index_start_ = 0;
     int marker_sink_index_count_ = 0;
 
-    // Decap position markers (separate buffer so cap edits don't disturb
-    // the IR-drop pipeline).
+    // Decap markers -- own VBO so edits don't disturb the IR pipeline.
     QOpenGLBuffer decap_vbo_{QOpenGLBuffer::VertexBuffer};
     QOpenGLBuffer decap_ibo_{QOpenGLBuffer::IndexBuffer};
     QOpenGLVertexArrayObject decap_vao_;
@@ -139,7 +102,7 @@ private:
     std::vector<circuitcore::board::Point2> pending_decaps_;
     bool decaps_dirty_ = false;
 
-    // Cavity overlay: bbox outline (dashed) + port markers (cyan).
+    // Cavity highlight bbox + port markers.
     double cavity_lo_x_ = 0.0, cavity_lo_y_ = 0.0;
     double cavity_hi_x_ = 0.0, cavity_hi_y_ = 0.0;
     std::vector<circuitcore::board::Point2> cavity_ports_;
@@ -152,7 +115,7 @@ private:
     int cavity_port_index_count_ = 0;
     bool cavity_dirty_ = false;
 
-    // Hotspot ring (yellow, drawn on top of heat-map markers).
+    // Hotspot ring (drawn on top, yellow).
     QOpenGLBuffer hotspot_vbo_{QOpenGLBuffer::VertexBuffer};
     QOpenGLBuffer hotspot_ibo_{QOpenGLBuffer::IndexBuffer};
     QOpenGLVertexArrayObject hotspot_vao_;
@@ -161,12 +124,16 @@ private:
     double hotspot_x_ = 0.0;
     double hotspot_y_ = 0.0;
 
-    std::unordered_map<int, bool> layer_visible_;
+    // Hover voltage probe: sampled from this IrMesh + Solution.
+    pdnkit::pi::IrMesh probe_mesh_;
+    pdnkit::pi::Solution probe_solution_;
 
+    // Right-click probe-R: pad index of the first pick (-1 means none).
+    int probe_pad_a_ = -1;
+
+    // Own pan state (parallel to the base's; needed because we override
+    // mouseMoveEvent fully for voltage-probe hover and can't share the
+    // base's private flag).
     bool panning_ = false;
     QPoint last_mouse_;
-
-    // Right-click probe-R: index into board_->pads after the first
-    // right-click; -1 means "no pad selected yet."
-    int probe_pad_a_ = -1;
 };

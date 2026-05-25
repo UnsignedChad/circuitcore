@@ -62,6 +62,7 @@ set_target_properties(pdnkit PROPERTIES
     AUTORCC ON
 )
 target_link_libraries(pdnkit PRIVATE
+    circuitcore::ui
     pdnkit_pi
     circuitcore::kicad
     Qt6::Widgets
