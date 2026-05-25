@@ -1,22 +1,23 @@
 // Studio EMI tab.
 //
-// emikit ships zero Qt widgets in v1 (everything is CLI), so this is
-// the first GUI for the EMI analyzer. v1 wires the headline workflow:
-//   - Mask combo (CISPR 22 / 32 / FCC Part 15, all four flavours)
-//   - "Run compliance" button: emikit::emi::analyze_board with the
-//     default trapezoidal spectrum (1 mA, 100 MHz, 1 ns rise) over
-//     the canonical 30 MHz - 1 GHz grid
-//   - Verdict label: PASS/FAIL/NoData + worst net + worst freq + margin
-//
-// Spectrum-vs-mask chart is a follow-up; the verdict number is the
-// pre-compliance "are we close?" signal most users want first.
+// Drive spectrum + loop-height + test-distance controls on the right,
+// per-net emissions table at the bottom, spectrum-vs-mask chart as
+// the central widget (canvas only shown when no analysis has run --
+// the chart takes over once a Run completes).
 
 #pragma once
 
 #include <QWidget>
 
+#include "emi/BoardAnalysis.h"
+#include "emi/Masks.h"
+
 class QComboBox;
+class QDoubleSpinBox;
 class QLabel;
+class QRadioButton;
+class QStackedWidget;
+class QTableWidget;
 
 namespace circuitcore::ui {
 class PcbCanvas;
@@ -25,6 +26,7 @@ class PcbCanvas;
 namespace circuitcore::studio {
 
 class BoardModel;
+class EmiSpectrumWidget;  // forward decl, defined in EmiTab.cpp
 
 class EmiTab : public QWidget {
     Q_OBJECT
@@ -37,9 +39,22 @@ private slots:
 
 private:
     BoardModel* model_;
-    ui::PcbCanvas* canvas_;
-    QComboBox* mask_combo_;
-    QLabel* result_;
+    ui::PcbCanvas* canvas_ = nullptr;
+    EmiSpectrumWidget* chart_ = nullptr;
+    QStackedWidget* center_ = nullptr;
+
+    // Controls
+    QComboBox*       mask_combo_ = nullptr;
+    QDoubleSpinBox*  i_peak_ma_  = nullptr;
+    QDoubleSpinBox*  clock_mhz_  = nullptr;
+    QDoubleSpinBox*  duty_pct_   = nullptr;
+    QDoubleSpinBox*  rise_ns_    = nullptr;
+    QDoubleSpinBox*  loop_mm_    = nullptr;
+    QRadioButton*    dist_3m_    = nullptr;
+    QRadioButton*    dist_10m_   = nullptr;
+
+    QTableWidget*    nets_table_ = nullptr;
+    QLabel*          verdict_    = nullptr;
 };
 
 }  // namespace circuitcore::studio
