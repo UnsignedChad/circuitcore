@@ -41,6 +41,7 @@ private slots:
     void onViewModeChanged(int mode);
     void onSaveCanvasImage();
     void onExportResultsCsv();
+    void onExportReducedSpice();
     void onExportTouchstone();
     void onAboutDialog();
     void onShortcutsDialog();
