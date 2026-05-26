@@ -10,12 +10,14 @@
 # viewer widget library, and the studio tab are each their own PR.
 
 add_library(mpkit_mp STATIC
+    mp/Elasticity.cpp
     mp/JouleCoupling.cpp
     mp/MaterialLibrary.cpp
     mp/SteadyHeat.cpp
     mp/TransientHeat.cpp
     mp/Voxelizer.cpp
     mp/Grid.h
+    mp/Elasticity.h
     mp/Material.h
     mp/MaterialLibrary.h
     mp/BoundaryCondition.h

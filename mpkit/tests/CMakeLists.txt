@@ -1,6 +1,7 @@
 # mpkit foundation tests.
 
 add_executable(mpkit_tests
+    elasticity_test.cpp
     grid_test.cpp
     material_test.cpp
     joule_coupling_test.cpp
