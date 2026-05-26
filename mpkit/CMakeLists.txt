@@ -12,12 +12,14 @@
 add_library(mpkit_mp STATIC
     mp/MaterialLibrary.cpp
     mp/SteadyHeat.cpp
+    mp/TransientHeat.cpp
     mp/Voxelizer.cpp
     mp/Grid.h
     mp/Material.h
     mp/MaterialLibrary.h
     mp/BoundaryCondition.h
     mp/SteadyHeat.h
+    mp/TransientHeat.h
     mp/Voxelizer.h
 )
 add_library(mpkit::mp ALIAS mpkit_mp)
