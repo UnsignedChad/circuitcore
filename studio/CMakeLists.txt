@@ -21,6 +21,7 @@ add_executable(circuitcore_studio
     SiTab.cpp
     PiTab.cpp
     EmiTab.cpp
+    MpTab.cpp
     CalculatorsDialog.cpp
 )
 
@@ -41,8 +42,14 @@ target_link_libraries(circuitcore_studio PRIVATE
     sikit::widgets        # SParamPlotWindow + EyeWindow
     pdnkit::widgets       # PcbCanvas + AnalysisPanel + NetStatsPanel + ...
     pdnkit_pi             # IrMesher + IrSolver + Thermal for PiTab slots
+    mpkit::mp             # voxelizer / steady heat / joule for MpTab demo
     emikit_emi            # analyze_board for the EMI tab
     Qt6::Widgets
 )
+
+if(CIRCUITCORE_BUILD_MPKIT_WIDGETS)
+    target_link_libraries(circuitcore_studio PRIVATE mpkit::widgets)
+    target_compile_definitions(circuitcore_studio PRIVATE MPKIT_HAS_WIDGETS)
+endif()
 
 circuitcore_warnings(circuitcore_studio)

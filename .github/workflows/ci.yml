@@ -33,7 +33,7 @@ jobs:
             ninja-build cmake catch2
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCIRCUITCORE_BUILD_MPKIT_WIDGETS=OFF
 
       - name: Build
         run: cmake --build build --parallel
