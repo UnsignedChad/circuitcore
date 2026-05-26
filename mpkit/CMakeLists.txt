@@ -10,6 +10,7 @@
 # viewer widget library, and the studio tab are each their own PR.
 
 add_library(mpkit_mp STATIC
+    mp/JouleCoupling.cpp
     mp/MaterialLibrary.cpp
     mp/SteadyHeat.cpp
     mp/Voxelizer.cpp
@@ -17,6 +18,7 @@ add_library(mpkit_mp STATIC
     mp/Material.h
     mp/MaterialLibrary.h
     mp/BoundaryCondition.h
+    mp/JouleCoupling.h
     mp/SteadyHeat.h
     mp/Voxelizer.h
 )
@@ -29,6 +31,7 @@ target_include_directories(mpkit_mp PUBLIC
 target_link_libraries(mpkit_mp PUBLIC
     circuitcore::field
     circuitcore::board
+    pdnkit_pi
     Eigen3::Eigen
 )
 

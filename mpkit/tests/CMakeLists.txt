@@ -3,6 +3,7 @@
 add_executable(mpkit_tests
     grid_test.cpp
     material_test.cpp
+    joule_coupling_test.cpp
     steady_heat_test.cpp
     voxelizer_test.cpp
 )

@@ -170,6 +170,7 @@ VoxelMaterialField voxelize_board(const circuitcore::board::Board& board,
         if (next_k > k_substrate_hi) break;
         const int k_here = next_k++;
         if (!L.is_copper()) continue;
+        out.layer_ordinal_to_k[L.ordinal] = k_here;
         for (const auto& s : board.segments) {
             if (s.layer_ordinal != L.ordinal) continue;
             stamp_segment(out, k_here, s.start.x, s.start.y,

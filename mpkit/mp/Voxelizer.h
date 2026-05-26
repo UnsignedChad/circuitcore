@@ -17,6 +17,7 @@
 
 #include <cstdint>
 #include <string>
+#include <map>
 #include <vector>
 
 #include "circuitcore/board/Board.h"
@@ -35,6 +36,12 @@ struct VoxelMaterialField {
     Grid grid;
     // Row-major in (i, j, k) with i fastest.
     std::vector<MaterialId> ids;
+    // Map pdnkit/board layer ordinal -> the k-slice the voxelizer
+    // assigned that copper layer to. Lets downstream couplings
+    // (Joule heating from pdnkit IR solutions, current-density
+    // vectors from emikit emissions, etc.) project layer-resolved
+    // data into 3D. Only copper layers are populated.
+    std::map<int, int> layer_ordinal_to_k;
 };
 
 struct VoxelizerConfig {
