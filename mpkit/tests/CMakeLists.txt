@@ -4,6 +4,7 @@ add_executable(mpkit_tests
     grid_test.cpp
     material_test.cpp
     steady_heat_test.cpp
+    transient_heat_test.cpp
     voxelizer_test.cpp
 )
 
