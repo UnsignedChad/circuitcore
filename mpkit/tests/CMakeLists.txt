@@ -6,6 +6,7 @@ add_executable(mpkit_tests
     material_test.cpp
     joule_coupling_test.cpp
     steady_heat_test.cpp
+    study_test.cpp
     transient_heat_test.cpp
     voxelizer_test.cpp
 )

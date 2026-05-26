@@ -11,9 +11,11 @@
 
 add_library(mpkit_mp STATIC
     mp/Elasticity.cpp
+    mp/FieldIO.cpp
     mp/JouleCoupling.cpp
     mp/MaterialLibrary.cpp
     mp/SteadyHeat.cpp
+    mp/StudySerial.cpp
     mp/TransientHeat.cpp
     mp/Voxelizer.cpp
     mp/Grid.h
@@ -21,8 +23,11 @@ add_library(mpkit_mp STATIC
     mp/Material.h
     mp/MaterialLibrary.h
     mp/BoundaryCondition.h
+    mp/FieldIO.h
     mp/JouleCoupling.h
     mp/SteadyHeat.h
+    mp/Study.h
+    mp/StudySerial.h
     mp/TransientHeat.h
     mp/Voxelizer.h
 )
@@ -35,6 +40,7 @@ target_include_directories(mpkit_mp PUBLIC
 target_link_libraries(mpkit_mp PUBLIC
     circuitcore::field
     circuitcore::board
+    circuitcore::sexpr
     pdnkit_pi
     Eigen3::Eigen
 )
