@@ -13,6 +13,7 @@ add_library(mpkit_mp STATIC
     mp/JouleCoupling.cpp
     mp/MaterialLibrary.cpp
     mp/SteadyHeat.cpp
+    mp/TransientHeat.cpp
     mp/Voxelizer.cpp
     mp/Grid.h
     mp/Material.h
@@ -20,6 +21,7 @@ add_library(mpkit_mp STATIC
     mp/BoundaryCondition.h
     mp/JouleCoupling.h
     mp/SteadyHeat.h
+    mp/TransientHeat.h
     mp/Voxelizer.h
 )
 add_library(mpkit::mp ALIAS mpkit_mp)
