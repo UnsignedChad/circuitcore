@@ -15,6 +15,7 @@ add_library(mpkit_mp STATIC
     mp/JouleCoupling.cpp
     mp/MaterialLibrary.cpp
     mp/SteadyHeat.cpp
+    mp/StudyRun.cpp
     mp/StudySerial.cpp
     mp/TransientHeat.cpp
     mp/Voxelizer.cpp
@@ -27,6 +28,7 @@ add_library(mpkit_mp STATIC
     mp/JouleCoupling.h
     mp/SteadyHeat.h
     mp/Study.h
+    mp/StudyRun.h
     mp/StudySerial.h
     mp/TransientHeat.h
     mp/Voxelizer.h
