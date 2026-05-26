@@ -9,6 +9,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
 
+option(CIRCUITCORE_BUILD_MPKIT_WIDGETS
+       "Build mpkit::widgets (pulls in VTK via FetchContent, adds ~20 min)"
+       ON)
+
 option(CIRCUITCORE_BUILD_TESTS "Build all test suites" ON)
 
 # --- Shared dependencies ---

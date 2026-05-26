@@ -47,6 +47,10 @@ target_link_libraries(mpkit_mp PUBLIC
 
 circuitcore_warnings(mpkit_mp)
 
+if(CIRCUITCORE_BUILD_MPKIT_WIDGETS)
+    add_subdirectory(widgets)
+endif()
+
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

@@ -28,6 +28,7 @@
 #include "PiTab.h"
 #include "CalculatorsDialog.h"
 #include "EmiTab.h"
+#include "MpTab.h"
 
 namespace circuitcore::studio {
 
@@ -56,6 +57,7 @@ StudioWindow::StudioWindow(QWidget* parent)
     tabs_->addTab(new SiTab(model_.get(), tabs_), "SI");
     tabs_->addTab(new PiTab(model_.get(), tabs_), "PI");
     tabs_->addTab(new EmiTab(model_.get(), tabs_), "EMI");
+    tabs_->addTab(new MpTab(model_.get(), tabs_), "Mp");
     setCentralWidget(tabs_);
 
     // --- Menu ---
