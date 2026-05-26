@@ -10,6 +10,7 @@ add_executable(pdnkit_tests
     ir_solver_test.cpp
     ir_result_mesh_test.cpp
     cavity_model_test.cpp
+    cavity_hj_test.cpp
     cavity_mount_l_test.cpp
     decap_optimizer_test.cpp
     transient_test.cpp

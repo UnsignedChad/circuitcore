@@ -1,4 +1,5 @@
 #include "pi/CavityModel.h"
+#include "pi/Roughness.h"
 
 #include <Eigen/Dense>
 
@@ -21,7 +22,16 @@ std::complex<double> cavity_impedance(
 
     const double mu  = cfg.mu_r * kMu0;
     // Complex permittivity: eps = eps_r eps_0 (1 - j tan_delta).
-    const cd eps = cfg.eps_r * kEps0 * cd(1.0, -cfg.tan_delta);
+    cd eps = cfg.eps_r * kEps0 * cd(1.0, -cfg.tan_delta);
+    // Optional conductor surface loss (HJ roughness x delta_s / d).
+    if (cfg.conductor_roughness_rq_m > 0.0 && cfg.d > 0.0) {
+        const double f_hz = omega / (2.0 * std::numbers::pi);
+        const double delta_s = skin_depth_copper(omega);
+        const double k_hj = hj_roughness_multiplier(
+            cfg.conductor_roughness_rq_m, f_hz);
+        const double tan_delta_cond = k_hj * delta_s / cfg.d;
+        eps -= cd(0.0, 1.0) * cfg.eps_r * kEps0 * tan_delta_cond;
+    }
     const cd k_squared = omega * omega * mu * eps;
 
     cd sum(0.0, 0.0);
