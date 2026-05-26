@@ -11,11 +11,13 @@
 
 add_library(mpkit_mp STATIC
     mp/MaterialLibrary.cpp
+    mp/SteadyHeat.cpp
     mp/Voxelizer.cpp
     mp/Grid.h
     mp/Material.h
     mp/MaterialLibrary.h
     mp/BoundaryCondition.h
+    mp/SteadyHeat.h
     mp/Voxelizer.h
 )
 add_library(mpkit::mp ALIAS mpkit_mp)
@@ -27,6 +29,7 @@ target_include_directories(mpkit_mp PUBLIC
 target_link_libraries(mpkit_mp PUBLIC
     circuitcore::field
     circuitcore::board
+    Eigen3::Eigen
 )
 
 circuitcore_warnings(mpkit_mp)
