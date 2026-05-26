@@ -41,72 +41,22 @@
 #pragma once
 
 #include <array>
-#include <cstddef>
-#include <stdexcept>
-#include <vector>
-#include <algorithm>
+
+#include "circuitcore/field/Field3D.h"
+#include "circuitcore/field/GridSpec.h"
 
 namespace sikit::fdtd {
 
-// Free-space constants in SI units. Module-local so callers don't
-// have to dig through a units header.
-inline constexpr double kEps0 = 8.8541878128e-12;
-inline constexpr double kMu0  = 1.25663706212e-6;
-inline constexpr double kC0   = 2.99792458e8;
-
-struct GridSpec {
-    int nx = 0;
-    int ny = 0;
-    int nz = 0;
-    double dx = 0.0;  // metres
-    double dy = 0.0;
-    double dz = 0.0;
-};
-
-// CFL-stable time step for a uniform-mesh free-space FDTD solver.
-//   dt <= 1 / (c * sqrt(1/dx^2 + 1/dy^2 + 1/dz^2))
-// Caller usually multiplies by a safety factor (0.99 is conventional).
-double cfl_dt(const GridSpec& g, double safety = 0.99);
-
-// 3D scalar field stored in (x-stride, y-stride, z-stride) order with
-// x varying fastest. Sizes are explicit so the Yee staggering doesn't
-// get fudged at the boundaries.
-class Field3D {
-public:
-    Field3D() = default;
-    Field3D(int nx, int ny, int nz) { resize(nx, ny, nz); }
-
-    void resize(int nx, int ny, int nz) {
-        if (nx < 0 || ny < 0 || nz < 0) {
-            throw std::invalid_argument("Field3D: negative extent");
-        }
-        nx_ = nx; ny_ = ny; nz_ = nz;
-        data_.assign(static_cast<std::size_t>(nx) * ny * nz, 0.0);
-    }
-
-    int nx() const { return nx_; }
-    int ny() const { return ny_; }
-    int nz() const { return nz_; }
-    std::size_t size() const { return data_.size(); }
-
-    double& at(int i, int j, int k) {
-        return data_[idx(i, j, k)];
-    }
-    double at(int i, int j, int k) const {
-        return data_[idx(i, j, k)];
-    }
-
-    void fill(double v) { std::fill(data_.begin(), data_.end(), v); }
-
-private:
-    std::size_t idx(int i, int j, int k) const {
-        return static_cast<std::size_t>(i)
-             + static_cast<std::size_t>(j) * nx_
-             + static_cast<std::size_t>(k) * nx_ * ny_;
-    }
-    int nx_ = 0, ny_ = 0, nz_ = 0;
-    std::vector<double> data_;
-};
+// FDTD now uses the shared circuitcore::field types so mpkit and any
+// future volumetric solver can hand fields around without copying.
+// Using-declarations preserve the sikit::fdtd::Field3D etc spellings
+// so call sites don't need touching.
+using circuitcore::field::Field3D;
+using circuitcore::field::GridSpec;
+using circuitcore::field::cfl_dt;
+using circuitcore::field::kC0;
+using circuitcore::field::kEps0;
+using circuitcore::field::kMu0;
 
 // Outer-boundary behaviour for the FDTD3D solver.
 //

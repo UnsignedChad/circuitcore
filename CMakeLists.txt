@@ -58,12 +58,14 @@ add_subdirectory(intent)          # circuitcore::intent -- board vs schematic
 # add_subdirectory(formats/ipc2581) # future
 
 # --- Layer 2.5: shared Qt UI ---
+add_subdirectory(field)     # circuitcore::field -- shared 3D Field/Grid types
 add_subdirectory(ui)        # circuitcore::ui -- shared renderer modules
 
 # --- Layer 3: analysis tools ---
 add_subdirectory(pdnkit)
 add_subdirectory(sikit)
 add_subdirectory(emikit)
+add_subdirectory(mpkit)
 add_subdirectory(studio)   # circuitcore_studio -- unified browser-tab GUI
                             # (see sikit/MIGRATION.md)
 
