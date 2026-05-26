@@ -6,16 +6,6 @@
 
 namespace sikit::fdtd {
 
-double cfl_dt(const GridSpec& g, double safety) {
-    if (g.dx <= 0 || g.dy <= 0 || g.dz <= 0) {
-        throw std::invalid_argument("cfl_dt: non-positive cell size");
-    }
-    const double inv2 = 1.0 / (g.dx * g.dx)
-                      + 1.0 / (g.dy * g.dy)
-                      + 1.0 / (g.dz * g.dz);
-    return safety / (kC0 * std::sqrt(inv2));
-}
-
 double gaussian_pulse(double t, double t0, double spread) {
     const double x = (t - t0) / spread;
     return std::exp(-x * x);

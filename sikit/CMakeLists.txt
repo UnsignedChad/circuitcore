@@ -65,6 +65,7 @@ target_link_libraries(sikit_si
         circuitcore::sexpr   # SiStackup parses (setup (stackup ...)) directly
         circuitcore::netlist # SchematicTopology consumes parsed netlists
         circuitcore::ui      # shared Qt renderer (Camera, meshers, 3D)
+        circuitcore::field   # shared Field3D / GridSpec for FDTD
         Eigen3::Eigen
         spdlog::spdlog
         ${CMAKE_DL_LIBS}     # for AMI dlopen
