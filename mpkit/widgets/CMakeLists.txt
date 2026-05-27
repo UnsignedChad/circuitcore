@@ -72,6 +72,13 @@ else()
     set(VTK_WRAP_PYTHON           OFF CACHE BOOL "" FORCE)
     set(VTK_WRAP_JAVA             OFF CACHE BOOL "" FORCE)
 
+    # VTK 9.3.1 Sequential SMP backend ships without IsParallelScope,
+    # so linking vtkProbeOpenGLVersion (and anything else that asks
+    # about parallel scope) fails on MSVC. STDThread is the modern
+    # default, has the symbol, and uses only the c++ standard library
+    # for threading -- no TBB / OpenMP install needed.
+    set(VTK_SMP_IMPLEMENTATION_TYPE "STDThread" CACHE STRING "" FORCE)
+
     FetchContent_Declare(VTK
         GIT_REPOSITORY https://gitlab.kitware.com/vtk/vtk.git
         GIT_TAG        v9.3.1
