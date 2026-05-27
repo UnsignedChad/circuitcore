@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Radix-2 Cooley-Tukey FFT for power-of-2 sizes.
 //
 // Hand-rolled to keep sikit free of external FFT dependencies (no FFTW,

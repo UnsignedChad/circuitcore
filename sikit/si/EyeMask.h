@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Protocol eye masks and pass/fail checking.
 //
 // A mask is a "forbidden region" polygon in normalized (time/UI, voltage)

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Vector fitting: fit a frequency-domain response H(f) to a real-pole
 // rational function so it can be exported as a SPICE behavioural model.
 //

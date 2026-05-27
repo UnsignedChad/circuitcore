@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Wideband causal dielectric model (Djordjevic-Sarkar).
 //
 // Treating dielectric constant as a single number is fine below ~100 MHz,

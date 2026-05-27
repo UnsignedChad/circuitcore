@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // End-to-end test of the study orchestrator.
 //
 // Builds a minimal Study + VoxelMaterialField + injected source

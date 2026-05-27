@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Studio SI tab -- full sikit feature set.
 //
 // QMainWindow internally so the toolbar + status bar + dock widgets

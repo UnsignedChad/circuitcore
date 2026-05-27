@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // pdnkit IR-drop solution -> mpkit volumetric heat source.
 //
 // pdnkit's IrSolver returns one voltage per mesh node and a list of

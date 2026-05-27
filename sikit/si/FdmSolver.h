@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // 2D finite-difference Laplace solver for PCB cross-sections.
 //
 // Solves ∇·(ε ∇V) = 0 with Dirichlet boundary conditions:

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Thermoelectric primitives sanity tests.
 
 #include <catch2/catch_test_macros.hpp>

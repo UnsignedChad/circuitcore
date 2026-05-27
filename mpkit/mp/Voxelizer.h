@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Rasterize a parsed Board into a per-voxel material-id field.
 //
 // Walks the board's layer stackup + copper geometry (segments, pads,

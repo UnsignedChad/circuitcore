@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Studio Mp tab -- COMSOL-style multiphysics workspace.
 //
 // Hosts the mpkit::widgets::FieldViewer in the centre with a left

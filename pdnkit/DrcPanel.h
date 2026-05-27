@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // IPC-2152 power-aware DRC dock panel.
 //
 // Net combo + per-net current + allowable temperature rise. Click Run,

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Board model: in-memory representation of a KiCad PCB used by all of pdnkit.
 //
 // Units are SI throughout (meters, radians). KiCad's .kicad_pcb stores

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Closed-form Ohm's law verification.
 //
 // trace_100mm.kicad_pcb is a 100mm × 10mm × 35μm (1 oz) copper rectangle

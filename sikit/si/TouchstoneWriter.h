@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Touchstone writer — emits a 2-port (or N-port) Touchstone .sNp file
 // from an in-memory TouchstoneFile struct. Pairs with TouchstoneReader.
 //

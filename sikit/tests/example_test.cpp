@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Regression test that runs the example board through every analysis
 // pipeline and verifies the numbers match what sikit/examples/
 // WALKTHROUGH.md tells the user to expect. If anything here breaks,

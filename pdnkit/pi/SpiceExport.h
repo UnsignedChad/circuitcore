@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // SPICE netlist export for a pdnkit IR-drop mesh.
 //
 // Dumps the resistor network so the PDN can be loaded into ngspice or

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Project file (.sikitproj) loader / saver.
 //
 // Captures the persistent state of a sikit session so the user can pick up

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // End-to-end test: real .kicad_pcb file → parse → mesh → solve.
 // Locks in the full pipeline against changes in any one stage.
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Shared per-layer color palette. Returns RGBA in [0,1] so both the Qt
 // (UI) side and the GL (shader) side can consume it without converting
 // through Qt-specific types in circuitcore_ui.

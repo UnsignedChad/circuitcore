@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Per-footprint-family default body height + mass.
 //
 // KiCad's .kicad_pcb does not record body height, mass, or dissipated

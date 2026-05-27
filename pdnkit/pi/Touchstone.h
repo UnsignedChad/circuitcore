@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Touchstone v1 (.s1p) writer.
 //
 // Touchstone is the industry-standard exchange format for impedance and

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Minimal S-expression parser for KiCad .kicad_pcb files.
 //
 // KiCad's PCB format is plain S-expressions:

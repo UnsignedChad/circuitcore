@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // emikit -- radiated emissions pre-compliance estimator.
 //
 // Pre-compliance means: a magnetic-dipole estimate of how much

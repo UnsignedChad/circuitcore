@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Reference-data validation suite.
 //
 // Each case below pairs a canonical PCB cross-section with a published or

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Unit tests for the headless CLI operations. The argv-parsing layer
 // (CLI11 in main.cpp) is exercised by hand at the shell; this file
 // drives the underlying analysis pipelines directly so we catch

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // KiCad .net (legacy "E" / "D" format) reader. Pairs with PcbParser:
 // PcbParser tells you what's on the board, NetlistParser tells you
 // what the schematic said should be on it.

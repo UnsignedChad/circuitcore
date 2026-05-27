@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Walk a board, estimate radiated emissions per net, score vs a mask.
 //
 // For each routed net the analyzer assumes the trace + its reference

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // VRM (voltage regulator module) output impedance.
 //
 // Treating the VRM as an ideal voltage source (Z = 0 at DC) makes the

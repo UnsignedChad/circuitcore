@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Run emikit against TI's published ADS8686SEVM-PDK chamber data
 // (SBAA548A, April 2022). With the cable common-mode model added,
 // see if predicted emissions land within pre-compliance accuracy of

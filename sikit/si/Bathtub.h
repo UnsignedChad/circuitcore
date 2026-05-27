@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Bathtub curve — the canonical SerDes timing-margin plot.
 //
 // For each UI offset, compute the empirical probability that a sample

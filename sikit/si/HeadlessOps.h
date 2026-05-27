@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Headless command-line operations.
 //
 // Sikit ships as a Qt-driven GUI by default, but for CI integration,

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Harmonic content of a trapezoidal pulse train.
 //
 // Digital signals don't radiate at their fundamental clock rate alone;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Partial inductance of PCB vias.
 //
 // Above ~100 MHz the via barrel's series inductance dominates the path

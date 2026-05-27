@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Board -> Yee-grid rasteriser for FDTD3D.
 //
 // Takes a circuitcore::board::Board plus a SiStackup (for per-layer

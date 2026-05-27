@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Djordjevic-Sarkar wideband Debye dispersion model.
 //
 // Real PCB dielectrics aren't constant. FR-4's εr drops from ~4.5 at 1 GHz

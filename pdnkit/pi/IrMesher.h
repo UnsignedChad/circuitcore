@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Regular-grid mesher for static IR-drop analysis.
 //
 // Takes the filled copper polygons of a single (layer, net) pair and produces

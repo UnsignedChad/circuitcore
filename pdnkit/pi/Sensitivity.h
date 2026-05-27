@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Decap sensitivity analysis.
 //
 // Given a populated PDN, the question every signoff asks: which caps

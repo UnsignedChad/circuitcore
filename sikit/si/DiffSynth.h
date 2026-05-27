@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Synthesize a 4-port Touchstone for an edge-coupled diff pair.
 //
 // Uses modal decomposition on RLGC matrices from the FDM solver:

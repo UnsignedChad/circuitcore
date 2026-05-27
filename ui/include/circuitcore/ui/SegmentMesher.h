@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Tessellates track segments into per-layer triangle meshes.
 //
 // Each segment becomes a rectangle (4 vertices, 2 triangles) of the segment

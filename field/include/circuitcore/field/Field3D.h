@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // 3D scalar field on a uniform Cartesian grid.
 //
 // Storage is dense (nx*ny*nz doubles) in column-major-x order: i (x) is

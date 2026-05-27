@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // GL-ready quad mesh for an IR-drop solution.
 //
 // One small square per IrMesh node, sized to the mesher's cell_size and

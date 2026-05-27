@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // gmsh .msh exporter for mpkit's voxel hex grid.
 //
 // Why: mpkit has its own thermal / mechanical / EM solvers, but the

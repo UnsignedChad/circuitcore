@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Board-independent calculator collection.
 //
 // pdnkit and emikit ship a handful of physics-formula helpers that

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Persistent representation of a multiphysics study.
 //
 // A Study is the COMSOL-style "model tree" data layer: a list of

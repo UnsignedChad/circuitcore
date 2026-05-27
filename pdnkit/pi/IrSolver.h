@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Static IR-drop solver.
 //
 // Assembles the conductance matrix G from an IrMesh and solves G·v = i for

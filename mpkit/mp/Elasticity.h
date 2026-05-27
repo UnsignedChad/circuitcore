@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Linear elasticity FEM solver on the mpkit voxel grid.
 //
 // Each voxel cell is one trilinear Q1 hexahedral element with 8 nodes
