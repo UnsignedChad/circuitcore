@@ -2,6 +2,7 @@
 # Format-independent. Any format adapter produces a circuitcore::board::Board.
 add_library(circuitcore_board STATIC
     src/HitTest.cpp
+    src/PackageDefaults.cpp
 )
 add_library(circuitcore::board ALIAS circuitcore_board)
 

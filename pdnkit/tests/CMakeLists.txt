@@ -6,6 +6,7 @@ add_executable(pdnkit_tests
     segment_mesher_test.cpp
     via_mesher_test.cpp
     hit_test.cpp
+    package_defaults_test.cpp
     ir_mesher_test.cpp
     ir_solver_test.cpp
     ir_result_mesh_test.cpp

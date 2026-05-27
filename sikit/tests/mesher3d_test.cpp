@@ -160,3 +160,87 @@ TEST_CASE("mesher3d: copper vertices carry non-zero normals", "[m3d]") {
         REQUIRE(len == Approx(1.0f).margin(0.01f));
     }
 }
+
+TEST_CASE("mesher3d: component with courtyard becomes an extruded body",
+          "[m3d][components]") {
+    Board b = minimal_2layer();
+    sikit::si::SiStackup sis;
+
+    // Need a pad so the bounds computation doesn't return any=false.
+    Pad pd;
+    pd.at   = {0.005, 0.005};
+    pd.size = {0.001, 0.001};
+    pd.layer_ordinals = {0};
+    pd.parent_ref = "U1";
+    pd.shape = PadShape::Rect;
+    b.pads.push_back(pd);
+
+    Component c;
+    c.name      = "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm";
+    c.reference = "U1";
+    c.at        = {0.005, 0.005};
+    c.courtyard_lo = {0.0,    0.0};
+    c.courtyard_hi = {0.010, 0.010};
+    b.components.push_back(c);
+
+    auto m = build_board_mesh_3d(b, sis);
+    REQUIRE_FALSE(m.components.empty());
+    // One AABB = 6 faces * 4 verts * 10 floats = 240 floats.
+    REQUIRE(m.components.vertices.size() == 240);
+    REQUIRE(m.components.indices.size()  == 36);
+}
+
+TEST_CASE("mesher3d: component without courtyard falls back to pad bbox",
+          "[m3d][components]") {
+    Board b = minimal_2layer();
+    sikit::si::SiStackup sis;
+
+    Pad pd;
+    pd.at = {0.020, 0.020};
+    pd.size = {0.002, 0.001};
+    pd.layer_ordinals = {0};
+    pd.parent_ref = "R7";
+    pd.shape = PadShape::Rect;
+    b.pads.push_back(pd);
+
+    Component c;
+    c.name      = "Resistor_SMD:R_0402_1005Metric";
+    c.reference = "R7";
+    c.at        = {0.020, 0.020};
+    // courtyard_lo == courtyard_hi == (0,0) -> parser saw no F.CrtYd.
+    b.components.push_back(c);
+
+    auto m = build_board_mesh_3d(b, sis);
+    REQUIRE_FALSE(m.components.empty());
+    REQUIRE(m.components.vertices.size() == 240);
+}
+
+TEST_CASE("mesher3d: bottom-side component extrudes downward",
+          "[m3d][components]") {
+    Board b = minimal_2layer();
+    sikit::si::SiStackup sis;
+
+    Pad pd;
+    pd.at = {0.005, 0.005}; pd.size = {0.001, 0.001};
+    pd.layer_ordinals = {31};   // B.Cu only
+    pd.parent_ref = "U2";
+    pd.shape = PadShape::Rect;
+    b.pads.push_back(pd);
+
+    Component c;
+    c.name      = "Package_QFN:QFN-32-1EP_5x5mm_P0.5mm";
+    c.reference = "U2";
+    c.at        = {0.005, 0.005};
+    c.courtyard_lo = {0.0,    0.0};
+    c.courtyard_hi = {0.010, 0.010};
+    b.components.push_back(c);
+
+    auto m = build_board_mesh_3d(b, sis);
+    REQUIRE_FALSE(m.components.empty());
+    // Every component vertex z should be <= 0 (board_z_lo is 0 here).
+    const std::size_t n = m.components.vertices.size() / 10;
+    for (std::size_t i = 0; i < n; ++i) {
+        const float z = m.components.vertices[i * 10 + 2];
+        REQUIRE(z <= 1e-9f);
+    }
+}

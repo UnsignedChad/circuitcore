@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "circuitcore/board/PackageDefaults.h"
 #include "circuitcore/ui/LayerColors.h"
 
 namespace sikit::render {
@@ -450,6 +451,98 @@ BoardMesh3D build_board_mesh_3d(const circuitcore::board::Board& board,
                 }
             }
         }
+    }
+
+    // Component bodies. Extrude the courtyard bbox up by the per-package
+    // default body height (or pd.body_height_m if a downstream consumer
+    // populated it). Falls back to a pad-bbox heuristic when the parser
+    // saw no F.CrtYd / B.CrtYd primitives -- otherwise a footprint
+    // missing a courtyard would just be invisible.
+    //
+    // Side detection: walk pads with this component's reference; if any
+    // sit on B.Cu (or only inner / back copper) treat the body as
+    // bottom-mounted, otherwise top-mounted. The body grows away from
+    // the board: top side from z=board_z_hi upward, bottom side from
+    // z=board_z_lo downward.
+    constexpr Color kBodyDark    {0.10f, 0.10f, 0.10f, 1.0f};   // IC plastic
+    constexpr Color kBodyTan     {0.55f, 0.42f, 0.25f, 1.0f};   // connector body
+    for (const auto& comp : board.components) {
+        // Resolve the bbox: courtyard if valid, else fall back to pads.
+        double x_lo_c = comp.courtyard_lo.x;
+        double y_lo_c = comp.courtyard_lo.y;
+        double x_hi_c = comp.courtyard_hi.x;
+        double y_hi_c = comp.courtyard_hi.y;
+        const bool have_crtyd =
+            !(x_lo_c == 0.0 && y_lo_c == 0.0 &&
+              x_hi_c == 0.0 && y_hi_c == 0.0);
+        if (!have_crtyd) {
+            double xl =  1e30, yl =  1e30, xh = -1e30, yh = -1e30;
+            int n = 0;
+            for (const auto& pd : board.pads) {
+                if (pd.parent_ref != comp.reference) continue;
+                const double hw = 0.5 * pd.size.x;
+                const double hh = 0.5 * pd.size.y;
+                xl = std::min(xl, pd.at.x - hw);
+                yl = std::min(yl, pd.at.y - hh);
+                xh = std::max(xh, pd.at.x + hw);
+                yh = std::max(yh, pd.at.y + hh);
+                ++n;
+            }
+            if (n == 0 || !(xl < xh) || !(yl < yh)) continue;
+            // Inflate a hair so a single-pad part still gets a body.
+            const double pad_inflate = 0.20e-3;
+            x_lo_c = xl - pad_inflate;
+            y_lo_c = yl - pad_inflate;
+            x_hi_c = xh + pad_inflate;
+            y_hi_c = yh + pad_inflate;
+        }
+
+        // Side detection. Bottom-side if any pad sits on B.Cu only.
+        bool bottom_side = false;
+        bool any_pad = false;
+        for (const auto& pd : board.pads) {
+            if (pd.parent_ref != comp.reference) continue;
+            any_pad = true;
+            // If the pad lists *only* back copper (31) we consider it
+            // bottom-mounted. Through-hole (lists both 0 and 31) and
+            // top-only pads default to top-mounted.
+            bool has_top = false, has_back = false;
+            for (int o : pd.layer_ordinals) {
+                if (o == 0)  has_top  = true;
+                if (o == 31) has_back = true;
+            }
+            if (has_back && !has_top) { bottom_side = true; break; }
+        }
+        (void)any_pad;
+
+        // Height: respect explicit metadata, otherwise package lookup.
+        double h = comp.body_height_m;
+        if (h <= 0.0) h = circuitcore::board::default_body_height_m(comp.name);
+        if (h <= 0.0) continue;
+
+        double z_lo, z_hi;
+        if (bottom_side) {
+            z_hi = zmap.board_z_lo;
+            z_lo = z_hi - h;
+        } else {
+            z_lo = zmap.board_z_hi;
+            z_hi = z_lo + h;
+        }
+
+        // Color: connectors / pin headers get a tan body, everything
+        // else gets dark IC plastic. Picks the same way PackageDefaults
+        // matches families.
+        Color col = kBodyDark;
+        auto name_has = [&](std::string_view tok) {
+            return comp.name.find(tok) != std::string::npos;
+        };
+        if (name_has("Connector") || name_has("PinHeader") ||
+            name_has("USB")       || name_has("Terminal")) {
+            col = kBodyTan;
+        }
+
+        append_aabb(out.components, x_lo_c, x_hi_c, y_lo_c, y_hi_c,
+                    z_lo, z_hi, col);
     }
 
     return out;

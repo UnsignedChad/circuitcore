@@ -35,6 +35,12 @@ struct BoardMesh3D {
     Mesh3D copper;
     // Via barrels — solid cylinders spanning each via's layer range.
     Mesh3D vias;
+    // Component bodies extruded from the courtyard bbox up by the
+    // per-package default body height. One AABB per Component the
+    // parser produced; placed on the side the footprint sits on (F.Cu
+    // -> upward, B.Cu -> downward). Empty if the board has no
+    // (footprint ...) blocks.
+    Mesh3D components;
 };
 
 // Walks the stackup, computes per-layer Z positions, then meshes every
