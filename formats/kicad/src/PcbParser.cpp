@@ -25,7 +25,13 @@ constexpr double kMmToM = 1.0e-3;
 // Convert degrees → radians.
 constexpr double kDegToRad = 0.017453292519943295;  // pi / 180
 
-[[noreturn]] void fail(const Node& n, const std::string& msg) {
+// Internal control-flow primitive used by the Walker helpers below.
+// PcbParser declares a std::expected<Board, ParseError> public API; we
+// bridge to it by throwing ParseError out of any deeply-nested helper
+// and catching it at parse_string / parse_file. This keeps the helper
+// bodies free of expected<> plumbing without affecting the public
+// contract -- callers never see an exception.
+[[noreturn]] void throw_parse_error(const Node& n, const std::string& msg) {
     throw ParseError{msg, n.line, n.col};
 }
 
@@ -49,19 +55,19 @@ std::vector<const Node*> find_children(const Node& n, std::string_view tag) {
 }
 
 double expect_number(const Node& n) {
-    if (!n.is_number()) fail(n, "expected number");
+    if (!n.is_number()) throw_parse_error(n, "expected number");
     return n.number;
 }
 
 std::string_view expect_string_or_symbol(const Node& n) {
     if (n.is_string() || n.is_symbol()) return n.text;
-    fail(n, "expected string or symbol");
+    throw_parse_error(n, "expected string or symbol");
 }
 
 // Read a 2-element (x y) tail starting at child index `start` in `node`.
 // Used for both (at X Y) and (xy X Y) — and (start X Y) / (end X Y).
 circuitcore::board::Point2 read_xy_tail(const Node& node, std::size_t start = 1) {
-    if (node.children.size() < start + 2) fail(node, "expected at least two numeric coordinates");
+    if (node.children.size() < start + 2) throw_parse_error(node, "expected at least two numeric coordinates");
     return {
         expect_number(node.children[start]) * kMmToM,
         expect_number(node.children[start + 1]) * kMmToM,
@@ -85,7 +91,7 @@ public:
 
     circuitcore::board::Board build() {
         if (!root_.is_list() || root_.tag() != "kicad_pcb") {
-            fail(root_, "top-level form must be (kicad_pcb ...)");
+            throw_parse_error(root_, "top-level form must be (kicad_pcb ...)");
         }
         parse_general();
         parse_layers();
@@ -104,7 +110,7 @@ private:
     int layer_id_(std::string_view name, const Node& ctx) {
         auto it = layer_name_to_id_.find(std::string(name));
         if (it == layer_name_to_id_.end()) {
-            fail(ctx, std::format("unknown layer name '{}'", name));
+            throw_parse_error(ctx, std::format("unknown layer name '{}'", name));
         }
         return it->second;
     }
@@ -146,7 +152,7 @@ private:
         for (std::size_t i = 1; i < layers->children.size(); ++i) {
             const Node& row = layers->children[i];
             if (!row.is_list() || row.children.size() < 3) {
-                fail(row, "expected (ordinal name type [user_name]) layer row");
+                throw_parse_error(row, "expected (ordinal name type [user_name]) layer row");
             }
             circuitcore::board::Layer L;
             L.ordinal = static_cast<int>(expect_number(row.children[0]));
@@ -209,7 +215,7 @@ private:
 
     void parse_nets() {
         for (const Node* netn : find_children(root_, "net")) {
-            if (netn->children.size() < 3) fail(*netn, "expected (net id name)");
+            if (netn->children.size() < 3) throw_parse_error(*netn, "expected (net id name)");
             circuitcore::board::Net n;
             n.id = static_cast<int>(expect_number(netn->children[1]));
             n.name = std::string(expect_string_or_symbol(netn->children[2]));
@@ -225,7 +231,7 @@ private:
             if (const Node* w     = find_child(*segn, "width")) s.width = expect_number(w->children.at(1)) * kMmToM;
             if (const Node* lay   = find_child(*segn, "layer")) {
                 auto names = read_layer_names(*lay);
-                if (names.empty()) fail(*lay, "segment missing layer name");
+                if (names.empty()) throw_parse_error(*lay, "segment missing layer name");
                 s.layer_ordinal = layer_id_(names[0], *lay);
             }
             if (const Node* netr  = find_child(*segn, "net"))   s.net_id = net_id_(*netr);
@@ -241,7 +247,7 @@ private:
             if (const Node* dr    = find_child(*vn, "drill")) v.drill = expect_number(dr->children.at(1)) * kMmToM;
             if (const Node* lay   = find_child(*vn, "layers")) {
                 auto names = read_layer_names(*lay);
-                if (names.size() < 2) fail(*lay, "via layers requires two names");
+                if (names.size() < 2) throw_parse_error(*lay, "via layers requires two names");
                 v.from_layer = layer_id_(names[0], *lay);
                 v.to_layer   = layer_id_(names[1], *lay);
             }
@@ -255,7 +261,7 @@ private:
         std::vector<circuitcore::board::Point2> out;
         for (std::size_t i = 1; i < pts.children.size(); ++i) {
             const Node& xy = pts.children[i];
-            if (!xy.is_list() || xy.tag() != "xy") fail(xy, "expected (xy X Y)");
+            if (!xy.is_list() || xy.tag() != "xy") throw_parse_error(xy, "expected (xy X Y)");
             out.push_back(read_xy_tail(xy));
         }
         return out;
@@ -842,6 +848,11 @@ PcbParser::parse_string(std::string_view src) {
         return std::unexpected(e);
     } catch (const circuitcore::sexpr::ParseError& e) {
         return std::unexpected(from_sexpr(e));
+    } catch (const std::exception& e) {
+        // Anything else that leaks from the s-expr parser or a helper
+        // (bad_alloc, std::format, ...) gets wrapped so the public API
+        // really is exception-free.
+        return std::unexpected(ParseError{e.what(), 0, 0});
     }
 }
 

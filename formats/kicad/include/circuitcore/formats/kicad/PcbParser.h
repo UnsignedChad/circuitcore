@@ -6,9 +6,17 @@
 // a typed circuitcore::board::Board. All coordinates are converted from KiCad
 // millimeters to SI meters at parse time.
 //
-// v0 scope: layers, nets, segments, vias, zones (outline + filled),
-//           footprint pads (position + net only).
-// Skipped:  silkscreen, text, fab-layers, 3D models, schematic refs.
+// Scope: layers, nets, stackup, segments, vias, zones (outline +
+// filled), footprint pads (position + size + shape + net), graphics
+// (lines / arcs / circles / polygons / text on non-copper layers),
+// components (per-footprint identifier + courtyard bbox).
+// Skipped:  fab-layers, 3D models, schematic refs.
+//
+// Error handling: the parser is exception-free at the API boundary.
+// All failures come back as std::expected<Board, ParseError>; any
+// std::exception that escapes a helper is caught and wrapped. The
+// internal Walker uses throw for compact control flow but those throws
+// never escape parse_string / parse_file.
 //
 // Coordinate system note: KiCad's PCB Y-axis grows downward (screen
 // convention). This parser preserves the raw mm-to-m conversion; downstream
