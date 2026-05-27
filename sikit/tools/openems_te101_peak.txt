@@ -1,0 +1,5 @@
+# openEMS PEC cavity TE_101 peak
+# cavity (mm): 50.0 x 30.0 x 20.0
+# dx (mm)    : 2.0
+peak_freq_hz 7.796443e+09
+peak_amp     9.841333e-02

@@ -122,6 +122,14 @@ target_link_libraries(sikit PRIVATE
 )
 circuitcore_warnings(sikit)
 
+add_executable(sikit_validate_fdtd_vs_openems
+    tools/validate_fdtd_vs_openems.cpp
+)
+target_link_libraries(sikit_validate_fdtd_vs_openems PRIVATE sikit_si)
+target_compile_options(sikit_validate_fdtd_vs_openems
+    PRIVATE -Wall -Wextra -Wpedantic)
+
+
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
