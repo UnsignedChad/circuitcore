@@ -169,7 +169,7 @@ struct OneSweepResult {
 
 OneSweepResult run_one_sweep(const Study& s,
                               const StudyRunInput& input,
-                              int sweep_index,
+                              const std::vector<int>& sweep_index,
                               const std::vector<Material>& mt) {
     OneSweepResult out;
     const VoxelMaterialField& vmf = input.material_field;
@@ -290,38 +290,65 @@ StudyRunResult run_study(const StudyRunInput& input) {
     }
 
     if (input.study.sweeps.empty()) {
-        auto one = run_one_sweep(input.study, input, 0, mt);
+        auto one = run_one_sweep(input.study, input, {}, mt);
         for (auto& s : one.steps) out.steps.push_back(std::move(s));
         out.ok    = one.ok;
         out.error = one.error;
         return out;
     }
 
-    const auto& sw = input.study.sweeps.front();
-    auto pp = parse_param_path(sw.parameter_path);
-    if (!pp) {
-        out.error = "Unparseable sweep parameter_path: " + sw.parameter_path;
-        return out;
+    // Pre-parse every sweep's parameter path; bail early on bad input.
+    std::vector<ParamPath> paths;
+    for (const auto& sw : input.study.sweeps) {
+        auto pp = parse_param_path(sw.parameter_path);
+        if (!pp) {
+            out.error = "Unparseable sweep parameter_path: " + sw.parameter_path;
+            return out;
+        }
+        if (sw.values.empty()) {
+            out.error = "Sweep '" + sw.parameter_path
+                       + "' has no values";
+            return out;
+        }
+        paths.push_back(std::move(*pp));
     }
 
-    for (int i = 0; i < static_cast<int>(sw.values.size()); ++i) {
+    // Odometer over the cartesian product of every sweep's values.
+    const std::size_t D = input.study.sweeps.size();
+    std::vector<int> idx(D, 0);
+    while (true) {
         Study s_copy = input.study;
-        bool patched = false;
-        for (auto& n : s_copy.nodes) {
-            if (n.id != pp->node_id) continue;
-            if (set_number_at(n.config, pp->keys, sw.values[i])) patched = true;
-            break;
-        }
-        if (!patched) {
-            out.error = "Sweep parameter '" + sw.parameter_path
-                       + "' not found or not numeric";
-            return out;
+        for (std::size_t d = 0; d < D; ++d) {
+            const auto& sw = input.study.sweeps[d];
+            const auto& pp = paths[d];
+            bool patched = false;
+            for (auto& n : s_copy.nodes) {
+                if (n.id != pp.node_id) continue;
+                if (set_number_at(n.config, pp.keys, sw.values[idx[d]]))
+                    patched = true;
+                break;
+            }
+            if (!patched) {
+                out.error = "Sweep parameter '" + sw.parameter_path
+                           + "' not found or not numeric";
+                return out;
+            }
         }
         StudyRunInput per_step = input;
         per_step.study = std::move(s_copy);
-        auto one = run_one_sweep(per_step.study, per_step, i, mt);
+        auto one = run_one_sweep(per_step.study, per_step, idx, mt);
         for (auto& s : one.steps) out.steps.push_back(std::move(s));
         if (!one.ok) { out.error = one.error; return out; }
+
+        // Increment odometer; stop when the most-significant digit
+        // overflows. Sweep 0 is the fastest-varying axis.
+        std::size_t d = 0;
+        for (; d < D; ++d) {
+            if (++idx[d] < static_cast<int>(input.study.sweeps[d].values.size()))
+                break;
+            idx[d] = 0;
+        }
+        if (d == D) break;
     }
     out.ok = true;
     return out;
