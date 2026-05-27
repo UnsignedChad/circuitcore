@@ -5,7 +5,13 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QScrollArea>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QMenu>
 #include <QStatusBar>
+#include <QToolBar>
+#include <QToolButton>
 #include <QWidget>
 #include <utility>
 
@@ -25,6 +31,9 @@
 #include "pi/IrSolver.h"
 #include "pi/Thermal.h"
 #include "render/IrResultMesh.h"
+#include "pi/Mor.h"
+#include "pi/Touchstone.h"
+#include "pdnkit/StackupWriter.h"
 
 namespace circuitcore::studio {
 
@@ -153,6 +162,24 @@ PiTab::PiTab(BoardModel* model, QWidget* parent)
         if (an_dock) tabifyDockWidget(an_dock, dock);
         connect(netstats_panel_, &NetStatsPanel::netSelected,
                 drc_panel_, &DrcPanel::setNetById);
+    }
+
+    // --- File menu (export workflows) ---
+    {
+        auto* tb = addToolBar(tr("File"));
+        tb->setMovable(false);
+        auto* menu = new QMenu(this);
+        menu->addAction(tr("Save modified stackup..."),
+                         this, &PiTab::onSaveModifiedStackup);
+        menu->addAction(tr("Export cavity Z(f) as Touchstone..."),
+                         this, &PiTab::onExportCavityTouchstone);
+        menu->addAction(tr("Export reduced SPICE subcircuit..."),
+                         this, &PiTab::onExportReducedSpice);
+        auto* btn = new QToolButton(tb);
+        btn->setText(tr("File"));
+        btn->setMenu(menu);
+        btn->setPopupMode(QToolButton::InstantPopup);
+        tb->addWidget(btn);
     }
 
     // --- Status bar hover line + probe hint ---
@@ -305,6 +332,126 @@ void PiTab::onProbeRequested(int pad_a, int pad_b, int net_id,
         tr("Probe R: %1 mOhm between pads %2 and %3 on net %4")
             .arg(r_eff * 1e3, 0, 'f', 3)
             .arg(pad_a).arg(pad_b).arg(net_id), 12000);
+}
+
+
+
+void PiTab::onSaveModifiedStackup() {
+    if (!model_->board() || model_->currentPath().isEmpty()) {
+        QMessageBox::information(this, tr("Save modified stackup"),
+            tr("Open a KiCad PCB first."));
+        return;
+    }
+    const QString src = model_->currentPath();
+    const QString suggested =
+        QFileInfo(src).completeBaseName() + "_pdnkit-stackup.kicad_pcb";
+    const QString dst = QFileDialog::getSaveFileName(
+        this, tr("Save modified stackup as"), suggested,
+        tr("KiCad PCB (*.kicad_pcb)"));
+    if (dst.isEmpty()) return;
+    if (QFileInfo(dst) == QFileInfo(src)) {
+        QMessageBox::warning(this, tr("Save modified stackup"),
+            tr("Destination must differ from the source file."));
+        return;
+    }
+    auto r = pdnkit::save_modified_stackup(
+        src.toStdString(), dst.toStdString(), *model_->board());
+    if (!r.ok) {
+        QMessageBox::critical(this, tr("Save modified stackup"),
+                               QString::fromStdString(r.error));
+        return;
+    }
+    statusBar()->showMessage(
+        tr("Wrote modified stackup to %1 (%2 layer(s) updated)")
+            .arg(QFileInfo(dst).fileName()).arg(r.layers_updated),
+        10000);
+}
+
+void PiTab::onExportCavityTouchstone() {
+    if (!cavity_panel_->hasLastSweep()) {
+        QMessageBox::information(this, tr("Export Touchstone"),
+            tr("Run a cavity Z(f) sweep first."));
+        return;
+    }
+    const QString src = model_->currentPath();
+    const QString suggested = src.isEmpty()
+        ? QString("pdnkit_zf.s1p")
+        : QFileInfo(src).completeBaseName() + "_zf.s1p";
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Export Touchstone Z(f)"), suggested,
+        tr("Touchstone v1 (*.s1p)"));
+    if (path.isEmpty()) return;
+
+    const auto& freqs = cavity_panel_->lastSweepFreqs();
+    const auto& zs    = cavity_panel_->lastSweepZ();
+    std::vector<pdnkit::pi::TouchstoneSample> samples;
+    samples.reserve(freqs.size());
+    for (std::size_t i = 0; i < freqs.size(); ++i)
+        samples.push_back({freqs[i], zs[i]});
+    const std::string comment =
+        std::string("circuitcore studio cavity Z(f) -- ") +
+        QFileInfo(src).fileName().toStdString();
+    if (!pdnkit::pi::write_touchstone_z1p(path.toStdString(),
+                                           samples, comment)) {
+        QMessageBox::critical(this, tr("Export Touchstone"),
+            tr("Failed to write %1").arg(path));
+        return;
+    }
+    statusBar()->showMessage(
+        tr("Wrote %1 (%2 points)")
+            .arg(QFileInfo(path).fileName()).arg(samples.size()),
+        8000);
+}
+
+void PiTab::onExportReducedSpice() {
+    if (last_mesh_.nodes.empty()) {
+        QMessageBox::information(this, tr("Export reduced SPICE"),
+            tr("Run an IR-drop analysis first; there is no mesh to reduce."));
+        return;
+    }
+    std::vector<int> ports;
+    for (int id : last_mesh_.source_node_ids) ports.push_back(id);
+    for (int id : last_mesh_.sink_node_ids)   ports.push_back(id);
+    if (ports.empty()) {
+        QMessageBox::warning(this, tr("Export reduced SPICE"),
+            tr("The last mesh has no source/sink nodes to use as ports."));
+        return;
+    }
+    const QString src = model_->currentPath();
+    const QString suggested = src.isEmpty()
+        ? QString("pdnkit_reduced.sub")
+        : QFileInfo(src).completeBaseName() + "_reduced.sub";
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Export reduced SPICE subcircuit"), suggested,
+        tr("SPICE subcircuit (*.sub *.cir)"));
+    if (path.isEmpty()) return;
+
+    auto reduced = pdnkit::pi::reduce_to_ports(last_mesh_, ports);
+    if (reduced.port_node_ids.empty()) {
+        QMessageBox::critical(this, tr("Export reduced SPICE"),
+            tr("Reduction failed (singular internal block?)."));
+        return;
+    }
+    const std::string title =
+        std::string("circuitcore studio reduced PDN -- ") +
+        QFileInfo(src).fileName().toStdString() +
+        " (" + std::to_string(last_mesh_.nodes.size()) + " nodes -> " +
+        std::to_string(ports.size()) + " ports)";
+    const auto netlist = pdnkit::pi::export_reduced_spice(reduced, title);
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(this, tr("Export reduced SPICE"),
+            tr("Failed to open %1").arg(path));
+        return;
+    }
+    f.write(netlist.c_str());
+    f.close();
+    statusBar()->showMessage(
+        tr("Wrote %1 (%2 nodes -> %3 ports)")
+            .arg(QFileInfo(path).fileName())
+            .arg(last_mesh_.nodes.size())
+            .arg(ports.size()),
+        10000);
 }
 
 }  // namespace circuitcore::studio
