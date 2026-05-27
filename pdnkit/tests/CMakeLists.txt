@@ -16,6 +16,7 @@ add_executable(pdnkit_tests
     transient_test.cpp
     e2e_test.cpp
     ohms_law_test.cpp
+    pipeline_test.cpp
     power_drc_test.cpp
     spice_export_test.cpp
     target_z_test.cpp
