@@ -18,7 +18,6 @@ sexpr/         s-expression read + emit
 field/         shared 3D Field / Grid types
 formats/kicad/ .kicad_pcb -> board::Board
 netlist/       KiCad netlist reader
-intent/        board vs schematic cross-checks
 ui/            shared Qt canvas + camera
 pdnkit/
 sikit/
