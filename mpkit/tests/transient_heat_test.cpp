@@ -8,6 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 #include "circuitcore/field/Field3D.h"
@@ -58,7 +59,7 @@ TEST_CASE("Transient bar with both ends Dirichlet relaxes to the "
     // test runs in milliseconds.
     const double k = 50.0, rho = 1000.0, cp = 1.0;  // alpha = 0.05 m^2/s
     const double alpha = k / (rho * cp);
-    const double tau1  = L * L / (M_PI * M_PI * alpha);
+    const double tau1  = L * L / (std::numbers::pi * std::numbers::pi * alpha);
 
     TransientHeatConfig cfg;
     cfg.material_field = uniform_field(N, 1, 1, dx, 1.0, 1.0, 0);
@@ -97,7 +98,7 @@ TEST_CASE("Transient bar with insulated ends + sinusoidal initial "
     const double dx = L / N;
     const double k = 50.0, rho = 1000.0, cp = 1.0;
     const double alpha = k / (rho * cp);
-    const double rate1 = (M_PI / L) * (M_PI / L) * alpha;
+    const double rate1 = (std::numbers::pi / L) * (std::numbers::pi / L) * alpha;
     const double tau1  = 1.0 / rate1;
 
     TransientHeatConfig cfg;
@@ -116,7 +117,7 @@ TEST_CASE("Transient bar with insulated ends + sinusoidal initial "
     cfg.initial_temperature.resize(N, 1, 1);
     for (int i = 0; i < N; ++i) {
         const double x = (i + 0.5) * dx;
-        cfg.initial_temperature.at(i, 0, 0) = std::cos(M_PI * x / L);
+        cfg.initial_temperature.at(i, 0, 0) = std::cos(std::numbers::pi * x / L);
     }
     cfg.dt_s  = tau1 / 200.0;
     cfg.steps = 100;          // walk to t = tau1 / 2
@@ -131,7 +132,7 @@ TEST_CASE("Transient bar with insulated ends + sinusoidal initial "
     // alone, up to the higher-mode initial-condition leakage.
     const double t_final  = cfg.dt_s * cfg.steps;
     const double T0_final = r.final_temperature.at(0, 0, 0);
-    const double T0_init  = std::cos(M_PI * (0 + 0.5) * dx / L);
+    const double T0_init  = std::cos(std::numbers::pi * (0 + 0.5) * dx / L);
     const double ratio    = T0_final / T0_init;
     const double expected = std::exp(-rate1 * t_final);
     // backward Euler under-estimates the decay rate by O(dt); allow
