@@ -117,6 +117,9 @@ MpTab::~MpTab() = default;
 void MpTab::onBoardLoaded() {
     status_->setText(tr("Board loaded. Click Run PDN -> thermal demo to "
                          "voxelise + IR solve + heat solve in one step."));
+#ifdef MPKIT_HAS_WIDGETS
+    if (model_->board()) viewer_->setBoard(*model_->board());
+#endif
 }
 
 void MpTab::onLoadStudy() {
@@ -222,9 +225,15 @@ void MpTab::onRunPdnThermalDemo() {
         return;
     }
 
-    // 5. Display.
+    // 5. Display: color the copper surface by the sampled temperature
+    //    (the COMSOL-style surface plot), and also push the volumetric
+    //    field through setField so the slice plane is available as a
+    //    secondary indicator.
 #ifdef MPKIT_HAS_WIDGETS
+    viewer_->setFieldOnCopperSurface(vf.grid, th.temperature,
+                                       tr("Temperature (degC)"));
     viewer_->setField(vf.grid, th.temperature, tr("Temperature (degC)"));
+    viewer_->setSliceVisible(false);  // surface plot is the primary view
     slice_index_->setRange(0, vf.grid.nz() - 1);
     slice_index_->setValue(vf.grid.nz() / 2);
 #else

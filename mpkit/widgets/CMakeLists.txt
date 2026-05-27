@@ -98,6 +98,7 @@ set_target_properties(mpkit_widgets PROPERTIES
 
 target_link_libraries(mpkit_widgets PUBLIC
     mpkit::mp
+    sikit_si               # sikit::render::Mesher3D for board geometry actors
     circuitcore::field
     VTK::CommonCore
     VTK::CommonColor
