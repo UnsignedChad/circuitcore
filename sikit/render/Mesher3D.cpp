@@ -400,6 +400,58 @@ BoardMesh3D build_board_mesh_3d(const circuitcore::board::Board& board,
                          z_lo, z_hi, kViaColor);
     }
 
+
+    // Pads: walk every pad and stamp its shape onto each copper layer
+    // it sits on. Through-hole pads (multiple copper-layer ordinals)
+    // get stamped on each so they visibly span top->bottom; v0 doesn't
+    // synthesise an explicit barrel for them.
+    for (const auto& pd : board.pads) {
+        if (pd.layer_ordinals.empty()) continue;
+        const double hw = 0.5 * pd.size.x;
+        const double hh = 0.5 * pd.size.y;
+        const bool have_size = (pd.size.x > 0.0 && pd.size.y > 0.0);
+        for (int ord : pd.layer_ordinals) {
+            const auto* L = board.find_layer(ord);
+            if (!L || !L->is_copper()) continue;
+            const auto lz = z_for_layer(board, zmap, ord);
+            if (!lz) continue;
+            const double z_lo = lz->z_center - 0.5 * lz->thickness;
+            const double z_hi = lz->z_center + 0.5 * lz->thickness;
+            const auto rgba = circuitcore::ui::layer_color(ord);
+            const Color c{rgba[0], rgba[1], rgba[2], 1.0f};
+
+            switch (pd.shape) {
+                case circuitcore::board::PadShape::Circle: {
+                    const double r = have_size
+                        ? std::max(hw, hh)  // size.x ~= size.y for round
+                        : 0.50e-3;
+                    append_cylinder(out.copper, pd.at.x, pd.at.y, r,
+                                     z_lo, z_hi, c);
+                    break;
+                }
+                case circuitcore::board::PadShape::Rect:
+                case circuitcore::board::PadShape::Oval:
+                case circuitcore::board::PadShape::RoundRect:
+                case circuitcore::board::PadShape::Custom: {
+                    // v1: render every non-circular pad as a flat box.
+                    // Oval / round-rect corner radii are a future
+                    // refinement -- the volumetric shape is close enough
+                    // for the thermal + EM read.
+                    if (have_size) {
+                        append_aabb(out.copper,
+                                     pd.at.x - hw, pd.at.x + hw,
+                                     pd.at.y - hh, pd.at.y + hh,
+                                     z_lo, z_hi, c);
+                    } else {
+                        append_cylinder(out.copper, pd.at.x, pd.at.y,
+                                         0.50e-3, z_lo, z_hi, c);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     return out;
 }
 

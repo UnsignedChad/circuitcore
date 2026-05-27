@@ -146,7 +146,11 @@ SiTab::SiTab(BoardModel* model, QWidget* parent)
     auto* zd100 = add(QString::fromUtf8("Z₝₀=100"), [this]() { onImpedanceDiffOverlay(100.0); });
     add("Clear", &SiTab::onClearOverlay);
     (void)z50; (void)z90; (void)z100; (void)zd90; (void)zd100;
-    tb->addSeparator();
+
+    // -- second row -- exports + signoff workflows --------------------
+    addToolBarBreak();
+    tb = addToolBar("SI exports + reports");
+    tb->setMovable(false);
     add("Export .s2p", &SiTab::onExportTouchstone);
     add("Export .csv", &SiTab::onExportCsv);
     add("Export .s4p", &SiTab::onExportDiffPairS4p);
@@ -157,7 +161,11 @@ SiTab::SiTab(BoardModel* model, QWidget* parent)
     add("Skew",                   &SiTab::onCheckSkew);
     add("Return path",            &SiTab::onCheckReturnPath);
     add("Topology from .net...",  &SiTab::onDeriveTopology);
-    tb->addSeparator();
+
+    // -- third row -- tools menu + solver / view toggles --------------
+    addToolBarBreak();
+    tb = addToolBar("SI tools + view");
+    tb->setMovable(false);
     auto* tools_menu = new QMenu(this);
     tools_menu->addAction("Statistical eye (PDA)", this, &SiTab::onStatEyePda);
     tools_menu->addAction("Crosstalk eye for victim net", this,

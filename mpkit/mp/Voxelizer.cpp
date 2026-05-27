@@ -181,6 +181,50 @@ VoxelMaterialField voxelize_board(const circuitcore::board::Board& board,
             stamp_disk(out, k_here, v.at.x, v.at.y,
                         0.5 * v.outer_diameter, kCopperMaterialId);
         }
+        // Pads belonging to this layer. Through-hole pads list every
+        // copper layer in layer_ordinals, so they get stamped on each.
+        for (const auto& pd : board.pads) {
+            const auto& los = pd.layer_ordinals;
+            if (std::find(los.begin(), los.end(), L.ordinal) == los.end())
+                continue;
+            const double hw = 0.5 * pd.size.x;
+            const double hh = 0.5 * pd.size.y;
+            const bool have_size = (pd.size.x > 0.0 && pd.size.y > 0.0);
+            if (pd.shape == circuitcore::board::PadShape::Circle) {
+                const double r = have_size
+                    ? std::max(hw, hh)
+                    : 0.50e-3;
+                stamp_disk(out, k_here, pd.at.x, pd.at.y, r,
+                            kCopperMaterialId);
+            } else if (have_size) {
+                // Rect / oval / roundrect / custom -- treat as box.
+                // (Capsule / corner radius are visual niceties only,
+                // the thermal mass is the bounding-box area.)
+                const auto& g = out.grid;
+                const int ilo = std::max(0, static_cast<int>(
+                    (pd.at.x - hw - g.x0) / g.dx()));
+                const int ihi = std::min(g.nx() - 1, static_cast<int>(
+                    (pd.at.x + hw - g.x0) / g.dx()));
+                const int jlo = std::max(0, static_cast<int>(
+                    (pd.at.y - hh - g.y0) / g.dy()));
+                const int jhi = std::min(g.ny() - 1, static_cast<int>(
+                    (pd.at.y + hh - g.y0) / g.dy()));
+                for (int j = jlo; j <= jhi; ++j) {
+                    for (int i = ilo; i <= ihi; ++i) {
+                        const std::size_t idx =
+                            static_cast<std::size_t>(i)
+                            + static_cast<std::size_t>(j) * g.nx()
+                            + static_cast<std::size_t>(k_here)
+                              * g.nx() * g.ny();
+                        out.ids[idx] = kCopperMaterialId;
+                    }
+                }
+            } else {
+                // Pad size unknown -- fall back to the default radius.
+                stamp_disk(out, k_here, pd.at.x, pd.at.y, 0.50e-3,
+                            kCopperMaterialId);
+            }
+        }
     }
 
     return out;

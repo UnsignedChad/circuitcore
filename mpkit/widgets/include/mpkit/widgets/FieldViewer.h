@@ -1,20 +1,21 @@
 // COMSOL-style 3D scalar-field viewer.
 //
-// Holds a single circuitcore::field::Field3D + the Grid it lives on
-// and renders it as a vtkImageData inside a QVTKOpenGLNativeWidget.
-// v1 displays:
+// Two distinct visualisation modes:
 //
-//   * the volume bounding box as a wireframe outline
-//   * an axis-aligned slice plane (XY plane through the z-mid by
-//     default) coloured by the field
-//   * a colour-bar legend mapping the slice colours back to data values
-//   * the XYZ axes triad in the bottom-left corner
+//   1. Field-on-geometry (the COMSOL default): render the board's 3D
+//      stackup as actors (dielectric translucent FR-4 amber, copper
+//      opaque, vias as solid cylinders) and color the copper surface
+//      by a sampled scalar field. Call setBoard() once with the parsed
+//      board, then setFieldOnCopperSurface() whenever a new field
+//      lands. This is what you want for "where on my board is it hot".
 //
-// Future passes will add iso-surfaces (vtkContourFilter), GPU volume
-// rendering (vtkGPUVolumeRayCastMapper), arbitrary plane slicing
-// (vtkCutter), vector arrows (vtkGlyph3D + vtkArrowSource) and
-// streamlines (vtkStreamTracer). The widget API stays compatible so the
-// studio Mp tab does not need to change.
+//   2. Volumetric slice plane: render the voxel grid's bounding box
+//      outline + an axis-aligned slice plane coloured by the field.
+//      Useful for cross-section through the dielectric (where does
+//      heat get trapped between layers?). Toggle via setSliceVisible.
+//
+// Both modes share one camera, one XYZ axes triad, one colour-bar
+// legend, and one colour-map lookup table.
 
 #pragma once
 
@@ -23,8 +24,11 @@
 
 #include <QVTKOpenGLNativeWidget.h>
 
+#include "circuitcore/board/Board.h"
 #include "circuitcore/field/Field3D.h"
 #include "mp/Grid.h"
+
+namespace sikit::si { struct SiStackup; }
 
 namespace mpkit::widgets {
 
@@ -34,6 +38,24 @@ public:
     explicit FieldViewer(QWidget* parent = nullptr);
     ~FieldViewer() override;
 
+    // ---- mode 1: board geometry + field-on-copper ------------------
+
+    // Build the 3D board mesh (dielectric / copper / vias) via
+    // sikit::render::Mesher3D and add it to the scene. Replaces any
+    // previously-set geometry. Pass a non-default si_stackup to honour
+    // an existing SI stackup overlay; otherwise the board's own
+    // stackup is used.
+    void setBoard(const circuitcore::board::Board& board);
+
+    // Sample a scalar field at every copper-mesh vertex and re-color
+    // the copper actor with the supplied colour-map. Requires setBoard
+    // to have been called first; otherwise this is a no-op.
+    void setFieldOnCopperSurface(const Grid& grid,
+                                  const circuitcore::field::Field3D& field,
+                                  const QString& label = "value");
+
+    // ---- mode 2: volumetric slice (kept from v1) -------------------
+
     // Replace the displayed field. Triggers a re-render. The viewer
     // chooses a colour-map range from the data min/max unless
     // setColormapRange has already been called with explicit bounds.
@@ -41,32 +63,22 @@ public:
                   const circuitcore::field::Field3D& field,
                   const QString& field_label = "value");
 
-    // Override the colour-map range (otherwise auto-fit to data).
+    // Toggle the volumetric slice plane.
+    void setSliceVisible(bool visible);
+
+    // ---- shared controls -------------------------------------------
+
     void setColormapRange(double v_min, double v_max);
+    void setColormap(const QString& name);    // "coolwarm", "viridis", "jet", "grayscale"
 
-    // Switch the colour-map. Recognised names: "coolwarm" (default),
-    // "viridis", "jet", "grayscale". Unknown names fall back to
-    // coolwarm.
-    void setColormap(const QString& name);
-
-    // Toggle the XYZ axes triad in the bottom-left.
     void setAxesVisible(bool visible);
-
-    // Toggle the colour-bar legend on the right.
     void setColorBarVisible(bool visible);
-
-    // Toggle the bounding-box outline.
     void setOutlineVisible(bool visible);
 
-    // Slice plane index along the chosen axis. Set axis to one of
-    // {0 = YZ plane / x slice, 1 = XZ plane / y slice, 2 = XY plane /
-    // z slice}. Index is the 0-based voxel index in that axis.
     void setSlice(int axis, int index);
 
-    // Perspective vs parallel (orthographic) projection.
     void setParallelProjection(bool parallel);
 
-    // Snap the camera to fit the dataset.
     void resetCamera();
 
 private:

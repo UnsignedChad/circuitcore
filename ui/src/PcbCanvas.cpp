@@ -109,7 +109,24 @@ void PcbCanvas::fitToBoard() {
         include(s.start.x, s.start.y);
         include(s.end.x,   s.end.y);
     }
-    for (const auto& p : board_->pads) include(p.at.x, p.at.y);
+    for (const auto& p : board_->pads) {
+        const double hw = 0.5 * p.size.x;
+        const double hh = 0.5 * p.size.y;
+        include(p.at.x - hw, p.at.y - hh);
+        include(p.at.x + hw, p.at.y + hh);
+    }
+    for (const auto& v : board_->vias) {
+        const double r = 0.5 * v.outer_diameter;
+        include(v.at.x - r, v.at.y - r);
+        include(v.at.x + r, v.at.y + r);
+    }
+    for (const auto& seg : board_->outline) {
+        include(seg.start.x, seg.start.y);
+        include(seg.end.x,   seg.end.y);
+    }
+    for (const auto& g : board_->graphics) {
+        for (const auto& pt : g.points) include(pt.x, pt.y);
+    }
     for (const auto& z : board_->zones) {
         for (const auto& pt : z.outline.outline) include(pt.x, pt.y);
         for (const auto& fp : z.filled)
