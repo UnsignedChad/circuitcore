@@ -80,7 +80,15 @@ void PcbCanvas::setBoard(const board::Board* board) {
             buildOutline();
             doneCurrent();
         }
-        fitToBoard();
+        // If the canvas hasn't been laid out yet (eg this tab is
+        // still hidden), width()/height() return Qt's pre-layout
+        // defaults and the fit picks a wrong scale. Defer to the
+        // first paint with a real viewport.
+        if (width() > 50 && height() > 50) {
+            fitToBoard();
+        } else {
+            fit_pending_ = true;
+        }
     }
     onBoardChanged();
     update();
@@ -341,6 +349,10 @@ void PcbCanvas::resizeGL(int w, int h) {
 }
 
 void PcbCanvas::paintGL() {
+    if (fit_pending_ && width() > 50 && height() > 50 && board_) {
+        fit_pending_ = false;
+        fitToBoard();
+    }
     if (meshes_dirty_) uploadBoardMeshes();
 
     glClear(GL_COLOR_BUFFER_BIT);

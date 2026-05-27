@@ -142,8 +142,8 @@ SiTab::SiTab(BoardModel* model, QWidget* parent)
     auto* z50  = add(QString::fromUtf8("Z₀=50"),  [this]() { onImpedanceOverlay(50.0); });
     auto* z90  = add(QString::fromUtf8("Z₀=90"),  [this]() { onImpedanceOverlay(90.0); });
     auto* z100 = add(QString::fromUtf8("Z₀=100"), [this]() { onImpedanceOverlay(100.0); });
-    auto* zd90  = add(QString::fromUtf8("Z₝₀=90"),  [this]() { onImpedanceDiffOverlay(90.0); });
-    auto* zd100 = add(QString::fromUtf8("Z₝₀=100"), [this]() { onImpedanceDiffOverlay(100.0); });
+    auto* zd90  = add("Zdiff=90",  [this]() { onImpedanceDiffOverlay(90.0); });
+    auto* zd100 = add("Zdiff=100", [this]() { onImpedanceDiffOverlay(100.0); });
     add("Clear", &SiTab::onClearOverlay);
     (void)z50; (void)z90; (void)z100; (void)zd90; (void)zd100;
 

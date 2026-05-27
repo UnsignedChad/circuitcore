@@ -717,7 +717,7 @@ void MainWindow::onProbeRequested(int pad_a, int pad_b,
     const QString msg = QString(
         "Pad %1  ->  Pad %2   on net %3\n\n"
         "Effective resistance:\n"
-        "    R = %4 Î©   (%5 mÎ©)\n\n"
+        "    R = %4 ohm   (%5 mohm)\n\n"
         "(V_source = %6 V,  V_sink = %7 V at 1 A injection)")
         .arg(QString::fromStdString(pa.name))
         .arg(QString::fromStdString(pb.name))
@@ -728,7 +728,7 @@ void MainWindow::onProbeRequested(int pad_a, int pad_b,
         .arg(v_snk, 0, 'f', 6);
     QMessageBox::information(this, "Probe R", msg);
     statusBar()->showMessage(
-        QString("Probe R %1 -> %2  on %3:  %4 mÎ©")
+        QString("Probe R %1 -> %2  on %3:  %4 mohm")
             .arg(QString::fromStdString(pa.name))
             .arg(QString::fromStdString(pb.name))
             .arg(net_name)

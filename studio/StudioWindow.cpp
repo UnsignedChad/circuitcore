@@ -145,10 +145,14 @@ void StudioWindow::onHover(double x_m, double y_m) {
 void StudioWindow::onAbout() {
     QMessageBox::about(this, "About circuitcore studio",
         "<b>circuitcore studio</b><br>"
-        "Unified shell for sikit (SI), pdnkit (PI), and emikit (EMI).<br><br>"
-        "Browser-tab UI: one window, one tab per analysis. The Board tab "
-        "is shared geometry; each analysis tab brings its own toolbar "
-        "and panels.");
+        "Unified shell for sikit (SI), pdnkit (PI), emikit (EMI), "
+        "and mpkit (Mp -- multiphysics).<br><br>"
+        "Five tabs: Board / SI / PI / EMI / Mp, one shared <tt>.kicad_pcb</tt> "
+        "model. Drop a board on the window or use File &rarr; Open. "
+        "Each tab brings its own toolbar and panels.<br><br>"
+        "GPL-3.0. "
+        "<a href=\"https://github.com/UnsignedChad/circuitcore\">"
+        "github.com/UnsignedChad/circuitcore</a>");
 }
 
 
