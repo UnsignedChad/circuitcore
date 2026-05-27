@@ -125,7 +125,7 @@ AnalysisPanel::AnalysisPanel(QWidget* parent) : QWidget(parent) {
     thermal_t_ambient_spin_->setRange(-40.0, 200.0);
     thermal_t_ambient_spin_->setDecimals(1);
     thermal_t_ambient_spin_->setValue(25.0);
-    thermal_t_ambient_spin_->setSuffix(" Â°""C");
+    thermal_t_ambient_spin_->setSuffix(" degC");
     thermal_t_ambient_spin_->setEnabled(false);
     th_form->addRow("R_theta:",  thermal_r_theta_spin_);
     th_form->addRow("T_ambient:", thermal_t_ambient_spin_);

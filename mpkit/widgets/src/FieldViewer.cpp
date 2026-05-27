@@ -266,8 +266,8 @@ void FieldViewer::setFieldOnCopperSurface(
     scalars->SetName(label.toUtf8().constData());
     scalars->SetNumberOfValues(n);
 
-    double vmin =  std::numeric_limits<double>::infinity();
-    double vmax = -std::numeric_limits<double>::infinity();
+    std::vector<double> sampled;
+    sampled.reserve(static_cast<std::size_t>(n));
     for (vtkIdType i = 0; i < n; ++i) {
         double p[3];
         impl_->copper_pd->GetPoint(i, p);
@@ -280,13 +280,33 @@ void FieldViewer::setFieldOnCopperSurface(
         int kk = (idx[2] < 0) ? 0 : std::min(idx[2], grid.nz() - 1);
         const double v = field.at(ii, jj, kk);
         scalars->SetValue(i, v);
-        if (v < vmin) vmin = v;
-        if (v > vmax) vmax = v;
+        sampled.push_back(v);
     }
     impl_->copper_pd->GetPointData()->SetScalars(scalars);
 
-    if (!impl_->user_range) {
-        if (!(vmin < vmax)) { vmin = 0.0; vmax = 1.0; }
+    if (!impl_->user_range && !sampled.empty()) {
+        // Percentile-based range. min/max wastes the colormap on
+        // outliers; 5..95 percentile keeps copper triangles in the
+        // visible part of the lut even on very tight dynamic ranges
+        // (eg a 0.3 K thermal delta across a small board).
+        std::sort(sampled.begin(), sampled.end());
+        const std::size_t lo_i = static_cast<std::size_t>(
+            0.05 * sampled.size());
+        const std::size_t hi_i = std::min(
+            sampled.size() - 1,
+            static_cast<std::size_t>(0.95 * sampled.size()));
+        double vmin = sampled[lo_i];
+        double vmax = sampled[hi_i];
+        if (!(vmin < vmax)) {
+            // Degenerate -- expand a hair around the value so the copper
+            // still spans the lut rather than landing on a single colour.
+            const double mid = vmin;
+            const double pad = (std::abs(mid) > 0.0)
+                ? 0.001 * std::abs(mid)
+                : 1.0;
+            vmin = mid - pad;
+            vmax = mid + pad;
+        }
         impl_->v_min = vmin;
         impl_->v_max = vmax;
         impl_->reapply_lut();

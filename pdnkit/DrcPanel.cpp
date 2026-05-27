@@ -36,11 +36,11 @@ DrcPanel::DrcPanel(QWidget* parent) : QWidget(parent) {
     temp_rise_spin_->setRange(1.0, 100.0);
     temp_rise_spin_->setDecimals(0);
     temp_rise_spin_->setValue(10.0);
-    temp_rise_spin_->setSuffix(" Â°""C");
+    temp_rise_spin_->setSuffix(" degC");
 
     form->addRow("Net:",        net_combo_);
     form->addRow("Current:",    current_spin_);
-    form->addRow("Allowable ÎT:", temp_rise_spin_);
+    form->addRow("Allowable dT (degC):", temp_rise_spin_);
     outer->addLayout(form);
 
     run_btn_ = new QPushButton("Run DRC");

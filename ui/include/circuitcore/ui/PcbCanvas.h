@@ -56,6 +56,10 @@ public:
     void setBoard(const board::Board* board);
     void setLayerVisibility(int ordinal, bool visible);
     void fitToBoard();
+    // Defer a fitToBoard() call to the first paint after the
+    // widget has a non-trivial viewport size. Used when setBoard
+    // is invoked while the tab is still hidden.
+    void requestFitOnFirstPaint() { fit_pending_ = true; }
 
     // Persist / restore the camera center + zoom across launches.
     // The QSettings instance is passed in so the caller can group it
@@ -148,6 +152,7 @@ private:
     std::vector<LayerRange> layer_ranges_;
     std::vector<LayerMesh> pending_meshes_;
     bool meshes_dirty_ = false;
+    bool fit_pending_  = false;
 
     // Silkscreen / mask / courtyard meshes (one VBO + IBO per category).
     // Built from Board::graphics by GraphicsMesher; uploaded lazily in
