@@ -98,6 +98,7 @@ else()
     # diy2 fmt compiles on VS 17.10+ / VS 18 Insiders. no-op on linux
     # / older MSVC where the branch was harmless anyway.
     include("${CMAKE_SOURCE_DIR}/cmake/patches/patch_vtk_diy2_fmt.cmake")
+    include("${CMAKE_SOURCE_DIR}/cmake/patches/patch_vtk_smp_sequential.cmake")
 endif()  # MPKIT_USE_SYSTEM_VTK
 
 add_library(mpkit_widgets STATIC
