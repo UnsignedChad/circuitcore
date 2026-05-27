@@ -23,6 +23,7 @@
 #endif
 
 #include "mp/Grid.h"
+#include "mp/ComponentCoupling.h"
 #include "mp/JouleCoupling.h"
 #include "mp/MaterialLibrary.h"
 #include "mp/SteadyHeat.h"
@@ -115,8 +116,23 @@ MpTab::MpTab(BoardModel* model, QWidget* parent)
 MpTab::~MpTab() = default;
 
 void MpTab::onBoardLoaded() {
-    status_->setText(tr("Board loaded. Click Run PDN -> thermal demo to "
-                         "voxelise + IR solve + heat solve in one step."));
+    QString msg = tr("Board loaded. Click Run PDN -> thermal demo to "
+                       "voxelise + IR solve + heat solve in one step.");
+    if (model_->board()) {
+        const auto cs = mpkit::compute_component_summary(*model_->board());
+        if (cs.n_components > 0) {
+            msg += tr("  |  %1 components, %2 g total")
+                       .arg(cs.n_components)
+                       .arg(cs.total_mass_kg * 1000.0, 0, 'f', 2);
+            if (cs.total_power_w > 0.0) {
+                msg += tr(", %1 W spec'd (hottest: %2 @ %3 W)")
+                           .arg(cs.total_power_w, 0, 'f', 2)
+                           .arg(QString::fromStdString(cs.hottest_reference))
+                           .arg(cs.hottest_power_w, 0, 'f', 2);
+            }
+        }
+    }
+    status_->setText(msg);
 #ifdef MPKIT_HAS_WIDGETS
     if (model_->board()) viewer_->setBoard(*model_->board());
 #endif
