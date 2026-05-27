@@ -1,0 +1,17 @@
+{
+  "name": "circuitcore",
+  "version-string": "0.1.0",
+  "description": "PCB analysis suite (SI / PI / EMI / multiphysics)",
+  "homepage": "https://github.com/UnsignedChad/circuitcore",
+  "dependencies": [
+    "eigen3",
+    "spdlog",
+    "cli11",
+    "catch2",
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": ["gui", "widgets", "opengl", "openglwidgets"]
+    }
+  ]
+}

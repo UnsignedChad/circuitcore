@@ -6,8 +6,10 @@
 #include <fstream>
 #include <sstream>
 
-#ifndef _WIN32
-#include <dlfcn.h>
+#ifdef _WIN32
+#  include <windows.h>
+#else
+#  include <dlfcn.h>
 #endif
 
 #include "circuitcore/sexpr/SExpr.h"
@@ -166,12 +168,48 @@ AmiModel::~AmiModel() {
     }
 }
 
-#else  // Windows stub — keep the surface compilable; real impl uses LoadLibrary.
+#else  // Windows: LoadLibrary / GetProcAddress mirror of the POSIX path.
 
-AmiModel::AmiModel(const std::filesystem::path&) {
-    throw AmiLoadError("ami: Windows AMI loader not implemented in v0");
+AmiModel::AmiModel(const std::filesystem::path& library_path) {
+    // Use the native wide-string form so paths with non-ASCII characters
+    // load. LoadLibraryW returns NULL on failure; GetLastError gives the
+    // Win32 status -- wrap it into something a human can read.
+    const std::wstring native = library_path.native();
+    HMODULE h = LoadLibraryW(native.c_str());
+    if (!h) {
+        const DWORD err = GetLastError();
+        throw AmiLoadError("ami: LoadLibrary failed for " +
+                            library_path.string() +
+                            " (Win32 error " + std::to_string(err) + ")");
+    }
+    dl_handle_  = reinterpret_cast<void*>(h);
+    init_fp_    = reinterpret_cast<void*>(GetProcAddress(h, "AMI_Init"));
+    getwave_fp_ = reinterpret_cast<void*>(GetProcAddress(h, "AMI_GetWave"));
+    close_fp_   = reinterpret_cast<void*>(GetProcAddress(h, "AMI_Close"));
+    if (!init_fp_) {
+        FreeLibrary(h);
+        dl_handle_ = nullptr;
+        throw AmiLoadError("ami: AMI_Init symbol not found in library");
+    }
+    // AMI_GetWave is optional per the spec; AMI_Close is required.
+    if (!close_fp_) {
+        FreeLibrary(h);
+        dl_handle_ = nullptr;
+        throw AmiLoadError("ami: AMI_Close symbol not found in library");
+    }
 }
-AmiModel::~AmiModel() = default;
+
+AmiModel::~AmiModel() {
+    if (ami_handle_ && close_fp_) {
+        using close_fn_t = long(*)(void*);
+        reinterpret_cast<close_fn_t>(close_fp_)(ami_handle_);
+        ami_handle_ = nullptr;
+    }
+    if (dl_handle_) {
+        FreeLibrary(reinterpret_cast<HMODULE>(dl_handle_));
+        dl_handle_ = nullptr;
+    }
+}
 
 #endif
 

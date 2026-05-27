@@ -10,7 +10,17 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
-#include <unistd.h>   // for dup, dup2, fileno -- needed by CaptureStdout
+// dup/dup2/fileno live in <unistd.h> on POSIX and <io.h> on Windows
+// (with underscore-prefixed names). The macro shim lets CaptureStdout
+// keep one body across both platforms.
+#ifdef _WIN32
+#  include <io.h>
+#  define dup    _dup
+#  define dup2   _dup2
+#  define fileno _fileno
+#else
+#  include <unistd.h>
+#endif
 #include <fstream>
 #include <sstream>
 #include <string>
