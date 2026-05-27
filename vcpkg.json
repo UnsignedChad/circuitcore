@@ -11,7 +11,11 @@
     {
       "name": "qtbase",
       "default-features": false,
-      "features": ["gui", "widgets", "opengl", "openglwidgets"]
+      "features": [
+        "gui",
+        "widgets",
+        "opengl"
+      ]
     }
   ]
 }
