@@ -29,6 +29,7 @@ target_include_directories(pdnkit_pi PUBLIC
 )
 target_link_libraries(pdnkit_pi PUBLIC
     circuitcore::board
+    circuitcore::field
     circuitcore::ui      # shared Qt renderer (Camera, meshers)
     Eigen3::Eigen
     spdlog::spdlog

@@ -1,4 +1,5 @@
 #include "pi/ViaInductance.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <cmath>
 #include <numbers>
@@ -6,7 +7,7 @@
 namespace pdnkit::pi {
 
 namespace {
-constexpr double kMu0 = 4.0e-7 * std::numbers::pi;  // H/m
+using circuitcore::field::kMu0;
 }
 
 double via_self_inductance(double radius_m, double length_m) {

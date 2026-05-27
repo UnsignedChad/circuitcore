@@ -1,4 +1,5 @@
 #include "pi/Roughness.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <cmath>
 #include <numbers>
@@ -7,7 +8,7 @@ namespace pdnkit::pi {
 
 namespace {
 constexpr double kSigmaCu = 5.96e7;                 // S/m
-constexpr double kMu0     = 4.0e-7 * std::numbers::pi;
+using circuitcore::field::kMu0;
 }
 
 double skin_depth_copper(double omega) {

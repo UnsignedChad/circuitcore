@@ -1,4 +1,5 @@
 #include "si/ViaModel.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <cmath>
 #include <complex>
@@ -14,8 +15,8 @@ using Complex = std::complex<double>;
 namespace {
 
 constexpr double kC0  = 2.99792458e8;
-constexpr double kMu0 = 4.0e-7 * std::numbers::pi;
-constexpr double kEps0 = 8.8541878128e-12;
+using circuitcore::field::kEps0;
+using circuitcore::field::kMu0;
 
 // 2x2 ABCD matrix as a flat struct so we can multiply without pulling
 // Eigen into a tight per-frequency loop (Eigen does fine but the math is

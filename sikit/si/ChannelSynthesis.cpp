@@ -1,4 +1,5 @@
 #include "si/ChannelSynthesis.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <cmath>
 #include <complex>
@@ -13,7 +14,7 @@ using Complex = std::complex<double>;
 namespace {
 
 constexpr double kC0  = 2.99792458e8;
-constexpr double kMu0 = 4.0 * std::numbers::pi * 1.0e-7;
+using circuitcore::field::kMu0;
 
 // Effective permittivity for microstrip via Hammerstad. Used when we
 // need to re-derive eps_eff at each frequency with a freshly dispersed
