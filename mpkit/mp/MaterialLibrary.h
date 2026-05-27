@@ -39,5 +39,10 @@ Material aluminium();
 Material silver();
 Material solder_sac305();
 Material polyimide();
+Material iron();
+Material chromel();
+Material alumel();
+Material constantan();
+Material bismuth();
 
 }  // namespace mpkit

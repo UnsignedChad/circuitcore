@@ -17,6 +17,7 @@ add_library(mpkit_mp STATIC
     mp/MaterialLibrary.cpp
     mp/SteadyHeat.cpp
     mp/StudyRun.cpp
+    mp/Thermoelectric.cpp
     mp/StudySerial.cpp
     mp/TransientHeat.cpp
     mp/Voxelizer.cpp
@@ -31,6 +32,7 @@ add_library(mpkit_mp STATIC
     mp/SteadyHeat.h
     mp/Study.h
     mp/StudyRun.h
+    mp/Thermoelectric.h
     mp/StudySerial.h
     mp/TransientHeat.h
     mp/Voxelizer.h

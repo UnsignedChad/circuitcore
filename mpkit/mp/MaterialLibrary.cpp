@@ -25,6 +25,7 @@ Material copper() {
     m.density                = 8960.0;      // kg/m^3
     m.specific_heat          = 385.0;       // J/(kg*K)
     m.electrical_resistivity = 1.68e-8;     // ohm*m at 20 C
+    m.seebeck_coefficient    = +1.83e-6;    // V/K, positive (holes)
     m.relative_permittivity  = 1.0;         // effectively
     m.relative_permeability  = 1.0;
     m.youngs_modulus         = 110.0e9;     // Pa
@@ -68,6 +69,7 @@ Material aluminium() {
     m.density                = 2700.0;
     m.specific_heat          = 897.0;
     m.electrical_resistivity = 2.82e-8;
+    m.seebeck_coefficient    = -1.66e-6;    // V/K
     m.relative_permittivity  = 1.0;
     m.youngs_modulus         = 69.0e9;
     m.poissons_ratio         = 0.33;
@@ -83,6 +85,7 @@ Material silver() {
     m.density                = 10490.0;
     m.specific_heat          = 235.0;
     m.electrical_resistivity = 1.59e-8;
+    m.seebeck_coefficient    = +1.51e-6;    // V/K
     m.youngs_modulus         = 83.0e9;
     m.poissons_ratio         = 0.37;
     m.thermal_expansion      = 18.9e-6;
@@ -118,6 +121,81 @@ Material polyimide() {
     return m;
 }
 
+
+Material iron() {
+    Material m;
+    m.name = "iron";
+    m.thermal_conductivity   = 80.0;
+    m.density                = 7870.0;
+    m.specific_heat          = 449.0;
+    m.electrical_resistivity = 9.71e-8;
+    m.seebeck_coefficient    = +19.0e-6;   // V/K (large positive at 300K)
+    m.youngs_modulus         = 210.0e9;
+    m.poissons_ratio         = 0.29;
+    m.thermal_expansion      = 11.8e-6;
+    return m;
+}
+
+Material chromel() {
+    // 90% Ni, 10% Cr -- positive leg of Type-K thermocouple.
+    Material m;
+    m.name = "chromel";
+    m.thermal_conductivity   = 19.0;
+    m.density                = 8730.0;
+    m.specific_heat          = 448.0;
+    m.electrical_resistivity = 70.0e-8;
+    m.seebeck_coefficient    = +25.7e-6;   // V/K, average across the standard Type-K range
+    m.youngs_modulus         = 213.0e9;
+    m.poissons_ratio         = 0.30;
+    m.thermal_expansion      = 13.1e-6;
+    return m;
+}
+
+Material alumel() {
+    // 95% Ni, 2% Mn, 2% Al, 1% Si -- negative leg of Type-K.
+    Material m;
+    m.name = "alumel";
+    m.thermal_conductivity   = 29.7;
+    m.density                = 8600.0;
+    m.specific_heat          = 523.0;
+    m.electrical_resistivity = 28.4e-8;
+    m.seebeck_coefficient    = -18.0e-6;   // V/K
+    m.youngs_modulus         = 207.0e9;
+    m.poissons_ratio         = 0.30;
+    m.thermal_expansion      = 12.0e-6;
+    return m;
+}
+
+Material constantan() {
+    // 55% Cu, 45% Ni -- negative leg of Type-T and Type-J.
+    Material m;
+    m.name = "constantan";
+    m.thermal_conductivity   = 19.5;
+    m.density                = 8900.0;
+    m.specific_heat          = 390.0;
+    m.electrical_resistivity = 49.0e-8;
+    m.seebeck_coefficient    = -39.0e-6;   // V/K (one of the most negative common metals)
+    m.youngs_modulus         = 162.0e9;
+    m.poissons_ratio         = 0.33;
+    m.thermal_expansion      = 14.9e-6;
+    return m;
+}
+
+Material bismuth() {
+    // Common in TE coolers and reference junctions.
+    Material m;
+    m.name = "bismuth";
+    m.thermal_conductivity   = 8.0;
+    m.density                = 9780.0;
+    m.specific_heat          = 122.0;
+    m.electrical_resistivity = 1.29e-6;
+    m.seebeck_coefficient    = -72.0e-6;   // V/K -- among the most negative pure metals
+    m.youngs_modulus         = 32.0e9;
+    m.poissons_ratio         = 0.33;
+    m.thermal_expansion      = 13.4e-6;
+    return m;
+}
+
 namespace {
 
 const std::unordered_map<std::string, Material(*)()>& registry() {
@@ -130,6 +208,11 @@ const std::unordered_map<std::string, Material(*)()>& registry() {
         {"silver",         &silver},
         {"solder_sac305",  &solder_sac305},
         {"polyimide",      &polyimide},
+        {"iron",           &iron},
+        {"chromel",        &chromel},
+        {"alumel",         &alumel},
+        {"constantan",     &constantan},
+        {"bismuth",        &bismuth},
     };
     return r;
 }
