@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // cable common-mode radiated emissions.
 //
 // on most digital boards the dominant emission between 30 MHz and 1 GHz

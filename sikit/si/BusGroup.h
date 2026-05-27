@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Multi-bit bus grouping by net-name heuristic.
 //
 // DDR4 byte lanes (DQ0..DQ7), PCIe lane groups (LANE0..LANE3), and any

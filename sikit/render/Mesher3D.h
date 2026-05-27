@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // 3D mesh builder for the PCB stackup view.
 //
 // Produces a single interleaved buffer per category (dielectric slabs,

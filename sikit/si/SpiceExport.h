@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Foster-canonical SPICE-3 emitter for a vector-fit rational transfer
 // function. Produces a .subckt that any SPICE flavour (ngspice, LTspice,
 // HSPICE, Spectre's spice mode) can load. The subcircuit input is an

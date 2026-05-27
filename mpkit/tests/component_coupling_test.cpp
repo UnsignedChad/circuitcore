@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Component metadata -> mpkit physics coupling.
 //
 // Tests cover the three things in ComponentCoupling: default-metadata

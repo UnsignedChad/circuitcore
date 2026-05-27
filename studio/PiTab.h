@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Studio PI tab -- full pdnkit feature parity.
 //
 // The tab is a QMainWindow internally so it can host QDockWidgets for

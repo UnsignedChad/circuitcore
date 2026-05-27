@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // gmsh v2.2 ASCII writer for VoxelMaterialField. See header.
 
 #include "circuitcore/formats/gmsh/MshWriter.h"

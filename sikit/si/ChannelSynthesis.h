@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Synthesize a Touchstone 2-port S-parameter file from a single trace's
 // geometry and length. Closes the loop on the SI workflow:
 //

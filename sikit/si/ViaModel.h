@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Lumped electrical model of a PCB via.
 //
 // At GHz speeds a single through-hole via is no longer a wire -- the barrel

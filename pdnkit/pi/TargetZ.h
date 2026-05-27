@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Target impedance for a power rail.
 //
 // Given a load's nominal voltage, the allowable supply tolerance, and the

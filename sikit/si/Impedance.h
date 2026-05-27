@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Closed-form transmission-line impedance for common PCB cross-sections.
 //
 // Implements IPC-2141A formulas, which match Wadell's transmission-line

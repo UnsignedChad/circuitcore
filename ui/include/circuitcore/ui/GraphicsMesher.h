@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Build OpenGL meshes from the silk / mask / courtyard graphic items
 // the parser captures into Board::graphics. The renderer treats each
 // category separately so it can use a different color + draw order:

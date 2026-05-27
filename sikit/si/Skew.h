@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Diff-pair length and intra-pair skew analysis.
 //
 // For each diff pair on the board, sum the segment lengths of the P leg

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // 2D orthographic camera for KiCad-style PCB viewing.
 //
 // World units: SI meters. Y-axis grows downward to match KiCad's PCB editor

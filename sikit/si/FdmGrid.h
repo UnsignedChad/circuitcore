@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Cell-centred 2D finite-difference grid for the cross-section Laplace solve.
 //
 // Indexing: cell (i, j) covers the rectangle

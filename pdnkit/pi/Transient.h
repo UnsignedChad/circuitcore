@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Time-domain step-response transient solver.
 //
 // Backward Euler on the implicit system  (G + C/dt) * v_{k+1} = (C/dt) * v_k + i_k

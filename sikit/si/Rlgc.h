@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Per-unit-length RLGC matrix extraction for N-conductor 2D cross-sections.
 //
 // For an N-signal-conductor system over a ground reference, the Maxwell

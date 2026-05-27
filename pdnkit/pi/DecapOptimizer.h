@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Greedy decap selection: given a target |Z(f)| over a frequency band,
 // pick the smallest set of decoupling capacitors from a library that pulls
 // the plane impedance below target.

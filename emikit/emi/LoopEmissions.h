@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Small-loop magnetic-dipole radiation in the far field.
 //
 // A trace driven against its reference plane forms a current loop.

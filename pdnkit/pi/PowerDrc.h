@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // IPC-2152 / IPC-2221 power-aware design rule check.
 //
 // Given a board and a set of per-net DRC rules (each: current carried,

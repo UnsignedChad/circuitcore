@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Round-trip mpkit Study to/from sexpr.
 //
 // The on-disk format is one .mpstudy file (sexpr) plus zero or more

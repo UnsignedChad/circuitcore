@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Schematic-derived topology classifier.
 //
 // Reads a parsed circuitcore::netlist::Netlist (which the shared

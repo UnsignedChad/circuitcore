@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Default body-height / mass lookup. See header for rationale.
 //
 // The matching strategy is a prefix walk: for each candidate package

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Write back a .kicad_pcb with the user's in-memory stackup edits applied.
 //
 // Re-parses the source file, walks for (setup (stackup ...)), overwrites

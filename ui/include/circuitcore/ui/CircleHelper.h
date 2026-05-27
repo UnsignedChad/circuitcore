@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Shared geometry helper: append a triangle-fan disk to a LayerMesh.
 // Used by ViaMesher and PadMesher (vias and round pads both render as disks).
 

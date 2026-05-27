@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Parametric connector / cable Touchstone generator.
 //
 // Real SI work usually starts with a vendor-supplied .s2p / .s4p for

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Linear elasticity FEM verification.
 //
 // Three closed-form comparisons pin the Q1 hex assembly + thermal

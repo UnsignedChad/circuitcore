@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // pins loop_e_field to Ott Eq 11-2 (also Paul Eq 8.62) absolute
 // values. scaling tests in loop_test.cpp would silently pass if eta0
 // or pi got corrupted; these wouldn't.

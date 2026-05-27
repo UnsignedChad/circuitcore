@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Apply a Touchstone S21 channel to a time-domain TX waveform via the
 // frequency-domain multiplication trick:
 //

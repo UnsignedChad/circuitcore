@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Shape of a uniform Cartesian grid.
 //
 // Cell counts in each axis plus the cell size in metres. The grid sits

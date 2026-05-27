@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Studio Board tab.
 //
 // Thin wrapper around circuitcore::ui::PcbCanvas. The canvas does all

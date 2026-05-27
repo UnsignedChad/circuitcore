@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Statistical eye / Peak Distortion Analysis (PDA).
 //
 // Bathtub curves and PRBS eye diagrams are useful but their statistical

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Frequency-domain plane impedance via the cavity model.
 //
 // For a rectangular plane pair (a x b) separated by dielectric of thickness d,

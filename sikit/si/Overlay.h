@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Measured-vs-simulated S-parameter comparison.
 //
 // The hardware validation loop: engineer takes a VNA capture of their

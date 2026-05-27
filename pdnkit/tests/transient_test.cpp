@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Validate the transient solver against the textbook RC step response.
 //
 // For a single resistor R between source and sink, with capacitance C at the

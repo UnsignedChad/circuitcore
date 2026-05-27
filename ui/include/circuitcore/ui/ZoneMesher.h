@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Triangulates filled-zone polygons into GL-ready meshes, grouped by layer.
 //
 // For each copper layer that has zone fill, we produce a single LayerMesh

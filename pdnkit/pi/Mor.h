@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Model order reduction for static IR-drop networks.
 //
 // A typical pdnkit IrMesh has 10^3 - 10^5 nodes and as many resistors.

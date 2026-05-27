@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // KiCad .kicad_pcb parser.
 //
 // Walks an S-expression tree produced by circuitcore::sexpr::parse() and produces

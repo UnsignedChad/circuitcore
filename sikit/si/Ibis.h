@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // IBIS (I/O Buffer Information Specification) file reader.
 //
 // IBIS is the vendor-neutral behavioral description format for digital

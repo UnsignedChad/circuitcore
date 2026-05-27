@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // High-speed net + differential pair detection by KiCad naming convention.
 //
 // KiCad doesn't tag nets as "diff pair" in the .kicad_pcb at the schematic

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Steady-state heat solver verification.
 //
 // Two analytical-comparison tests pin the FVM stencil + BC handling

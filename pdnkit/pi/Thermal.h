@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Iterative IR + thermal coupling.
 //
 // At sign-off-grade currents, Joule heating raises copper resistivity:

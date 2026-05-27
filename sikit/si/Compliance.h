@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Pre-canned compliance specifications for the major high-speed serial
 // standards. Each ComplianceSpec bundles an eye mask (in normalized UI /
 // voltage space, suitable for the existing specs::passes() check) with

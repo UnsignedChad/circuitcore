@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // mpkit Cartesian voxel grid placed in world space.
 //
 // Wraps circuitcore::field::GridSpec (shape + cell size) with an origin

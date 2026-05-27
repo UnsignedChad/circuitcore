@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Numerical metrics extracted from a populated EyeGrid. These are the
 // figures that go in SI reports alongside the visual eye plot and the
 // pass/fail mask check.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Eye-diagram math: TX waveform generation, simple channel models, and
 // UI-aligned folding into a 2D bin grid. Rendering (Qt overlay or popup
 // widget) is layered on top in a separate module.

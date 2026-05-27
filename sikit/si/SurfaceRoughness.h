@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Copper surface roughness models for conductor loss.
 //
 // Smooth-conductor skin-effect predicts loss that under-counts what real

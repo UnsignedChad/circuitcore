@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Thermoelectric effect calculators (Seebeck, Peltier, Thomson).
 //
 // These are post-processors on top of fields the existing thermal +

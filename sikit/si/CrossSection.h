@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // 2D PCB cross-section data model for the in-house field solver.
 //
 // Coordinate convention:

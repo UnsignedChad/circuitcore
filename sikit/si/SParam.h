@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // S-parameter math: 2-port cascade via T-parameter conversion, plus
 // insertion/return loss helpers and mixed-mode (differential) extraction
 // from a 4-port single-ended block.

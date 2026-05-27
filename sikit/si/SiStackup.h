@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Physical-cross-section ("items[]") stackup model used by sikit's SI math.
 //
 // The canonical circuitcore::board::Stackup only captures copper layers plus

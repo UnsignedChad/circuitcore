@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // IBIS-AMI (Algorithmic Modeling Interface) support.
 //
 // AMI extends IBIS with vendor-supplied executable models for SerDes

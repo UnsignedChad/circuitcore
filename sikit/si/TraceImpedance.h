@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Per-trace impedance analysis with a swappable solver engine.
 //
 //   Engine::ClosedForm   IPC-2141A formulas (fast, ±5–10%).

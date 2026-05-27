@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Canonical 2D bounding-box helpers. See Bounds.h for rationale.
 
 #include "circuitcore/board/Bounds.h"

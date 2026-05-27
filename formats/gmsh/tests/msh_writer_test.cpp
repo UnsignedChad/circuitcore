@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // MshWriter spec-conformance checks. We exercise the writer against
 // small synthetic VoxelMaterialFields and verify the emitted gmsh
 // stream has the expected node count, element count, hex8 elements,

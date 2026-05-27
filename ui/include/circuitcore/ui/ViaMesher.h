@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Tessellates vias and pads into disk-shaped triangle meshes.
 //
 // Vias span from_layer..to_layer; we draw a disk on every copper layer in

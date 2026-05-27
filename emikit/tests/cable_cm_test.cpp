@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Calibration tests for the cable common-mode model.
 //
 // Reference: Paul, "Introduction to EMC" 2nd ed. Eq 11.5; Hockanson

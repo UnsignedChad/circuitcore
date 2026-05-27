@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // Point-in-board hit testing.
 //
 // Given a world-space point and a board, returns the highest-priority piece

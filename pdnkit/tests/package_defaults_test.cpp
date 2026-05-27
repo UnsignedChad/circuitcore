@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Charles Kennedy <https://github.com/UnsignedChad>
 // PackageDefaults lookup sanity. The numbers themselves are guesses
 // rounded from JEDEC tables, so we just check the lookup picks the
 // right family (and falls through to the generic default when no
