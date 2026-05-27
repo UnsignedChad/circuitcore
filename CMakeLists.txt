@@ -71,7 +71,6 @@ add_subdirectory(sikit)
 add_subdirectory(emikit)
 add_subdirectory(mpkit)
 add_subdirectory(studio)   # circuitcore_studio -- unified browser-tab GUI
-                            # (see sikit/MIGRATION.md)
 
 # --- Test discovery for the core libs ---
 if(CIRCUITCORE_BUILD_TESTS)
