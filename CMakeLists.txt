@@ -5,6 +5,17 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# MSVC removed stdext::checked_array_iterator from <iterator> in very
+# recent toolchains (VS 17.10+ and VS 18 Insiders). VTK 9.3.1 ships an
+# old fmt copy inside ThirdParty/diy2 that still references the type;
+# this define keeps the deprecated alias around so the bundled fmt
+# parses cleanly. No effect on non-MSVC builds. Must be set before any
+# FetchContent / add_subdirectory pulls in code that may include STL
+# headers, so it lives right after project().
+if(MSVC)
+    add_compile_definitions(_HAS_DEPRECATED_STDEXT_ARR_ITERS=1)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
