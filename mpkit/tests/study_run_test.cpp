@@ -127,7 +127,8 @@ TEST_CASE("Sweep iteration patches the targeted config field per step") {
     REQUIRE(r.steps.size() == 3u);
     for (std::size_t i = 0; i < 3; ++i) {
         REQUIRE(r.steps[i].ok);
-        REQUIRE(r.steps[i].sweep_index == static_cast<int>(i));
+        REQUIRE(r.steps[i].sweep_index.size() == 1u);
+        REQUIRE(r.steps[i].sweep_index[0] == static_cast<int>(i));
         // Boundary cell at i=0 should sit near the swept value.
         REQUIRE(std::abs(r.steps[i].temperature.at(0, 0, 0)
                           - (sw.values[i] / 2.0)) < (sw.values[i] / 2.0) + 5.0);
@@ -169,4 +170,58 @@ TEST_CASE("PdnIrDrop without a Board fails fast with a helpful message") {
     auto r = mpkit::run_study(in);
     REQUIRE(!r.ok);
     REQUIRE(r.error.find("board is null") != std::string::npos);
+}
+
+TEST_CASE("Two-axis full factorial sweep walks the cartesian product "
+          "and records a 2-D sweep_index per step") {
+    Study s;
+    PhysicsNode n;
+    n.id    = "heat";
+    n.label = "Steady heat";
+    n.kind  = PhysicsKind::SteadyHeat;
+    n.config = lst("config", {
+        lst("bc", {lst("target", {str("FaceXmin")}),
+                    lst("kind",   {str("Dirichlet")}),
+                    lst("value",  {num(0.0)})}),
+        lst("bc", {lst("target", {str("FaceXmax")}),
+                    lst("kind",   {str("Dirichlet")}),
+                    lst("value",  {num(0.0)})}),
+    });
+    s.nodes.push_back(n);
+
+    // Two independent sweeps -- the cold-wall value (first bc/value) and
+    // the hot-wall value (second bc/value). Path syntax peels by tag, so
+    // the first matching child wins for each.
+    mpkit::SweepSpec sw0;
+    sw0.parameter_path = "node:heat/config/bc/value";
+    sw0.values         = {0.0, 10.0};        // 2 values
+    s.sweeps.push_back(sw0);
+
+    mpkit::SweepSpec sw1;
+    // Patch the SAME field but with a different target value; both
+    // sweeps end up writing the first bc's value because the path
+    // dispatcher takes the first match. Good enough to exercise the
+    // odometer and verify the index is multi-dim.
+    sw1.parameter_path = "node:heat/config/bc/value";
+    sw1.values         = {100.0, 200.0, 300.0};  // 3 values
+    s.sweeps.push_back(sw1);
+
+    StudyRunInput in;
+    in.study          = std::move(s);
+    in.material_field = uniform_copper(8, 1.0e-3);
+    StudyRunResult r  = mpkit::run_study(in);
+
+    REQUIRE(r.ok);
+    // 2 x 3 = 6 combinations, one step per combination.
+    REQUIRE(r.steps.size() == 6u);
+    // Sweep index encoding: sweep 0 is fastest (innermost loop), so the
+    // expected order is (0,0)(1,0)(0,1)(1,1)(0,2)(1,2).
+    std::vector<std::pair<int,int>> expected = {
+        {0, 0}, {1, 0}, {0, 1}, {1, 1}, {0, 2}, {1, 2},
+    };
+    for (std::size_t i = 0; i < 6; ++i) {
+        REQUIRE(r.steps[i].sweep_index.size() == 2u);
+        REQUIRE(r.steps[i].sweep_index[0] == expected[i].first);
+        REQUIRE(r.steps[i].sweep_index[1] == expected[i].second);
+    }
 }

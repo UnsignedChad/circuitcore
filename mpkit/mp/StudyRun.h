@@ -62,7 +62,9 @@ struct StudyRunInput {
 
 struct StudyStepResult {
     std::string node_id;
-    int         sweep_index = 0;
+    // Multi-dim sweep index. One entry per Study.sweeps axis in
+    // declaration order. Empty when the study has no sweeps.
+    std::vector<int> sweep_index;
 
     // Steady-heat output.
     circuitcore::field::Field3D temperature;
