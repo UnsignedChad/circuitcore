@@ -13,7 +13,6 @@
 #pragma once
 
 #include <QMainWindow>
-#include <memory>
 
 #include "pi/IrMesher.h"
 #include "pi/IrSolver.h"

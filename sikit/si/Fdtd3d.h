@@ -40,7 +40,6 @@
 
 #pragma once
 
-#include <array>
 
 #include "circuitcore/field/Field3D.h"
 #include "circuitcore/field/GridSpec.h"
