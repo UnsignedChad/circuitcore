@@ -15,7 +15,7 @@
 //      dynamically by AmiModel via dlopen / dlsym (or LoadLibrary on
 //      Windows). The library is vendor-locked and platform-specific.
 //
-// v0 scope: the parser is complete and tested. The loader compiles
+// Scope: the parser is complete and tested. The loader compiles
 // against the documented AMI ABI and can be wired up by callers, but
 // integration testing requires a real .ami + .so pair which we don't
 // ship with sikit. Standard reference is the IBIS spec, §10.

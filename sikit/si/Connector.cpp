@@ -187,7 +187,7 @@ sikit::touchstone::TouchstoneFile generate_connector_touchstone(
         // the same pair are not connected through-traffic).
         // The actual through is S31 (P_near -> P_far) and S42 (N_near -> N_far).
         // Cross-pair coupling: S41 (P_near -> N_far) and S32 (N_near -> P_far)
-        // at the diff_xtalk_db level (Lorentzian-flat for v1).
+        // at the diff_xtalk_db level (Lorentzian-flat baseline).
         // Mode conversion: S31's even-mode response slightly different from
         // odd-mode -> represented as a small same-direction common-mode
         // term we fold into S21 / S12 (the within-pair near-end leakage).

@@ -135,7 +135,7 @@ TEST_CASE("from_board: picks up dielectric below F.Cu", "[trace]") {
 
 TEST_CASE("engine: FDM and closed-form agree to within ~25% on microstrip", "[trace]") {
     // Canonical 50Ω microstrip geometry; both engines should land in the
-    // same neighbourhood (closed-form ~50, FDM ~50–60 at v0 mesh density).
+    // same neighbourhood (closed-form ~50, FDM ~50-60 at default mesh density).
     AnalysisStackup s;
     s.outer_dielectric_height = 1.524e-3;
     s.copper_thickness = 35e-6;

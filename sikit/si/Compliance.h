@@ -8,7 +8,7 @@
 // recommended PRBS pattern, and a reference to the spec document the
 // mask came from.
 //
-// Scope of v1
+// Scope
 //
 //   The masks in this file are the canonical hexagonal shapes from the
 //   published compliance documents, normalized to UI and unit voltage
@@ -21,7 +21,7 @@
 //
 //   PAM4 standards (PCIe Gen6, 50GBASE-KR / 100GBASE-KR4, DDR5 at
 //   higher data rates) have three vertically stacked eyes rather than
-//   one. v1 captures only the middle eye; the upper and lower eyes
+//   one. Currently captures only the middle eye; upper and lower
 //   have the same shape but offset in voltage. The is_pam4 flag tells
 //   downstream callers to repeat the mask test at the offset
 //   positions; full multi-eye scoring lands in a follow-up.

@@ -117,7 +117,7 @@ std::size_t rasterize_segment(FDTD3D& s,
             if (j < 0 || j >= s.grid().ny) continue;
             // Mark the single Yee cell as PEC for all three E
             // components. The mask is per-component so the rasteriser
-            // could be cleverer about which components to mark; v1
+            // could be cleverer about which components to mark; the current
             // marks all three for simplicity.
             s.mark_pec_box(i, j, kz, i, j, kz);
             ++marked;

@@ -20,7 +20,7 @@
 //   Touchstone result that drops back into the existing channel-
 //   synthesis / eye pipeline.
 //
-// What is in v1 and what is not
+// Scope of this module
 //
 //   In: the data model (ChannelBlock hierarchy, Channel container),
 //       five concrete block types covering the cases an SI engineer
@@ -31,7 +31,7 @@
 //       first because the cascade logic is mathematically distinct
 //       from rendering and benefits from its own commit + test pass
 //       before the UI lands on top.
-//     * Multi-port (N>2) topology. v1 is single-channel two-port.
+//     * Multi-port (N>2) topology. Single-channel two-port only.
 //       The diff-pair case is covered separately by the DiffSynth
 //       module today; a future merge unifies them.
 //     * Block parameter optimization (e.g. "what trace length would

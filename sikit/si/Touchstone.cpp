@@ -363,7 +363,7 @@ TouchstoneFile TouchstoneReader::read_string(std::string_view src, int num_ports
                            [](unsigned char c) { return std::toupper(c); });
             if (param != "S") {
                 throw TouchstoneParseError(std::format(
-                    "unsupported parameter type '{}' (only S supported in v0)", param));
+                    "unsupported parameter type '{}' (only S supported)", param));
             }
             out.frequency_scale = freq_scale_for(unit);
             out.format = format_for(fmt);

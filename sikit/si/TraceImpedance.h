@@ -4,7 +4,7 @@
 //
 //   Engine::ClosedForm   IPC-2141A formulas (fast, ±5–10%).
 //   Engine::Fdm          In-house 2D finite-difference solver (slower,
-//                        captures real stackup, ±10–15% at v0 mesh density).
+//                        captures real stackup, +/-10-15% at default mesh density).
 
 #pragma once
 
@@ -33,7 +33,7 @@ struct AnalysisStackup {
     double tan_delta     = 0.02;        // dielectric loss tangent
     double sigma_copper  = 5.8e7;       // S/m (annealed copper)
 
-    // Copper surface roughness model. Defaults to None (smooth) so v0
+    // Copper surface roughness model. Defaults to None (smooth) so the default
     // behavior is preserved; callers opt in for high-frequency accuracy.
     RoughnessSpec roughness;
 

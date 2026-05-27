@@ -31,7 +31,7 @@
 // superposition. Also Hall & Heck, "Advanced Signal Integrity for
 // High-Speed Digital Designs", ch. 11 (multi-line crosstalk).
 //
-// Scope of v1 (and what's deliberately not here):
+// Scope (and what's deliberately not here):
 //
 //   * Victim and aggressors are NRZ PRBS-7. PAM4 is a future
 //     extension that requires extending eye::nrz_waveform first.
@@ -96,7 +96,7 @@ sikit::eye::EyeGrid simulate_crosstalk_eye(
 // as the coupling. Port-order is the same convention used elsewhere in
 // the SParam library.
 //
-// Two minor caveats baked into this v1:
+// Two minor caveats baked in:
 //   1. The extracted "2-port" Touchstones have S11 = S22 = 0 and
 //      S12 = S21. This drops back-reflections at the endpoints; for
 //      a matched-termination scenario this is exact, and for the

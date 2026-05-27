@@ -21,7 +21,7 @@ using Complex = std::complex<double>;
 // apply_channel. The slice keeps the freq grid + reference impedance but
 // folds a single src->dst column of the N-port into the 2-port S21
 // position. Back-reflections (S11/S22) are zeroed and S12 is set equal
-// to S21 (reciprocity); see header for why this is an acceptable v1
+// to S21 (reciprocity); see header for why this is an acceptable
 // approximation in matched-termination scenarios.
 sikit::touchstone::TouchstoneFile extract_two_port_slice(
     const sikit::touchstone::TouchstoneFile& src,

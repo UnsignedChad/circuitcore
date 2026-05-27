@@ -30,7 +30,7 @@ ChannelSpec basic_spec() {
 
 }  // namespace
 
-TEST_CASE("dispersion: ChannelSpec without model matches v0 behavior", "[disp]") {
+TEST_CASE("dispersion: ChannelSpec without model matches default behavior", "[disp]") {
     // Round-trip sanity: when dispersion_model is not set, the output
     // should be identical to the lossy-but-non-dispersive synthesis.
     auto a = basic_spec();

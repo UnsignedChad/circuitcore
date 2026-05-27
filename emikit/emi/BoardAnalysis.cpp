@@ -63,7 +63,7 @@ AnalysisResult analyze_board(
         layer_by_net.try_emplace(s.net_id, s.layer_ordinal);
     }
 
-    // Per-frequency drive current envelope -- shared across all nets in v1.
+    // Per-frequency drive current envelope -- shared across all nets.
     const auto drive_a = spectrum_sweep(config.drive, freqs);
 
     // Initialize worst-case envelope to -inf.

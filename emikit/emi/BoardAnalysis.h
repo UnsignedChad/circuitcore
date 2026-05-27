@@ -27,7 +27,7 @@
 namespace emikit::emi {
 
 struct AnalysisConfig {
-    // Drive spectrum per net. v1 applies one spectrum to every net the
+    // Drive spectrum per net. Current implementation applies one spectrum to every net the
     // user names -- a future revision will let each net carry its own.
     TrapezoidalSpec drive;
 
@@ -38,7 +38,7 @@ struct AnalysisConfig {
     // CISPR / FCC test distance. 3.0 (residential) or 10.0 (commercial).
     double test_distance_m = 3.0;
 
-    // Frequency grid we evaluate. 30 MHz - 1 GHz covers CISPR/FCC v1
+    // Frequency grid we evaluate. 30 MHz - 1 GHz covers CISPR/FCC default
     // range; the upper-end 1-6 GHz CISPR 32 region is included when
     // the user asks for it.
     std::vector<double> freq_hz;

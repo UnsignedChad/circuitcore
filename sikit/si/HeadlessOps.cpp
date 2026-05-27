@@ -73,7 +73,7 @@ int resolve_net_layer(const circuitcore::board::Board& board,
 
 // Walk the board's segments on the named net + layer, return the median
 // trace width and the summed length. Used by the synthesise path -- one
-// trace width per net is the v1 simplification, even though a real net
+// trace width per net is the simplification baked in, even though a real net
 // may transition between widths.
 struct NetGeometry {
     double median_width_m = 0.0;
@@ -297,7 +297,7 @@ int compliance_op(const std::filesystem::path& touchstone_in,
         }
         return 3;
     }
-    // For v1: report header info and the spec's mask metadata. Full
+    // Report header info and the spec's mask metadata. Full
     // eye reconstruction from the Touchstone would require choosing a
     // bit rate, a PRBS pattern, and a sample-folding pass; that ties
     // into the existing eye::build_eye pipeline and lands as a CLI

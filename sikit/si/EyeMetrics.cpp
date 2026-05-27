@@ -112,7 +112,7 @@ EyeMetrics measure_eye(const EyeGrid& g) {
     // the midpoint voltage. We use the time span between the leftmost
     // and rightmost non-zero bin OUTSIDE the eye-opening window we just
     // measured — i.e. the bin populations clustered around the
-    // crossings. For v0 we approximate it as (time_bins - best_len) /
+    // crossings. We approximate it as (time_bins - best_len) /
     // time_bins, which is the fraction of the UI populated by trace
     // crossings.
     if (best_len > 0 && best_len < g.time_bins) {

@@ -31,7 +31,7 @@
 // 10k+ nodes a real IC model brings.
 //
 // What this module does NOT do (yet):
-//   * Multi-port export. v1 emits a single H(s) -> single .subckt. A
+//   * Multi-port export. Single H(s) -> single .subckt. A
 //     full 4-port .s4p export needs four parallel Foster ladders plus
 //     reciprocity handling (S21 == S12 only if the network is passive,
 //     which we don't enforce in the fitting step). Tracked as a
