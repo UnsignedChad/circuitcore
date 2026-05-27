@@ -18,7 +18,7 @@
 //
 // Algorithm: Gustavsen-Semlyen Vector Fitting (1999), restricted to
 // real poles. Real-only is enough for the monotonic-loss SI channels
-// this v1 ships for; complex-pole pairs (needed for stub-resonance
+// what this currently ships for; complex-pole pairs (needed for stub-resonance
 // notches) are deferred along with the matching extension to ViaModel
 // that surfaces those features.
 //

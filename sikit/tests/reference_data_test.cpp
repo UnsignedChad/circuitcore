@@ -166,7 +166,7 @@ TEST_CASE("ref-data: FDM agrees with closed-form within budget", "[ref]") {
     REQUIRE(cf.z0  > 42.0);  REQUIRE(cf.z0  < 62.0);
     REQUIRE(fdm.z0 > 42.0);  REQUIRE(fdm.z0 < 62.0);
 
-    // And agree with each other to within 20% (FDM at v0 mesh density
+    // And agree with each other to within 20% (FDM at default mesh density
     // tends to over-estimate by 10-15% from the cell-rect classifier
     // fattening the conductor edges).
     REQUIRE(std::abs(fdm.z0 - cf.z0) / cf.z0 < 0.20);

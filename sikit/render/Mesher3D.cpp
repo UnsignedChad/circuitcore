@@ -406,7 +406,7 @@ BoardMesh3D build_board_mesh_3d(const circuitcore::board::Board& board,
 
     // Pads: walk every pad and stamp its shape onto each copper layer
     // it sits on. Through-hole pads (multiple copper-layer ordinals)
-    // get stamped on each so they visibly span top->bottom; v0 doesn't
+    // get stamped on each so they visibly span top->bottom; the renderer doesn't
     // synthesise an explicit barrel for them.
     for (const auto& pd : board.pads) {
         if (pd.layer_ordinals.empty()) continue;
@@ -436,7 +436,7 @@ BoardMesh3D build_board_mesh_3d(const circuitcore::board::Board& board,
                 case circuitcore::board::PadShape::Oval:
                 case circuitcore::board::PadShape::RoundRect:
                 case circuitcore::board::PadShape::Custom: {
-                    // v1: render every non-circular pad as a flat box.
+                    // Render every non-circular pad as a flat box.
                     // Oval / round-rect corner radii are a future
                     // refinement -- the volumetric shape is close enough
                     // for the thermal + EM read.

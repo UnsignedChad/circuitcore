@@ -178,7 +178,7 @@ std::string TouchstoneBlock::label() const { return label_; }
 Eigen::Matrix2cd TouchstoneBlock::s_at(double freq_hz, double /*z_ref*/) const {
     // We interpolate the file's S-matrix at the requested frequency.
     // The reference impedance baked into the Touchstone may differ
-    // from z_ref; we do NOT renormalize for v1 (the cascade will
+    // from z_ref; we do NOT renormalize here (the cascade will
     // simply mismatch slightly). Full renormalization between
     // arbitrary Z_refs is a possible v2 extension.
     return interp_2port_s(ts_, freq_hz);

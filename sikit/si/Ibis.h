@@ -8,7 +8,7 @@
 // timing data (Ramp) that together let you simulate a buffer's transient
 // behavior without the vendor's proprietary SPICE netlist.
 //
-// v0 scope:
+// Scope:
 //   - File-level keywords: IBIS Ver, Component, Manufacturer
 //   - Model blocks with type, C_comp (typ/min/max), Pulldown V/I table,
 //     Pullup V/I table, Ramp (dV/dt rise + fall)

@@ -242,7 +242,7 @@ private:
             if (toks.size() >= 4) current_model_.c_comp.max = parse_ibis_number(toks[3]);
         }
         // Everything else (Voltage_Range, Vinl, Vinh, Submodel etc.) is
-        // ignored in v0 — it's there but we don't have a use for it yet.
+        // not consumed yet -- present in the parsed model for future use.
     }
 
     std::optional<ViPoint> parse_vi_row(const std::string& line) {

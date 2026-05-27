@@ -8,7 +8,7 @@
 // peak detector). The library returns the limit value at any
 // frequency by linear lookup on the breakpoints.
 //
-// Standards in v1:
+// Standards supported:
 //   CISPR 22 / EN 55022 -- IT equipment, Class A (commercial) and
 //                          Class B (residential)
 //   CISPR 32 / EN 55032 -- multimedia equipment, supersedes CISPR 13/22

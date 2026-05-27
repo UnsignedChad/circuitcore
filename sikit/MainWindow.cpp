@@ -678,7 +678,7 @@ void MainWindow::onSynthesizeEye() {
                     double total_length = 0.0;
                     for (const auto& s : board_->segments) {
                         if (s.net_id != target_net) continue;
-                        if (s.layer_ordinal != 0) continue;  // F.Cu only for v0
+                        if (s.layer_ordinal != 0) continue;  // F.Cu only
                         widths.push_back(s.width);
                         const double dx = s.end.x - s.start.x;
                         const double dy = s.end.y - s.start.y;

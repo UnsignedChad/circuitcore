@@ -36,7 +36,7 @@ const EyeMask& generic_centered_opening();
 
 // USB 2.0 high-speed transmit eye mask (Template 1, simplified rectilinear
 // approximation). Real implementations should use the precise hexagon from
-// the USB 2.0 spec; this is good enough for green/red sanity checks in v0.
+// the USB 2.0 spec; this is good enough for green/red sanity checks.
 const EyeMask& usb20_hs_template1();
 
 std::vector<std::string> available_mask_names();

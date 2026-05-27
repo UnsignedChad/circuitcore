@@ -19,7 +19,7 @@ const EyeMask& generic_centered_opening() {
          {0.4,   0.4},
          {0.3,   0.4},
          {0.5,   0.0}},  // shaped like a stretched diamond
-        "sikit v0 generic test (not a real spec)",
+        "sikit generic test (not a real spec)",
     };
     return kMask;
 }

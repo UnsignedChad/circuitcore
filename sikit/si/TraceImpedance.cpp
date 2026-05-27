@@ -426,7 +426,7 @@ std::vector<DiffPairImpedance> compute_diff_pairs(
         for (std::size_t i = 0; i < board.segments.size(); ++i) {
             const auto& seg = board.segments[i];
             if (seg.net_id != dp.net_p_id && seg.net_id != dp.net_n_id) continue;
-            if (seg.layer_ordinal != 0) continue;  // F.Cu only for v0
+            if (seg.layer_ordinal != 0) continue;  // F.Cu only
             if (seg.width > 0.0) widths.push_back(seg.width);
             r.segment_indices.push_back(i);
         }

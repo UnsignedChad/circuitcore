@@ -31,7 +31,7 @@
 namespace sikit::analysis {
 
 enum class RoughnessModel {
-    None,                // smooth conductor (default; matches v0 behavior)
+    None,                // smooth conductor (default)
     HammerstadJensen,    // simple, good to ~10 GHz
     Huray,               // better above 20 GHz
 };

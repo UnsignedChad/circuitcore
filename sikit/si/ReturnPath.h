@@ -9,13 +9,13 @@
 // noise radiates. It is the #1 cause of "the simulator said pass, the
 // board failed" SI escapes.
 //
-// This v1 detector walks each signal segment, picks its reference plane
+// The detector walks each signal segment, picks its reference plane
 // (the nearest copper layer in the stackup), samples the path, and
 // flags segments where any sample point falls outside every copper zone
 // on the reference layer. Severity is reported as the off-plane fraction
 // times the segment length -- a proxy for the loop-inductance penalty.
 //
-// Two limitations baked into v1, documented as future work:
+// Two limitations baked in, documented as future work:
 //   * No quantitative loop-inductance computation. The pdnkit cavity
 //     solver knows the actual plane Z(f) at every (x, y, f); a future
 //     revision wires that lookup in to replace the on/off heuristic.

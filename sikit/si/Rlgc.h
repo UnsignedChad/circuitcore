@@ -42,7 +42,7 @@ struct RlgcMatrices {
 //               exist in cs.conductors.
 //
 // One FDM solve per signal × 2 (dielectric + air), so N=3 conductors
-// means 6 solves. At the v0 cell size (W/25) this is seconds for
+// means 6 solves. At the default cell size (W/25) this is seconds for
 // realistic geometries.
 RlgcMatrices compute_rlgc(const CrossSection& cs,
                            const std::vector<int>& signal_ids,
