@@ -84,6 +84,13 @@ else()
     )
     message(STATUS "Fetching VTK v9.3.1 source -- first build takes a while")
     FetchContent_MakeAvailable(VTK)
+
+    # VTKs bundled fmt (inside ThirdParty/diy2) references
+    # stdext::checked_array_iterator under #ifdef _SECURE_SCL. recent
+    # MSVC removed that type outright; patch the branch out so the
+    # diy2 fmt compiles on VS 17.10+ / VS 18 Insiders. no-op on linux
+    # / older MSVC where the branch was harmless anyway.
+    include("${CMAKE_SOURCE_DIR}/cmake/patches/patch_vtk_diy2_fmt.cmake")
 endif()  # MPKIT_USE_SYSTEM_VTK
 
 add_library(mpkit_widgets STATIC
