@@ -635,16 +635,24 @@ private:
 
     void parse_footprints() {
         for (const Node* fp : find_children(root_, "footprint")) {
+            // Footprint library id (eg "Connector:PinHeader_1x02").
+            std::string fp_name;
+            if (fp->children.size() >= 2 &&
+                (fp->children[1].is_string() || fp->children[1].is_symbol())) {
+                fp_name = fp->children[1].text;
+            }
             // Reference designator -- KiCad stores it as a (property "Reference" "C12" ...) child.
+            // Value is the sibling (property "Value" ...).
             std::string fp_ref;
+            std::string fp_value;
             for (const Node* prop : find_children(*fp, "property")) {
-                if (prop->children.size() >= 3 &&
-                    (prop->children[1].is_string() || prop->children[1].is_symbol()) &&
-                    prop->children[1].text == "Reference" &&
-                    (prop->children[2].is_string() || prop->children[2].is_symbol())) {
-                    fp_ref = prop->children[2].text;
-                    break;
-                }
+                if (prop->children.size() < 3) continue;
+                if (!(prop->children[1].is_string() || prop->children[1].is_symbol()))
+                    continue;
+                if (!(prop->children[2].is_string() || prop->children[2].is_symbol()))
+                    continue;
+                if (prop->children[1].text == "Reference") fp_ref   = prop->children[2].text;
+                if (prop->children[1].text == "Value")     fp_value = prop->children[2].text;
             }
             // Footprint origin (mm) + rotation (deg), applied to each pad's local (at).
             circuitcore::board::Point2 fp_at{0, 0};
@@ -752,6 +760,52 @@ private:
                 if (node_to_text(*tx, /*text_index=*/2, g))
                     push_fp(std::move(g));
             }
+
+            // Build the Component record: identifier + bbox of any
+            // F.CrtYd / B.CrtYd lines / arcs / circles / polys this
+            // footprint defined. Iterating the geometry primitives a
+            // second time here keeps the courtyard bbox local to the
+            // footprint rather than scanning board_.graphics later.
+            circuitcore::board::Component comp;
+            comp.name      = fp_name;
+            comp.reference = fp_ref;
+            comp.value     = fp_value;
+            comp.at        = fp_at;
+            comp.rotation  = fp_rot;
+            double cx_lo =  1e30, cy_lo =  1e30;
+            double cx_hi = -1e30, cy_hi = -1e30;
+            auto include = [&](circuitcore::board::Point2 local) {
+                const auto p = xform_fp(local, fp_at, fp_rot);
+                if (p.x < cx_lo) cx_lo = p.x;
+                if (p.y < cy_lo) cy_lo = p.y;
+                if (p.x > cx_hi) cx_hi = p.x;
+                if (p.y > cy_hi) cy_hi = p.y;
+            };
+            auto on_courtyard = [&](int ord) {
+                const auto* L = board_.find_layer(ord);
+                if (!L) return false;
+                return L->name == "F.CrtYd" || L->name == "B.CrtYd";
+            };
+            auto consume_geom = [&](const Node& node, const char* tag) {
+                circuitcore::board::GraphicItem g;
+                bool ok = false;
+                if      (std::string(tag) == "fp_line")   ok = node_to_line  (node, g);
+                else if (std::string(tag) == "fp_arc")    ok = node_to_arc   (node, g);
+                else if (std::string(tag) == "fp_circle") ok = node_to_circle(node, g);
+                else if (std::string(tag) == "fp_poly")   ok = node_to_poly  (node, g);
+                if (!ok) return;
+                if (!on_courtyard(g.layer_ordinal)) return;
+                for (const auto& pt : g.points) include(pt);
+            };
+            for (const Node* ln   : find_children(*fp, "fp_line"))   consume_geom(*ln,  "fp_line");
+            for (const Node* ar   : find_children(*fp, "fp_arc"))    consume_geom(*ar,  "fp_arc");
+            for (const Node* cir  : find_children(*fp, "fp_circle")) consume_geom(*cir, "fp_circle");
+            for (const Node* pol  : find_children(*fp, "fp_poly"))   consume_geom(*pol, "fp_poly");
+            if (cx_lo <= cx_hi && cy_lo <= cy_hi) {
+                comp.courtyard_lo = {cx_lo, cy_lo};
+                comp.courtyard_hi = {cx_hi, cy_hi};
+            }
+            board_.components.push_back(std::move(comp));
         }
     }
 
