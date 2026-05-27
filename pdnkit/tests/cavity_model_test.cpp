@@ -1,5 +1,6 @@
 #include <cmath>
 #include <numbers>
+#include "circuitcore/field/GridSpec.h"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -13,7 +14,7 @@ using Catch::Approx;
 
 namespace {
 constexpr double kPi = std::numbers::pi;
-constexpr double kEps0 = 8.854187817e-12;
+using circuitcore::field::kEps0;
 constexpr double kC = 2.99792458e8;
 }
 

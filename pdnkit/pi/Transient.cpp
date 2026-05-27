@@ -1,5 +1,6 @@
 #include "pi/CavityModel.h"
 #include "pi/Transient.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <algorithm>
 #include <limits>
@@ -130,7 +131,7 @@ std::vector<double> build_distributed_capacitance(
     double eps_r,
     double substrate_thickness_m,
     const std::vector<Decap>& decaps) {
-    constexpr double kEps0 = 8.854187817e-12;
+    using circuitcore::field::kEps0;
     const int N = static_cast<int>(mesh.nodes.size());
     std::vector<double> c(N, 0.0);
     if (N == 0 || cell_size <= 0.0 || eps_r <= 0.0 || substrate_thickness_m <= 0.0) {

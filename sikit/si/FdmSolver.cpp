@@ -1,4 +1,5 @@
 #include "si/FdmSolver.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +8,7 @@ namespace sikit::em2d {
 
 namespace {
 
-constexpr double kEps0 = 8.8541878128e-12;  // F/m
+using circuitcore::field::kEps0;
 
 // Whether the cell at centre (y, z) with side `h` intersects any conductor
 // rectangle. Using cell–rect overlap rather than centre-in-rect catches

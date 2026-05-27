@@ -1,5 +1,6 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include "circuitcore/field/GridSpec.h"
 
 #include "si/CrossSection.h"
 #include "si/FdmSolver.h"
@@ -8,7 +9,7 @@ using namespace sikit::em2d;
 using Catch::Approx;
 
 namespace {
-constexpr double kEps0 = 8.8541878128e-12;
+using circuitcore::field::kEps0;
 }
 
 TEST_CASE("em2d: epsilon_r_at returns the correct layer value", "[em2d]") {

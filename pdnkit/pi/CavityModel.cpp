@@ -1,4 +1,5 @@
 #include "pi/CavityModel.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <Eigen/Dense>
 
@@ -8,8 +9,8 @@
 namespace pdnkit::pi {
 
 namespace {
-constexpr double kMu0  = 4.0e-7 * std::numbers::pi;
-constexpr double kEps0 = 8.854187817e-12;
+using circuitcore::field::kEps0;
+using circuitcore::field::kMu0;
 }  // namespace
 
 std::complex<double> cavity_impedance(

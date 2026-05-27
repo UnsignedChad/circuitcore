@@ -1,4 +1,5 @@
 #include "si/SurfaceRoughness.h"
+#include "circuitcore/field/GridSpec.h"
 
 #include <algorithm>
 #include <cmath>
@@ -8,7 +9,7 @@ namespace sikit::analysis {
 
 namespace {
 
-constexpr double kMu0 = 4.0e-7 * std::numbers::pi;
+using circuitcore::field::kMu0;
 
 }  // namespace
 
