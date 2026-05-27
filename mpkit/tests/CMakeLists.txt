@@ -5,6 +5,7 @@ add_executable(mpkit_tests
     grid_test.cpp
     material_test.cpp
     joule_coupling_test.cpp
+    component_coupling_test.cpp
     steady_heat_test.cpp
 study_run_test.cpp
     study_test.cpp
