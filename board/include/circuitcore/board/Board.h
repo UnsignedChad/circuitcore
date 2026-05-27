@@ -72,12 +72,15 @@ struct Via {
     int net_id = 0;
 };
 
+// Renderers approximate Oval / RoundRect / Custom as a Rect of the
+// given size; the corner radii are visual niceties, not load-bearing
+// for any solver we currently ship.
 enum class PadShape {
-    Circle,      // (drill diameter for through-hole, size.x for SMD round)
+    Circle,      // drill diameter for through-hole, size.x for SMD round
     Rect,        // size = (width, height)
-    Oval,        // rounded rectangle approximated as Rect for v0
-    RoundRect,   // rounded rectangle approximated as Rect for v0
-    Custom,      // not supported v0 — falls back to Rect with size
+    Oval,
+    RoundRect,
+    Custom,
 };
 
 // Component pad. Size is post-mm-to-m converted; defaults are 0 meaning

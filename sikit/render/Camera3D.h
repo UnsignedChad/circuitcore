@@ -12,7 +12,7 @@
 // board's top copper. The camera default puts the viewer above and in
 // front of the board, looking down at the top layer.
 //
-// Sits in sikit_core, so no Qt dependency — all math is hand-rolled.
+// Lives in sikit::render with no Qt dependency -- all math is hand-rolled.
 
 #pragma once
 

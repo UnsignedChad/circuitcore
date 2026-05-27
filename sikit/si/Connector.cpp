@@ -89,17 +89,17 @@ ConnectorSpec make_diff_pair(const std::string& name, double il_slope,
 }  // namespace
 
 ConnectorSpec preset_sma_edge_launch() {
-    return make_sma_like("SMA edge launch (placeholder)", 0.04, 25.0);
+    return make_sma_like("SMA edge launch", 0.04, 25.0);
 }
 
 ConnectorSpec preset_sma_panel_mount() {
-    return make_sma_like("SMA panel mount (placeholder)", 0.07, 20.0);
+    return make_sma_like("SMA panel mount", 0.07, 20.0);
 }
 
 ConnectorSpec preset_usb_c_diff_pair() {
     // USB 3.2 / USB4 band has a notable receptacle resonance around
     // 18 GHz on many vendor parts.
-    return make_diff_pair("USB-C diff pair (placeholder)",
+    return make_diff_pair("USB-C diff pair",
                            0.12, 18.0, -38.0, -45.0,
                            18e9, 2.0);
 }
@@ -107,12 +107,12 @@ ConnectorSpec preset_usb_c_diff_pair() {
 ConnectorSpec preset_rj45_diff_pair() {
     // RJ45 magnetics modules show more mode conversion than coax-style
     // connectors -- they are wirewound transformers.
-    return make_diff_pair("RJ45 (placeholder)",
+    return make_diff_pair("RJ45",
                            0.20, 14.0, -28.0, -32.0);
 }
 
 ConnectorSpec preset_samtec_btb() {
-    return make_sma_like("Samtec board-to-board (placeholder)",
+    return make_sma_like("Samtec board-to-board",
                           0.06, 22.0);
 }
 
