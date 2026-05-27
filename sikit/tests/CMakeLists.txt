@@ -1,15 +1,20 @@
 # sikit unit tests. AMI dlopen tests link a small C stub from stub_ami.c.
 
 # Standalone AMI stub library used by the AMI loader test. Built as a
-# stand-alone .so so dlopen() can pick it up at runtime. -- needs to opt out
-# of AUTOMOC since there's no Qt content (CMake otherwise tries to MOC the
-# .c file and fails).
+# stand-alone shared library so dlopen / LoadLibrary picks it up at
+# runtime. Opt out of AUTOMOC -- no Qt content, the .c file would otherwise
+# get moc'd and the moc invocation fails.
 set_source_files_properties(stub_ami.c PROPERTIES LANGUAGE CXX)
 add_library(stub_ami_sikit SHARED stub_ami.c)
 set_target_properties(stub_ami_sikit PROPERTIES
     AUTOMOC OFF AUTOUIC OFF AUTORCC OFF
     OUTPUT_NAME stub_ami)
-target_compile_options(stub_ami_sikit PRIVATE -fPIC)
+# -fPIC is required and meaningful on POSIX (so the shared library can
+# load at any address); on Windows everything is position-independent
+# already and MSVC warns about the unknown flag.
+if(NOT MSVC)
+    target_compile_options(stub_ami_sikit PRIVATE -fPIC)
+endif()
 
 add_executable(sikit_tests
     smoke_test.cpp
