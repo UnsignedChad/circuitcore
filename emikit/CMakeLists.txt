@@ -22,11 +22,17 @@ target_link_libraries(emikit PRIVATE
 )
 circuitcore_warnings(emikit)
 
-add_executable(emikit_validate_ti
-    tools/validate_ti.cpp
-)
-target_link_libraries(emikit_validate_ti PRIVATE emikit_emi)
-circuitcore_warnings(emikit_validate_ti)
+# emikit_validate_ti reconstructs a vendor reference dataset (TI
+# ADS8686SEVM-PDK) and compares emikits FAR-field prediction. Useful
+# during development; not shipped to end users, so gate it behind the
+# tests flag.
+if(CIRCUITCORE_BUILD_TESTS)
+    add_executable(emikit_validate_ti
+        tools/validate_ti.cpp
+    )
+    target_link_libraries(emikit_validate_ti PRIVATE emikit_emi)
+    circuitcore_warnings(emikit_validate_ti)
+endif()
 
 if(CIRCUITCORE_BUILD_TESTS)
     add_subdirectory(tests)
