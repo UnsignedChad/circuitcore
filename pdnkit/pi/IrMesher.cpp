@@ -1,4 +1,5 @@
 #include "pi/IrMesher.h"
+#include "circuitcore/board/Bounds.h"
 
 #include <algorithm>
 #include <cmath>
@@ -79,29 +80,17 @@ double zone_area_on(const circuitcore::board::Board& board, int net, int layer) 
     return total;
 }
 
-// World bbox of all filled polygons on the target (net, layer). Returns false
-// if there is no matching geometry.
+// World bbox of all filled polygons on the target (net, layer). Returns
+// false if there is no matching geometry. Thin wrapper over the canonical
+// board::bounds_of_zone so callers using the four-out-parameter shape
+// don't have to change.
 bool target_bbox(const circuitcore::board::Board& board, int net, int layer,
                  double& lo_x, double& lo_y, double& hi_x, double& hi_y) {
-    bool have_any = false;
-    for (const auto& z : board.zones) {
-        if (z.net_id != net || z.layer_ordinal != layer) continue;
-        for (const auto& fp : z.filled) {
-            for (const auto& p : fp.outline) {
-                if (!have_any) {
-                    lo_x = hi_x = p.x;
-                    lo_y = hi_y = p.y;
-                    have_any = true;
-                } else {
-                    if (p.x < lo_x) lo_x = p.x;
-                    if (p.x > hi_x) hi_x = p.x;
-                    if (p.y < lo_y) lo_y = p.y;
-                    if (p.y > hi_y) hi_y = p.y;
-                }
-            }
-        }
-    }
-    return have_any;
+    const auto b = circuitcore::board::bounds_of_zone(board, net, layer);
+    if (!b.valid) return false;
+    lo_x = b.lo_x; lo_y = b.lo_y;
+    hi_x = b.hi_x; hi_y = b.hi_y;
+    return true;
 }
 
 }  // namespace

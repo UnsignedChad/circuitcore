@@ -1,6 +1,7 @@
 // Per-component metadata coupling. See header for the design.
 
 #include "mp/ComponentCoupling.h"
+#include "circuitcore/board/Bounds.h"
 
 #include <algorithm>
 #include <cmath>
@@ -21,27 +22,22 @@ struct PadBbox {
 bool pad_bbox(const circuitcore::board::Board& board,
               const circuitcore::board::Component& c,
               PadBbox& out) noexcept {
-    out.x_lo =  1e30; out.y_lo =  1e30;
-    out.x_hi = -1e30; out.y_hi = -1e30;
     out.has_back_only = false;
+    // Bounds via the canonical helper; side detection still walks pads
+    // here since Bounds2 deliberately doesnt carry layer info.
+    const auto bb = circuitcore::board::bounds_of_pads(board, c.reference);
+    if (!bb.valid || !(bb.lo_x < bb.hi_x) || !(bb.lo_y < bb.hi_y))
+        return false;
+    out.x_lo = bb.lo_x; out.y_lo = bb.lo_y;
+    out.x_hi = bb.hi_x; out.y_hi = bb.hi_y;
     bool back_seen = false, front_seen = false;
-    int n = 0;
     for (const auto& pd : board.pads) {
         if (pd.parent_ref != c.reference) continue;
-        const double hw = 0.5 * pd.size.x;
-        const double hh = 0.5 * pd.size.y;
-        out.x_lo = std::min(out.x_lo, pd.at.x - hw);
-        out.y_lo = std::min(out.y_lo, pd.at.y - hh);
-        out.x_hi = std::max(out.x_hi, pd.at.x + hw);
-        out.y_hi = std::max(out.y_hi, pd.at.y + hh);
         for (int o : pd.layer_ordinals) {
             if (o == 0)  front_seen = true;
             if (o == 31) back_seen  = true;
         }
-        ++n;
     }
-    if (n == 0 || !(out.x_lo < out.x_hi) || !(out.y_lo < out.y_hi))
-        return false;
     out.has_back_only = back_seen && !front_seen;
     return true;
 }

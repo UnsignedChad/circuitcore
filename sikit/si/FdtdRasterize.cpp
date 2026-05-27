@@ -1,4 +1,5 @@
 #include "si/FdtdRasterize.h"
+#include "circuitcore/board/Bounds.h"
 
 #include <algorithm>
 #include <cmath>
@@ -8,30 +9,20 @@ namespace sikit::fdtd {
 
 namespace {
 
-// Bounding box in board coords. Cheap O(N) walk over segments / zones /
-// vias. We use it to centre the default mapping over the actual board
-// content rather than KiCad's arbitrary origin.
-struct BBox {
-    double xmin = std::numeric_limits<double>::infinity();
-    double ymin = std::numeric_limits<double>::infinity();
-    double xmax = -std::numeric_limits<double>::infinity();
-    double ymax = -std::numeric_limits<double>::infinity();
-    void inflate(double x, double y) {
-        xmin = std::min(xmin, x); ymin = std::min(ymin, y);
-        xmax = std::max(xmax, x); ymax = std::max(ymax, y);
-    }
-    bool empty() const { return xmin > xmax; }
-};
-
-BBox board_bbox(const circuitcore::board::Board& b) {
+// Use the canonical board::Bounds2 throughout; alias the old name so
+// the surrounding code keeps reading naturally. board_bbox here returns
+// the union over segments / vias / outline zones only (skips pads etc)
+// since this rasteriser centres on PDN copper, not pad lands.
+using BBox = circuitcore::board::Bounds2;
+inline BBox board_bbox(const circuitcore::board::Board& b) {
     BBox bb;
     for (const auto& s : b.segments) {
-        bb.inflate(s.start.x, s.start.y);
-        bb.inflate(s.end.x,   s.end.y);
+        bb.include(s.start.x, s.start.y);
+        bb.include(s.end.x,   s.end.y);
     }
-    for (const auto& v : b.vias) bb.inflate(v.at.x, v.at.y);
+    for (const auto& v : b.vias) bb.include(v.at.x, v.at.y);
     for (const auto& z : b.zones) {
-        for (const auto& p : z.outline.outline) bb.inflate(p.x, p.y);
+        for (const auto& p : z.outline.outline) bb.include(p.x, p.y);
     }
     return bb;
 }
@@ -63,8 +54,8 @@ RasterMapping make_default_mapping(
     const circuitcore::board::Board& board) {
     RasterMapping m;
     const auto bb = board_bbox(board);
-    m.origin_x = bb.empty() ? 0.0 : bb.xmin;
-    m.origin_y = bb.empty() ? 0.0 : bb.ymin;
+    m.origin_x = !bb.valid ? 0.0 : bb.lo_x;
+    m.origin_y = !bb.valid ? 0.0 : bb.lo_y;
     m.origin_z = 0.0;
 
     // Walk the stackup top-down and stash each copper layer's top-z.
@@ -156,15 +147,15 @@ std::size_t rasterize_zone(FDTD3D& s,
         if (poly.outline.size() < 3) continue;
         // Bounding box of the polygon to bound the scan.
         BBox bb;
-        for (const auto& p : poly.outline) bb.inflate(p.x, p.y);
+        for (const auto& p : poly.outline) bb.include(p.x, p.y);
         const int i0 = std::max(0,
-            to_idx(bb.xmin, m.origin_x, dx));
+            to_idx(bb.lo_x, m.origin_x, dx));
         const int i1 = std::min(s.grid().nx - 1,
-            to_idx(bb.xmax, m.origin_x, dx));
+            to_idx(bb.hi_x, m.origin_x, dx));
         const int j0 = std::max(0,
-            to_idx(bb.ymin, m.origin_y, dy));
+            to_idx(bb.lo_y, m.origin_y, dy));
         const int j1 = std::min(s.grid().ny - 1,
-            to_idx(bb.ymax, m.origin_y, dy));
+            to_idx(bb.hi_y, m.origin_y, dy));
         for (int j = j0; j <= j1; ++j) {
             const double py = m.origin_y + j * dy;
             for (int i = i0; i <= i1; ++i) {

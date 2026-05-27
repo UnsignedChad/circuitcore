@@ -1,4 +1,5 @@
 #include "CavityPanel.h"
+#include "circuitcore/board/Bounds.h"
 
 #include <algorithm>
 #include <cmath>
@@ -48,33 +49,12 @@ std::vector<circuitcore::board::Point2> read_decap_positions(QTableWidget* t,
     return out;
 }
 
-// Bounding box of the filled zones on (net, primary copper layer 0). Empty
-// returned when there is no zone fill matching the filter — caller decides.
-struct Bbox {
-    bool ok = false;
-    double lo_x = 0.0, lo_y = 0.0, hi_x = 0.0, hi_y = 0.0;
-};
-
-Bbox zone_bbox(const circuitcore::board::Board& b, int net_id, int layer) {
-    Bbox box;
-    for (const auto& z : b.zones) {
-        if (z.net_id != net_id || z.layer_ordinal != layer) continue;
-        for (const auto& fp : z.filled) {
-            for (const auto& p : fp.outline) {
-                if (!box.ok) {
-                    box.lo_x = box.hi_x = p.x;
-                    box.lo_y = box.hi_y = p.y;
-                    box.ok = true;
-                } else {
-                    if (p.x < box.lo_x) box.lo_x = p.x;
-                    if (p.x > box.hi_x) box.hi_x = p.x;
-                    if (p.y < box.lo_y) box.lo_y = p.y;
-                    if (p.y > box.hi_y) box.hi_y = p.y;
-                }
-            }
-        }
-    }
-    return box;
+// Aliases over the canonical helper so this file does not have to
+// learn a new field name for an existing pattern.
+using Bbox = circuitcore::board::Bounds2;
+inline Bbox zone_bbox(const circuitcore::board::Board& b, int net_id,
+                       int layer) {
+    return circuitcore::board::bounds_of_zone(b, net_id, layer);
 }
 
 }  // namespace
@@ -250,7 +230,7 @@ CavityPanel::CavityPanel(QWidget* parent) : QWidget(parent) {
         const int net = net_combo_->currentData().toInt();
         constexpr int kPrimaryLayer = 0;
         const Bbox bb = zone_bbox(*board_, net, kPrimaryLayer);
-        if (!bb.ok) return;
+        if (!bb.valid) return;
 
         pdnkit::pi::CavityConfig cfg;
         cfg.a = bb.hi_x - bb.lo_x;
@@ -422,7 +402,7 @@ void CavityPanel::emitCavity() {
     const int net = net_combo_->currentData().toInt();
     constexpr int kPrimaryLayer = 0;
     const Bbox bb = zone_bbox(*board_, net, kPrimaryLayer);
-    if (!bb.ok) {
+    if (!bb.valid) {
         emit cavityChanged(0, 0, 0, 0, {});
         return;
     }
@@ -457,7 +437,7 @@ void CavityPanel::updatePlaneInfo() {
     const int net = net_combo_->currentData().toInt();
     constexpr int kPrimaryLayer = 0;
     const Bbox bb = zone_bbox(*board_, net, kPrimaryLayer);
-    if (!bb.ok) {
+    if (!bb.valid) {
         plane_info_label_->setText("Plane: no filled zone on F.Cu for this net");
         plane_info_label_->setStyleSheet("color: #d80;");
         return;
@@ -508,7 +488,7 @@ void CavityPanel::onRun() {
     constexpr int kPrimaryLayer = 0;  // F.Cu for v0
 
     const Bbox bb = zone_bbox(*board_, net, kPrimaryLayer);
-    if (!bb.ok) return;
+    if (!bb.valid) return;
 
     pdnkit::pi::CavityConfig cfg;
     cfg.a = bb.hi_x - bb.lo_x;
@@ -662,7 +642,7 @@ void CavityPanel::onAutoSuggest() {
     const int net = net_combo_->currentData().toInt();
     constexpr int kPrimaryLayer = 0;
     const Bbox bb = zone_bbox(*board_, net, kPrimaryLayer);
-    if (!bb.ok) {
+    if (!bb.valid) {
         QMessageBox::warning(this, "Auto-suggest decaps",
             "No filled zones for the selected net on F.Cu.");
         return;
@@ -732,7 +712,7 @@ void CavityPanel::onShowModeShape() {
     const int net = net_combo_->currentData().toInt();
     constexpr int kPrimaryLayer = 0;
     const Bbox bb = zone_bbox(*board_, net, kPrimaryLayer);
-    if (!bb.ok) return;
+    if (!bb.valid) return;
 
     pdnkit::pi::CavityConfig cfg;
     cfg.a = bb.hi_x - bb.lo_x;

@@ -1,6 +1,7 @@
 # circuitcore::board -- canonical PCB model + hit-test.
 # Format-independent. Any format adapter produces a circuitcore::board::Board.
 add_library(circuitcore_board STATIC
+    src/Bounds.cpp
     src/HitTest.cpp
     src/PackageDefaults.cpp
 )
