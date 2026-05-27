@@ -76,6 +76,11 @@ else()
         GIT_REPOSITORY https://gitlab.kitware.com/vtk/vtk.git
         GIT_TAG        v9.3.1
         GIT_SHALLOW    TRUE
+        # VTK ships a vtk-m submodule whose deepest filenames break
+        # past Windows 260-char MAX_PATH. core.longpaths lets the clone
+        # succeed; the file system still needs the LongPathsEnabled
+        # registry key on Windows 10 1607+ for the build itself to work.
+        GIT_CONFIG     core.longpaths=true
     )
     message(STATUS "Fetching VTK v9.3.1 source -- first build takes a while")
     FetchContent_MakeAvailable(VTK)
