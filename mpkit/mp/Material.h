@@ -27,6 +27,7 @@ struct Material {
 
     // -- electrical
     double electrical_resistivity = std::numeric_limits<double>::quiet_NaN(); // ohm*m
+    double seebeck_coefficient    = std::numeric_limits<double>::quiet_NaN(); // V/K (positive when holes dominate)
     double relative_permittivity  = std::numeric_limits<double>::quiet_NaN(); // dimensionless
     double loss_tangent           = std::numeric_limits<double>::quiet_NaN(); // dimensionless
     double relative_permeability  = 1.0;                                      // non-magnetic default

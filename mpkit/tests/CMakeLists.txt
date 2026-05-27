@@ -9,6 +9,7 @@ add_executable(mpkit_tests
     steady_heat_test.cpp
 study_run_test.cpp
     study_test.cpp
+    thermoelectric_test.cpp
     transient_heat_test.cpp
     voxelizer_test.cpp
 )
