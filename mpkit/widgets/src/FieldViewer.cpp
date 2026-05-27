@@ -143,6 +143,7 @@ struct FieldViewer::Impl {
     vtkSmartPointer<vtkActor>                diel_actor;
     vtkSmartPointer<vtkActor>                copper_actor;
     vtkSmartPointer<vtkActor>                vias_actor;
+    vtkSmartPointer<vtkActor>                components_actor;
     vtkSmartPointer<vtkPolyData>             copper_pd;   // kept to re-scalar
 
     QString colormap_name = "coolwarm";
@@ -209,6 +210,7 @@ void FieldViewer::setBoard(const circuitcore::board::Board& board) {
     drop(impl_->diel_actor);
     drop(impl_->copper_actor);
     drop(impl_->vias_actor);
+    drop(impl_->components_actor);
     impl_->copper_pd = nullptr;
 
     sikit::si::SiStackup empty_stack;
@@ -237,6 +239,10 @@ void FieldViewer::setBoard(const circuitcore::board::Board& board) {
     impl_->diel_actor   = add_actor(bm.dielectric, 0.55, 0.50, 0.18, 0.28);
     impl_->copper_actor = add_actor(bm.copper,     0.72, 0.45, 0.20, 1.00);
     impl_->vias_actor   = add_actor(bm.vias,       0.55, 0.35, 0.15, 1.00);
+    // Component bodies: dark IC plastic / connector tan picked per
+    // package family by the mesher; render fully opaque so they pop
+    // above the translucent FR-4 slab.
+    impl_->components_actor = add_actor(bm.components, 0.15, 0.15, 0.15, 1.00);
 
     if (impl_->copper_actor) {
         impl_->copper_pd = vtkPolyData::SafeDownCast(
