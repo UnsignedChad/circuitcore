@@ -247,3 +247,35 @@ TEST_CASE("parser: graphic items skip Edge.Cuts and copper layers",
         REQUIRE(L->name != "Edge.Cuts");
     }
 }
+
+TEST_CASE("parser: emits Component per footprint", "[parser][components]") {
+    auto b = PcbParser::parse_string(kTinyBoard).value();
+    REQUIRE(b.components.size() == 1);
+    const auto& c = b.components[0];
+    REQUIRE(c.name      == "Resistor_SMD:R_0402");
+    REQUIRE(c.reference == "R1");
+    REQUIRE(c.value     == "10k");
+    REQUIRE(c.at.x == 40e-3);
+    REQUIRE(c.at.y == 50e-3);
+    REQUIRE(c.rotation == 0.0);
+    // No courtyard primitives on kTinyBoard's footprint -> bbox stays
+    // at the (0,0)/(0,0) default and downstream code should fall back
+    // to the pad bbox.
+    REQUIRE(c.courtyard_lo.x == 0.0);
+    REQUIRE(c.courtyard_hi.x == 0.0);
+}
+
+TEST_CASE("parser: component courtyard bbox from fp_line on F.CrtYd",
+          "[parser][components]") {
+    auto b = PcbParser::parse_string(kGraphicsBoard).value();
+    REQUIRE(b.components.size() == 1);
+    const auto& c = b.components[0];
+    REQUIRE(c.reference == "U1");
+    // fp_line is (start 0 0) (end 1 0) on F.CrtYd, footprint at (40,50).
+    // Transformed: world endpoints (40, 50) and (41, 50). With no other
+    // primitives the bbox should collapse to that line's extent.
+    REQUIRE(std::abs(c.courtyard_lo.x - 0.040) < 1e-9);
+    REQUIRE(std::abs(c.courtyard_lo.y - 0.050) < 1e-9);
+    REQUIRE(std::abs(c.courtyard_hi.x - 0.041) < 1e-9);
+    REQUIRE(std::abs(c.courtyard_hi.y - 0.050) < 1e-9);
+}

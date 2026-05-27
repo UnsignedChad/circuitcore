@@ -92,6 +92,30 @@ struct Pad {
     std::string parent_ref;    // footprint reference ("C12", "U1", ...)
 };
 
+// One footprint placement on the board. Carries identifier + position
+// + courtyard bounding box so thermal / mechanical solvers can treat
+// the component as an extruded body and the GUI can label hotspots
+// by reference designator. Pads belonging to the footprint live in
+// Board::pads with parent_ref pointing at this Component::reference.
+struct Component {
+    std::string name;        // footprint library id ("Connector:PinHeader_1x02")
+    std::string reference;   // designator on the board ("R1", "U3", "C12")
+    std::string value;       // value text ("10K", "TPS5430DDA", "+3V3")
+    Point2 at;               // origin in world coords (m)
+    double rotation = 0.0;   // radians, CCW
+    // Axis-aligned courtyard bounding box in world coords. Both points
+    // (0, 0) means the footprint defined no courtyard (or our parser
+    // could not find one); in that case downstream consumers should
+    // fall back to the pad bounding box.
+    Point2 courtyard_lo;
+    Point2 courtyard_hi;
+    // Optional per-component metadata supplied by the user (or by a
+    // future analogkit). Zero means unknown / not specified.
+    double dissipated_power_w = 0.0;
+    double body_height_m      = 0.0;   // populated by a per-package-family lookup later
+    double mass_kg            = 0.0;
+};
+
 // A closed polygon, possibly with holes (interior cutouts).
 struct Polygon {
     std::vector<Point2> outline;
@@ -151,6 +175,7 @@ struct Board {
     std::vector<Segment> segments;
     std::vector<Via> vias;
     std::vector<Pad> pads;
+    std::vector<Component> components;
     std::vector<Zone> zones;
     std::vector<OutlineSegment> outline;
     std::vector<GraphicItem> graphics;
