@@ -19,7 +19,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define EXPORT __attribute__((visibility("default")))
+/* Portable shared-library export marker. Windows wants __declspec
+   on the function decl; ELF/Mach-O use the GCC visibility attribute. */
+#ifdef _WIN32
+#  define EXPORT __declspec(dllexport)
+#else
+#  define EXPORT __attribute__((visibility("default")))
+#endif
 
 static char* xstrdup(const char* s) {
     if (!s) return NULL;
