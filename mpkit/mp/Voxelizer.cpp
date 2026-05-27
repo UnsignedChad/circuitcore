@@ -1,4 +1,5 @@
 #include "mp/Voxelizer.h"
+#include "circuitcore/board/Bounds.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,34 +19,26 @@ double total_stack_thickness(const circuitcore::board::Stackup& s) {
     return t;
 }
 
-// World-space bbox of every copper feature on the board. Falls back to
-// the outline if no copper is present. Returns false if neither yields
-// finite extents.
+// World-space bbox of every geometric primitive on the board (every
+// segment is also inflated by its half-width so the voxel grid covers
+// the full copper rather than just trace centrelines). Delegates to
+// the canonical bounds_of_board for the union of segments / pads /
+// vias / outline / graphics / zones, then walks segments a second time
+// to fold in the trace width.
 bool board_bbox(const circuitcore::board::Board& b,
                 double& xmin, double& ymin, double& xmax, double& ymax) {
-    xmin = ymin =  std::numeric_limits<double>::infinity();
-    xmax = ymax = -std::numeric_limits<double>::infinity();
-    auto take = [&](double x, double y) {
-        xmin = std::min(xmin, x); ymin = std::min(ymin, y);
-        xmax = std::max(xmax, x); ymax = std::max(ymax, y);
-    };
+    auto bb = circuitcore::board::bounds_of_board(b);
     for (const auto& s : b.segments) {
         const double r = 0.5 * s.width;
-        take(s.start.x - r, s.start.y - r);
-        take(s.start.x + r, s.start.y + r);
-        take(s.end.x   - r, s.end.y   - r);
-        take(s.end.x   + r, s.end.y   + r);
+        bb.include(s.start.x - r, s.start.y - r);
+        bb.include(s.start.x + r, s.start.y + r);
+        bb.include(s.end.x   - r, s.end.y   - r);
+        bb.include(s.end.x   + r, s.end.y   + r);
     }
-    for (const auto& v : b.vias) {
-        const double r = 0.5 * v.outer_diameter;
-        take(v.at.x - r, v.at.y - r);
-        take(v.at.x + r, v.at.y + r);
-    }
-    for (const auto& seg : b.outline) {
-        take(seg.start.x, seg.start.y);
-        take(seg.end.x, seg.end.y);
-    }
-    return std::isfinite(xmin) && std::isfinite(xmax);
+    if (!bb.valid) return false;
+    xmin = bb.lo_x; ymin = bb.lo_y;
+    xmax = bb.hi_x; ymax = bb.hi_y;
+    return true;
 }
 
 // Rasterize the swept disk left by a segment of width w from a to b
