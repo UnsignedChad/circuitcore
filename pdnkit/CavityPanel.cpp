@@ -438,7 +438,13 @@ void CavityPanel::setBoard(const circuitcore::board::Board* board) {
     board_ = board;
     rebuildNetCombo();
     plot_->clear();
-    emitCavity();
+    // Clear any stale cavity overlay from the previous board, but do not
+    // paint a fresh one. emitCavity() would draw the cavity bbox + the
+    // two port markers using whatever (default 0,0) the port spinboxes
+    // hold, so a board-load shows a confusing cyan dot at the bbox lo
+    // corner before the user has opened the panel. Wait for an actual
+    // port-change / net-change interaction to start drawing.
+    emit cavityChanged(0, 0, 0, 0, {});
     updatePlaneInfo();
 }
 
