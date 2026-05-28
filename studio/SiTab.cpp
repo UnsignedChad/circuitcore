@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 #include <QAction>
 #include <QComboBox>
@@ -224,11 +225,22 @@ void SiTab::onBoardLoaded() {
 void SiTab::refreshNetList() {
     net_combo_->clear();
     if (!model_->board()) return;
-    const auto hs = sikit::highspeed::find_high_speed_nets(*model_->board());
+    const auto* board = model_->board();
+    // List high-speed nets first so they stay easy to find on dense serdes /
+    // ddr boards, then every other named net. Listing only high-speed left
+    // the combo empty on slower boards (microcontroller, analog) where
+    // users still want impedance / skew checks per net.
+    const auto hs = sikit::highspeed::find_high_speed_nets(*board);
+    std::unordered_set<int> hs_set(hs.begin(), hs.end());
     for (int nid : hs) {
-        if (const auto* n = model_->board()->find_net(nid)) {
+        if (const auto* n = board->find_net(nid)) {
             net_combo_->addItem(QString::fromStdString(n->name), nid);
         }
+    }
+    for (const auto& n : board->nets) {
+        if (n.name.empty()) continue;
+        if (hs_set.count(n.id)) continue;
+        net_combo_->addItem(QString::fromStdString(n.name), n.id);
     }
 }
 
