@@ -108,6 +108,12 @@ void PcbCanvas::setLayerVisibility(int ordinal, bool visible) {
     update();
 }
 
+void PcbCanvas::setSilkVisible(bool visible) {
+    if (silk_visible_ == visible) return;
+    silk_visible_ = visible;
+    update();
+}
+
 void PcbCanvas::fitToBoard() {
     if (!board_) return;
     bool have_any = false;
@@ -437,7 +443,7 @@ void PcbCanvas::paintGL() {
                             flat_prog_.bind();
                             flat_prog_.setUniformValue("u_proj", proj); }
     // Mask: translucent green, under silk but on top of copper.
-    if (mask_index_count_ > 0) {
+    if (mask_index_count_ > 0 && silk_visible_) {
         flat_prog_.setUniformValue("u_color",
                                     QVector4D(0.18f, 0.50f, 0.22f, 0.45f));
         mask_vao_.bind();
@@ -445,7 +451,7 @@ void PcbCanvas::paintGL() {
         mask_vao_.release();
     }
     // Silk: opaque white-ish on top of everything (except courtyard).
-    if (silk_index_count_ > 0) {
+    if (silk_index_count_ > 0 && silk_visible_) {
         flat_prog_.setUniformValue("u_color",
                                     QVector4D(0.92f, 0.92f, 0.92f, 1.0f));
         silk_vao_.bind();
@@ -453,7 +459,7 @@ void PcbCanvas::paintGL() {
         silk_vao_.release();
     }
     // Courtyard: thin magenta -- usually a debug aid, drawn last.
-    if (cyd_index_count_ > 0) {
+    if (cyd_index_count_ > 0 && silk_visible_) {
         flat_prog_.setUniformValue("u_color",
                                     QVector4D(0.78f, 0.30f, 0.78f, 0.60f));
         cyd_vao_.bind();
@@ -468,7 +474,7 @@ void PcbCanvas::paintGL() {
     // Silkscreen text via QPainter -- the GL pipeline doesn't rasterize
     // text. Only attempt this when we have something to draw to avoid
     // the QPainter setup cost on bare boards.
-    if (!pending_text_.empty()) {
+    if (!pending_text_.empty() && silk_visible_) {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setRenderHint(QPainter::TextAntialiasing);

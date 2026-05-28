@@ -57,6 +57,11 @@ public:
 
     void setBoard(const board::Board* board);
     void setLayerVisibility(int ordinal, bool visible);
+    // Show / hide all silkscreen, soldermask, courtyard, and silk text
+    // as one bundle. Useful on dense boards where the silk obscures the
+    // copper. Defaults to true (silk drawn).
+    void setSilkVisible(bool visible);
+    bool silkVisible() const { return silk_visible_; }
     void fitToBoard();
     // Defer a fitToBoard() call to the first paint after the
     // widget has a non-trivial viewport size. Used when setBoard
@@ -189,6 +194,7 @@ private:
     std::vector<struct SilkText> pending_text_;
 
     std::unordered_map<int, bool> layer_visible_;
+    bool silk_visible_ = true;
 
     bool panning_ = false;
     QPoint last_mouse_;

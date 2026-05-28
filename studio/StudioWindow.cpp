@@ -21,6 +21,8 @@
 #include <QTabWidget>
 #include <QTextBrowser>
 #include <QVBoxLayout>
+
+#include "circuitcore/ui/PcbCanvas.h"
 #include <QWidget>
 #include <memory>
 
@@ -80,6 +82,19 @@ StudioWindow::StudioWindow(QWidget* parent)
     auto* quitAct = fileMenu->addAction("E&xit");
     quitAct->setShortcut(QKeySequence::Quit);
     connect(quitAct, &QAction::triggered, qApp, &QApplication::quit);
+
+    auto* viewMenu = menuBar()->addMenu("&View");
+    auto* silkAct = viewMenu->addAction("Show &silkscreen + mask");
+    silkAct->setCheckable(true);
+    silkAct->setChecked(true);
+    silkAct->setShortcut(QKeySequence("Ctrl+Shift+L"));
+    connect(silkAct, &QAction::toggled, this, [this](bool on) {
+        // Cast a wide net: every PcbCanvas in the tab hierarchy gets the
+        // toggle, so SI / PI / EMI / Board canvases stay in sync without
+        // each tab having to plumb its own setSilkVisible signal.
+        const auto canvases = findChildren<circuitcore::ui::PcbCanvas*>();
+        for (auto* c : canvases) c->setSilkVisible(on);
+    });
 
     auto* toolsMenu = menuBar()->addMenu("&Tools");
     auto* calcAct = toolsMenu->addAction("&Calculators...");
