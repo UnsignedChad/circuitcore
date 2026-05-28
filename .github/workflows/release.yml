@@ -96,8 +96,30 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # vcpkg lives at C:\vcpkg on windows-latest runners.
-          vcpkg install eigen3:x64-windows spdlog:x64-windows `
+          # ------------------------------------------------------------
+          # CI-only: this step runs on the github-hosted windows-latest
+          # runner. it does NOT affect a local Windows build through
+          # Visual Studio -- VS uses vcpkg.json in manifest mode (which
+          # auto-installs the same deps via cmake configure) and never
+          # invokes vcpkg install directly. if youre debugging local-
+          # build issues, look at vcpkg.json + the cmake configure
+          # step, not this block.
+          #
+          # vcpkg lives at C:\vcpkg on the runner. --classic forces
+          # classic mode even with vcpkg.json on disk; without it the
+          # cli refuses package-name arguments because it thinks were
+          # in manifest mode. matches the -DVCPKG_MANIFEST_MODE=OFF we
+          # pass to cmake later.
+          #
+          # if a future vcpkg release drops --classic, two known
+          # fallbacks:
+          #   (a) cd to a directory that does not contain vcpkg.json
+          #       before running vcpkg install
+          #   (b) replace this whole step with `vcpkg install` (no
+          #       args) and add the deps to vcpkg.json as required
+          #       features under a CI-only feature flag
+          # ------------------------------------------------------------
+          vcpkg install --classic eigen3:x64-windows spdlog:x64-windows `
                          suitesparse:x64-windows cli11:x64-windows `
                          catch2:x64-windows boost-headers:x64-windows
           echo "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
