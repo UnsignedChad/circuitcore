@@ -28,10 +28,15 @@ double microstrip_eps_eff(double w, double h, double eps_r) {
            0.5 * (eps_r - 1.0) / std::sqrt(1.0 + 12.0 / wh);
 }
 
-double per_freq_alpha(double f, double trace_width, double Z0, double eps_eff,
-                      double tan_delta, double sigma_copper,
-                      const RoughnessSpec& roughness) {
-    if (trace_width <= 0.0 || Z0 <= 0.0) return 0.0;
+// Conductor and dielectric attenuation returned separately: γ uses their
+// sum, but the complex characteristic impedance uses their difference
+// (conductor loss makes Zc capacitive, dielectric loss inductive).
+struct Attenuation { double conductor = 0.0; double dielectric = 0.0; };
+
+Attenuation per_freq_alpha(double f, double trace_width, double Z0, double eps_eff,
+                           double tan_delta, double sigma_copper,
+                           const RoughnessSpec& roughness) {
+    if (trace_width <= 0.0 || Z0 <= 0.0) return {};
     const double Rs_smooth = std::sqrt(std::numbers::pi * f * kMu0 / sigma_copper);
     const double K = roughness_factor(roughness, f, sigma_copper);
     const double Rs = Rs_smooth * K;
@@ -39,7 +44,7 @@ double per_freq_alpha(double f, double trace_width, double Z0, double eps_eff,
     const double alpha_c = R_per_m / (2.0 * Z0);
     const double alpha_d = std::numbers::pi * f * std::sqrt(eps_eff) /
                            kC0 * tan_delta;
-    return alpha_c + alpha_d;
+    return {alpha_c, alpha_d};
 }
 
 bool is_outer_copper(int ord) { return ord == 0 || ord == 31; }
@@ -92,16 +97,23 @@ sikit::touchstone::TouchstoneFile synthesize_channel(
         }
         const double v_phase = kC0 / std::sqrt(eps_eff);
 
-        const double alpha = per_freq_alpha(f, spec.trace_width, Z0_dc,
-                                             eps_eff, tan_d,
-                                             spec.stackup.sigma_copper,
-                                             spec.stackup.roughness);
+        const Attenuation att = per_freq_alpha(f, spec.trace_width, Z0_dc,
+                                                 eps_eff, tan_d,
+                                                 spec.stackup.sigma_copper,
+                                                 spec.stackup.roughness);
+        const double alpha = att.conductor + att.dielectric;
         const double beta = two_pi * f / v_phase;
         const Complex gamma(alpha, beta);
         const Complex gl = gamma * l;
+        // Complex characteristic impedance (low-loss telegrapher approx):
+        // Zc ≈ Z0·(1 − j(α_c − α_d)/β). A flat real Z0 gave wrong S11/S22.
+        const Complex Zc = (beta > 0.0)
+            ? Complex(Z0_dc, 0.0) *
+                  Complex(1.0, -(att.conductor - att.dielectric) / beta)
+            : Complex(Z0_dc, 0.0);
         const Complex A = std::cosh(gl);
-        const Complex B = Z0_dc * std::sinh(gl);
-        const Complex C = std::sinh(gl) / Z0_dc;
+        const Complex B = Zc * std::sinh(gl);
+        const Complex C = std::sinh(gl) / Zc;
         const Complex D = std::cosh(gl);
 
         const Complex denom = A + B / Zr + C * Zr + D;
