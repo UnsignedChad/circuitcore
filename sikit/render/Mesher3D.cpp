@@ -152,6 +152,70 @@ void append_segment_box(Mesh3D& m, const circuitcore::board::Segment& s,
     side(p4x, p4y, p1x, p1y, -tx, -ty);   // -t (start) side
 }
 
+// Box centered at (cx, cy), half-extents (hw, hh) in the pad's local
+// frame, rotated by `angle` (radians, CCW) about (cx, cy), extruded in
+// Z from z_lo to z_hi. Use for pads that carry a rotation -- the AABB
+// helper above ignores rotation and produces axis-aligned boxes, which
+// reads wrong on any QFP/QFN whose footprint is rotated (LQFP-48 on
+// StickHub is at -135 degrees, so the chip's side pads need to come
+// out at 45 degrees to face their landing pattern).
+void append_oriented_box(Mesh3D& m,
+                          double cx, double cy,
+                          double hw, double hh, double angle,
+                          double z_lo, double z_hi, Color c) {
+    const double cs = std::cos(angle);
+    const double sn = std::sin(angle);
+    // Four XY corners (CCW viewed from +Z) of the local rect, rotated.
+    auto rot = [&](double lx, double ly) {
+        return std::pair<double, double>{cx + cs * lx - sn * ly,
+                                           cy + sn * lx + cs * ly};
+    };
+    const auto [p1x, p1y] = rot(-hw, -hh);
+    const auto [p2x, p2y] = rot( hw, -hh);
+    const auto [p3x, p3y] = rot( hw,  hh);
+    const auto [p4x, p4y] = rot(-hw,  hh);
+
+    // Top face (+Z): corners CCW viewed from above.
+    {
+        const auto base = vert_count(m);
+        push_vertex(m, p1x, p1y, z_hi, 0, 0,  1, c);
+        push_vertex(m, p2x, p2y, z_hi, 0, 0,  1, c);
+        push_vertex(m, p3x, p3y, z_hi, 0, 0,  1, c);
+        push_vertex(m, p4x, p4y, z_hi, 0, 0,  1, c);
+        m.indices.insert(m.indices.end(),
+            {base, base + 1, base + 2, base, base + 2, base + 3});
+    }
+    // Bottom face (-Z): reversed winding.
+    {
+        const auto base = vert_count(m);
+        push_vertex(m, p4x, p4y, z_lo, 0, 0, -1, c);
+        push_vertex(m, p3x, p3y, z_lo, 0, 0, -1, c);
+        push_vertex(m, p2x, p2y, z_lo, 0, 0, -1, c);
+        push_vertex(m, p1x, p1y, z_lo, 0, 0, -1, c);
+        m.indices.insert(m.indices.end(),
+            {base, base + 1, base + 2, base, base + 2, base + 3});
+    }
+    // Four side walls. Outward normals are the rotated +X / +Y axes.
+    const double nx_long  = cs;  // local +X axis
+    const double ny_long  = sn;
+    const double nx_short = -sn; // local +Y axis (perpendicular)
+    const double ny_short = cs;
+    auto side = [&](double ax, double ay, double bx, double by,
+                    double nxv, double nyv) {
+        const auto base = vert_count(m);
+        push_vertex(m, ax, ay, z_lo, nxv, nyv, 0, c);
+        push_vertex(m, bx, by, z_lo, nxv, nyv, 0, c);
+        push_vertex(m, bx, by, z_hi, nxv, nyv, 0, c);
+        push_vertex(m, ax, ay, z_hi, nxv, nyv, 0, c);
+        m.indices.insert(m.indices.end(),
+            {base, base + 1, base + 2, base, base + 2, base + 3});
+    };
+    side(p2x, p2y, p3x, p3y,  nx_long,   ny_long);  // +X side
+    side(p4x, p4y, p1x, p1y, -nx_long,  -ny_long);  // -X side
+    side(p3x, p3y, p4x, p4y,  nx_short,  ny_short); // +Y side
+    side(p1x, p1y, p2x, p2y, -nx_short, -ny_short); // -Y side
+}
+
 // Closed cylinder (top + bottom caps + side wall) along Z.
 // sides ≥ 6; default 24 gives a smooth-looking barrel at via scale.
 void append_cylinder(Mesh3D& m, double cx, double cy, double radius,
@@ -436,15 +500,15 @@ BoardMesh3D build_board_mesh_3d(const circuitcore::board::Board& board,
                 case circuitcore::board::PadShape::Oval:
                 case circuitcore::board::PadShape::RoundRect:
                 case circuitcore::board::PadShape::Custom: {
-                    // v1: render every non-circular pad as a flat box.
-                    // Oval / round-rect corner radii are a future
-                    // refinement -- the volumetric shape is close enough
-                    // for the thermal + EM read.
+                    // v1: render every non-circular pad as a flat box,
+                    // respecting pd.rotation so QFP / QFN side-pads
+                    // face their landing pattern in 3D the same way
+                    // they do in the 2D canvas. Oval / round-rect
+                    // corner radii are a future refinement.
                     if (have_size) {
-                        append_aabb(out.copper,
-                                     pd.at.x - hw, pd.at.x + hw,
-                                     pd.at.y - hh, pd.at.y + hh,
-                                     z_lo, z_hi, c);
+                        append_oriented_box(out.copper, pd.at.x, pd.at.y,
+                                             hw, hh, pd.rotation,
+                                             z_lo, z_hi, c);
                     } else {
                         append_cylinder(out.copper, pd.at.x, pd.at.y,
                                          0.50e-3, z_lo, z_hi, c);
