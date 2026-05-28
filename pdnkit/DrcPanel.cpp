@@ -48,6 +48,10 @@ DrcPanel::DrcPanel(QWidget* parent) : QWidget(parent) {
     run_btn_ = new QPushButton("Run DRC");
     outer->addWidget(run_btn_);
 
+    status_label_ = new QLabel(tr("Click Run DRC to check the selected net."));
+    status_label_->setWordWrap(true);
+    outer->addWidget(status_label_);
+
     results_ = new QTableWidget(0, 5);
     results_->setHorizontalHeaderLabels(
         {"Seg", "Layer", "Actual (mm)", "Required (mm)", "Message"});
@@ -95,8 +99,12 @@ void DrcPanel::populateNets() {
 
 void DrcPanel::onRun() {
     results_->setRowCount(0);
-    if (!board_ || net_combo_->count() == 0) return;
+    if (!board_ || net_combo_->count() == 0) {
+        status_label_->setText(tr("Load a board first."));
+        return;
+    }
     const int net_id = net_combo_->currentData().toInt();
+    const QString net_name = net_combo_->currentText();
 
     pdnkit::pi::DrcRule rule;
     rule.net_id = net_id;
@@ -104,6 +112,30 @@ void DrcPanel::onRun() {
     rule.temp_rise_c = temp_rise_spin_->value();
 
     auto report = pdnkit::pi::check_ipc2152(*board_, {rule});
+
+    // Tell the user what just happened. The most common confusion path is
+    // "I clicked Run and nothing happened" -- when actually the rule
+    // matched zero segments (net has no copper traces) or matched some
+    // segments and all of them passed.
+    if (report.segments_checked == 0) {
+        status_label_->setText(
+            tr("Net '%1' has no copper segments matching the rule.")
+                .arg(net_name));
+    } else if (report.violations.empty()) {
+        status_label_->setText(
+            tr("PASS: %1 segment(s) checked, no IPC-2221 violations at "
+               "%2 A / +%3 C rise.")
+                .arg(report.segments_checked)
+                .arg(current_spin_->value(), 0, 'f', 3)
+                .arg(temp_rise_spin_->value(), 0, 'f', 0));
+    } else {
+        status_label_->setText(
+            tr("FAIL: %1 of %2 segment(s) too narrow at %3 A / +%4 C rise.")
+                .arg(report.violations.size())
+                .arg(report.segments_checked)
+                .arg(current_spin_->value(), 0, 'f', 3)
+                .arg(temp_rise_spin_->value(), 0, 'f', 0));
+    }
 
     results_->setRowCount(static_cast<int>(report.violations.size()));
     for (std::size_t i = 0; i < report.violations.size(); ++i) {
