@@ -37,14 +37,22 @@ Solution IrSolver::solve(const IrMesh& mesh, const SolveConfig& cfg) {
     } else {
         // Explicit currents: must sum to ~0 (current conservation) and contain
         // at least one negative entry to pin as the reference.
+        // Tolerance: 1 nA absolute (real noise floor of the solve) plus
+        // 1 ppm relative against the largest current in the spec. The
+        // old pure-relative check rejected microamp rounding from the
+        // UIs auto-balance distribution -- a fp dust signal, not a
+        // physical violation.
         double sum = 0.0;
+        double max_abs = 0.0;
         bool has_negative = false;
         for (const auto& [nid, cur] : mesh.node_currents) {
             (void)nid;
             sum += cur;
+            if (std::abs(cur) > max_abs) max_abs = std::abs(cur);
             if (cur < 0.0) has_negative = true;
         }
-        if (std::abs(sum) > 1.0e-9 * (1.0 + std::abs(sum))) {
+        const double tol = std::max(1.0e-9, 1.0e-6 * max_abs);
+        if (std::abs(sum) > tol) {
             sol.error = "per-node currents do not sum to zero (charge would "
                         "accumulate); injected and drawn currents must balance";
             return sol;
