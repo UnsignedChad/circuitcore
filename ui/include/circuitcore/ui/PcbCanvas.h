@@ -179,6 +179,11 @@ private:
     // (silkscreen reference designators + labels).
     struct SilkText {
         double x = 0, y = 0, size_m = 0, angle = 0;
+        // Back-side text (B.SilkS / B.Fab / ...) renders mirrored when
+        // viewed from the top -- matches KiCad's "look through the
+        // board" convention so a back-side label reads correctly when
+        // the user flips the physical board over to the back.
+        bool   mirrored = false;
         std::string text;
     };
     std::vector<struct SilkText> pending_text_;

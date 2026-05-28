@@ -348,6 +348,12 @@ void PcbCanvas::uploadGraphics() {
         SilkText st;
         st.x = t.x; st.y = t.y;
         st.size_m = t.size; st.angle = t.angle;
+        // KiCad layer-name convention: anything starting with "B." lives
+        // on the back side (B.SilkS / B.Fab / B.Cu / ...). Mark it so
+        // the renderer can mirror the glyphs when drawing the top view.
+        if (const auto* L = board_->find_layer(t.layer_ordinal)) {
+            st.mirrored = (L->name.rfind("B.", 0) == 0);
+        }
         st.text = std::move(t.text);
         pending_text_.push_back(std::move(st));
     }
@@ -479,6 +485,12 @@ void PcbCanvas::paintGL() {
             painter.setFont(f);
             painter.save();
             painter.translate(sx, sy);
+            // Back-side text gets a horizontal flip so the top-view shows
+            // it mirrored -- matches KiCad's convention where B.SilkS
+            // reads correctly only when you flip the board over to the
+            // back. The flip happens before rotate so the rotation
+            // direction inverts automatically with the mirror.
+            if (t.mirrored) painter.scale(-1.0, 1.0);
             if (std::abs(t.angle) > 1e-6) {
                 painter.rotate(-t.angle * 180.0 / 3.141592653589793);
             }
