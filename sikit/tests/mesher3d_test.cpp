@@ -138,8 +138,14 @@ TEST_CASE("mesher3d: segments on non-existent layers are skipped", "[m3d]") {
     b.segments.push_back(bad);
 
     auto m = build_board_mesh_3d(b, sis);
-    // Only one segment got meshed.
-    REQUIRE(m.copper.indices.size() == 36);
+    // The bad-layer segment must contribute nothing: good+bad yields the
+    // same copper index count as good alone. Resolution-independent so it
+    // survives changes to the segment cap geometry (e.g. pill end-caps).
+    Board only_good = minimal_2layer();
+    only_good.segments.push_back(good);
+    auto m_ref = build_board_mesh_3d(only_good, sis);
+    REQUIRE(m.copper.indices.size() == m_ref.copper.indices.size());
+    REQUIRE(m.copper.indices.size() > 0);
 }
 
 TEST_CASE("mesher3d: copper vertices carry non-zero normals", "[m3d]") {
