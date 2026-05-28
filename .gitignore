@@ -9,3 +9,6 @@ compile_commands.json
 *.swp
 *.swo
 .DS_Store
+# Visual Studio local workspace state + default CMake out dir
+.vs/
+out/ 
