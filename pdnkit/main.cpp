@@ -41,11 +41,43 @@ namespace {
 
 // Headless analysis. Loads the board, finds (net, layer), runs the full
 // pipeline, prints a one-line result, returns exit code (0 = ok).
+// Mirror the GUI's Auto-balance: +current on the first pad of (net, layer),
+// the rest split the −current evenly, residual absorbed into one sink so the
+// sum is exactly zero. Populates mc.pad_currents (Amps, keyed by pad index).
+// This is the explicit-pad-current path the GUI uses; the CLI previously
+// only exercised auto source/sink, which is why the thermal/pad-current
+// bugs (KCL false-reject, isolated-island prune, multi-component pin)
+// slipped past the headless sweep.
+void apply_auto_balance(const circuitcore::board::Board& board,
+                        pdnkit::pi::MeshConfig& mc, double current_amps) {
+    std::vector<int> idx;
+    for (std::size_t i = 0; i < board.pads.size(); ++i) {
+        const auto& p = board.pads[i];
+        if (p.net_id != mc.net_id) continue;
+        bool on_layer = false;
+        for (int o : p.layer_ordinals) {
+            if (o == mc.layer_ordinal) { on_layer = true; break; }
+        }
+        if (!on_layer) continue;
+        idx.push_back(static_cast<int>(i));
+    }
+    if (idx.size() < 2) return;  // nothing to balance; leave auto source/sink
+    const int n = static_cast<int>(idx.size());
+    mc.pad_currents.clear();
+    mc.pad_currents[idx[0]] = current_amps;
+    const double sink = -current_amps / static_cast<double>(n - 1);
+    for (int k = 1; k < n; ++k) mc.pad_currents[idx[k]] = sink;
+    double sum = 0.0;
+    for (const auto& [_, c] : mc.pad_currents) sum += c;
+    mc.pad_currents[idx[1]] -= sum;  // exact zero
+}
+
 int run_headless_analysis(const std::string& pcb_path,
                           const std::string& net_name,
                           const std::string& layer_name,
                           double current,
-                          double cell_size_mm) {
+                          double cell_size_mm,
+                          bool auto_balance) {
     circuitcore::board::Board board;
     {
         auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
@@ -88,6 +120,7 @@ int run_headless_analysis(const std::string& pcb_path,
     mc.cell_size = cell_size_mm * 1.0e-3;
     mc.net_id = net->id;
     mc.layer_ordinal = layer_ord;
+    if (auto_balance) apply_auto_balance(board, mc, current);
     auto mesh = pdnkit::pi::IrMesher::build(board, mc);
     if (mesh.nodes.empty()) {
         std::fprintf(stderr,
@@ -95,7 +128,10 @@ int run_headless_analysis(const std::string& pcb_path,
                      net_name.c_str(), layer_name.c_str());
         return 5;
     }
-    if (mesh.source_node_ids.empty() || mesh.sink_node_ids.empty()) {
+    // With explicit pad currents the solver drives its RHS from node_currents;
+    // source/sink id lists are only the auto-pick fallback.
+    if (mesh.node_currents.empty() &&
+        (mesh.source_node_ids.empty() || mesh.sink_node_ids.empty())) {
         std::fprintf(stderr,
                      "pdnkit: need at least 2 pads on (net, layer) for "
                      "source/sink (auto-pick failed)\n");
@@ -685,7 +721,8 @@ int run_headless_thermal(const std::string& pcb_path,
                          double current_amps,
                          double cell_size_mm,
                          double r_theta_kw,
-                         double t_ambient_c) {
+                         double t_ambient_c,
+                         bool auto_balance) {
     circuitcore::board::Board board;
     {
         auto result = circuitcore::formats::kicad::PcbParser::parse_file(pcb_path);
@@ -715,6 +752,7 @@ int run_headless_thermal(const std::string& pcb_path,
     mc.net_id = net->id;
     mc.layer_ordinal = layer_ord;
     mc.auto_select_layer = true;
+    if (auto_balance) apply_auto_balance(board, mc, current_amps);
 
     pdnkit::pi::SolveConfig sc;
     sc.total_current = current_amps;
@@ -886,6 +924,12 @@ int main(int argc, char** argv) {
     cli.add_option("--vrm-f", vrm_f_hz,
                    "Frequency for --vrm-z (Hz, default 1e6)");
 
+    bool auto_balance = false;
+    cli.add_flag("--auto-balance", auto_balance,
+                 "Inject explicit per-pad currents (GUI Auto-balance style: "
+                 "+--current on the first pad, split across the rest) instead "
+                 "of auto source/sink. Exercises the node-currents solver path.");
+
     bool thermal = false;
     double th_r_theta_kw = 100.0;
     double th_t_amb_c = 25.0;
@@ -1000,7 +1044,8 @@ int main(int argc, char** argv) {
             return 1;
         }
         return run_headless_analysis(pcb_path, analyze_net, analyze_layer,
-                                      analyze_current, analyze_cell_mm);
+                                      analyze_current, analyze_cell_mm,
+                                      auto_balance);
     }
     if (zf) {
         if (pcb_path.empty()) {
@@ -1068,7 +1113,7 @@ int main(int argc, char** argv) {
         }
         return run_headless_thermal(pcb_path, analyze_net, analyze_layer,
                                      analyze_current, analyze_cell_mm,
-                                     th_r_theta_kw, th_t_amb_c);
+                                     th_r_theta_kw, th_t_amb_c, auto_balance);
     }
     if (rough_k) {
         return run_headless_rough_k(rough_rq_um, rough_f_hz);
