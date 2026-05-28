@@ -613,11 +613,14 @@ IrMesh IrMesher::build(const circuitcore::board::Board& board, const MeshConfig&
     }
 
     // If per-pad currents are specified, distribute each pad's current
-    // equally across the nodes it covers (edge-contact).
+    // equally across the nodes it covers (edge-contact). Keyed by index
+    // into board.pads so duplicated pad names (every footprint has a
+    // pin "1") don't collapse into one bucket.
     if (!cfg.pad_currents.empty()) {
-        for (const auto& pad : board.pads) {
+        for (std::size_t pi = 0; pi < board.pads.size(); ++pi) {
+            const auto& pad = board.pads[pi];
             if (!pad_on_target(pad)) continue;
-            auto it = cfg.pad_currents.find(pad.name);
+            auto it = cfg.pad_currents.find(static_cast<int>(pi));
             if (it == cfg.pad_currents.end()) continue;
             auto nodes = pad_nodes(pad);
             if (nodes.empty()) continue;

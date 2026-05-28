@@ -244,25 +244,40 @@ void AnalysisPanel::rebuildPadTable() {
     const int layer = layer_combo_->currentData().toInt();
     const double default_mA = default_current_spin_->value();
 
-    // Collect target pads (preserve board insertion order).
-    struct Row { QString name; double x, y; };
+    // Collect target pads (preserve board insertion order). The pad index
+    // gets stashed in the column-0 item via Qt::UserRole so currentConfig()
+    // can write cfg.pad_currents keyed by that unique int -- two pads with
+    // the same name (every footprint has a pin "1") used to collide on
+    // the string key, dropping all-but-the-last current and tripping the
+    // KCL check on the partial sum.
+    struct Row { QString name; double x, y; int pad_index; };
     std::vector<Row> rows;
-    for (const auto& p : board_->pads) {
+    for (std::size_t i = 0; i < board_->pads.size(); ++i) {
+        const auto& p = board_->pads[i];
         if (p.net_id != net) continue;
         bool on_layer = false;
         for (int o : p.layer_ordinals) {
             if (o == layer) { on_layer = true; break; }
         }
         if (!on_layer) continue;
-        rows.push_back({QString::fromStdString(
-                            p.name.empty() ? std::string("(unnamed)") : p.name),
-                        p.at.x * 1000.0, p.at.y * 1000.0});
+        QString display = QString::fromStdString(
+            p.name.empty() ? std::string("(unnamed)") : p.name);
+        // Disambiguate identical pin names by prefixing the parent ref so
+        // the user can tell which footprint each row belongs to. "U1.1"
+        // reads better than three "1" rows next to each other.
+        if (!p.parent_ref.empty()) {
+            display = QString::fromStdString(p.parent_ref) + "." + display;
+        }
+        rows.push_back({display, p.at.x * 1000.0, p.at.y * 1000.0,
+                        static_cast<int>(i)});
     }
 
     pad_table_->setRowCount(static_cast<int>(rows.size()));
     for (int i = 0; i < static_cast<int>(rows.size()); ++i) {
         const auto& r = rows[i];
-        pad_table_->setItem(i, 0, new QTableWidgetItem(r.name));
+        auto* name_item = new QTableWidgetItem(r.name);
+        name_item->setData(Qt::UserRole, r.pad_index);
+        pad_table_->setItem(i, 0, name_item);
         pad_table_->setItem(i, 1,
             new QTableWidgetItem(QString("%1, %2")
                 .arg(r.x, 0, 'f', 2).arg(r.y, 0, 'f', 2)));
@@ -352,7 +367,15 @@ pdnkit::pi::MeshConfig AnalysisPanel::currentConfig() const {
         if (!s) continue;
         const double mA = s->value();
         if (mA == 0.0) continue;
-        cfg.pad_currents[row_name(pad_table_, r).toStdString()] = mA * 1.0e-3;
+        // Pad index was stashed in Qt::UserRole when the table was
+        // populated; using it as the map key avoids the name-collision
+        // bug where multiple pads named "1" overwrote each other.
+        auto* name_item = pad_table_->item(r, 0);
+        if (!name_item) continue;
+        bool ok = false;
+        const int pad_index = name_item->data(Qt::UserRole).toInt(&ok);
+        if (!ok) continue;
+        cfg.pad_currents[pad_index] = mA * 1.0e-3;
     }
     return cfg;
 }

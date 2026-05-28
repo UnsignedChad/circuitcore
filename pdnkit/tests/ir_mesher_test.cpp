@@ -217,7 +217,36 @@ TEST_CASE("mesher: explicit pad_currents populate node_currents", "[irmesh]") {
     cfg.cell_size = 1.0e-3;
     cfg.net_id = 1;
     cfg.layer_ordinal = 0;
-    cfg.pad_currents = {{"A", 2.0}, {"B", -0.5}, {"C", -1.5}};
+    cfg.pad_currents = {{0, 2.0}, {1, -0.5}, {2, -1.5}};
+
+    auto m = IrMesher::build(b, cfg);
+    REQUIRE(m.node_currents.size() == 3);
+    double sum = 0;
+    for (auto& [_, c] : m.node_currents) sum += c;
+    REQUIRE(sum == Approx(0.0).margin(1e-9));
+}
+
+TEST_CASE("mesher: duplicate pad names don't collapse pad_currents", "[irmesh]") {
+    // Three pads all named "1" (every footprint has a pin "1"). Before
+    // the index-keyed switch this collapsed into one map entry and the
+    // resulting KCL sum was non-zero -- the solver then refused to run.
+    Board b = with_square_zone(1, 0, 0.010);
+    Pad p1; p1.at = {0.001, 0.005}; p1.net_id = 1; p1.layer_ordinals = {0};
+    p1.name = "1"; p1.parent_ref = "U1";
+    Pad p2; p2.at = {0.005, 0.005}; p2.net_id = 1; p2.layer_ordinals = {0};
+    p2.name = "1"; p2.parent_ref = "U2";
+    Pad p3; p3.at = {0.009, 0.005}; p3.net_id = 1; p3.layer_ordinals = {0};
+    p3.name = "1"; p3.parent_ref = "U3";
+    b.pads.push_back(p1);
+    b.pads.push_back(p2);
+    b.pads.push_back(p3);
+
+    MeshConfig cfg;
+    cfg.cell_size = 1.0e-3;
+    cfg.net_id = 1;
+    cfg.layer_ordinal = 0;
+    // Same-name pads addressed by index -- 1 A source, 500 mA / 500 mA sinks.
+    cfg.pad_currents = {{0, 1.0}, {1, -0.5}, {2, -0.5}};
 
     auto m = IrMesher::build(b, cfg);
     REQUIRE(m.node_currents.size() == 3);

@@ -56,11 +56,18 @@ struct MeshConfig {
     std::vector<int> source_pad_indices;
     std::vector<int> sink_pad_indices;
 
-    // Optional per-pad current map (key = pad name, value = Amperes;
-    // + injects, - draws). When non-empty, overrides BOTH source/sink lists
-    // and the solver default split-over-source behavior -- the solver builds
-    // its RHS directly from these. Sum must be ~0 (current conservation).
-    std::unordered_map<std::string, double> pad_currents;
+    // Optional per-pad current map (key = pad INDEX into board.pads,
+    // value = Amperes; + injects, - draws). When non-empty, overrides
+    // BOTH source/sink lists and the solver default split-over-source
+    // behavior -- the solver builds its RHS directly from these. Sum
+    // must be ~0 (current conservation).
+    //
+    // Keying by index (not by pad.name) so multiple pads sharing a name
+    // -- which is common, every footprint with a pin "1" -- end up with
+    // distinct entries instead of colliding into one bucket. The pre-
+    // index version silently dropped all-but-the-last current for any
+    // duplicated name and then tripped the KCL check on the partial sum.
+    std::unordered_map<int, double> pad_currents;
 };
 
 struct Node {
