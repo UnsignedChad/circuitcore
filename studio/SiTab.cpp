@@ -267,17 +267,24 @@ void SiTab::refreshNetList() {
     for (int nid : sikit::highspeed::find_high_speed_nets(*board)) {
         hs_set.insert(nid);
     }
+    // Display label for a net. Unnamed nets still get listed (KiCad files
+    // with no schematic, like quick test boards, leave every net's name
+    // blank) so the user can pick one and run SI analysis on it instead
+    // of staring at an empty dropdown.
+    auto label_for = [](const circuitcore::board::Net& n) {
+        return n.name.empty()
+            ? QString("(net %1)").arg(n.id)
+            : QString::fromStdString(n.name);
+    };
     for (const auto& n : board->nets) {
-        if (n.name.empty()) continue;
         if (!routed.count(n.id)) continue;
         if (!hs_set.count(n.id)) continue;
-        net_combo_->addItem(QString::fromStdString(n.name), n.id);
+        net_combo_->addItem(label_for(n), n.id);
     }
     for (const auto& n : board->nets) {
-        if (n.name.empty()) continue;
         if (!routed.count(n.id)) continue;
         if (hs_set.count(n.id)) continue;
-        net_combo_->addItem(QString::fromStdString(n.name), n.id);
+        net_combo_->addItem(label_for(n), n.id);
     }
 }
 
