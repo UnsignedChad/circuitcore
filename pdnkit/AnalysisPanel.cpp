@@ -320,6 +320,22 @@ void AnalysisPanel::onAutoBalance() {
             s->setValue(default_mA);
         }
     }
+    // The per-sink share -default/(n-1) rarely divides evenly (eg 40-pad
+    // GND on pic_programmer leaves -25.641 with a tiny residual that
+    // accumulates over the sinks and trips the solver's KCL check). Read
+    // back what the spinboxes actually hold and shove the residual into
+    // the first sink so the sum is exactly zero. Cheaper than loosening
+    // the solver tolerance and matches "user clicked Auto-balance and
+    // expects it to actually balance".
+    if (n >= 2) {
+        double sum = 0.0;
+        for (int i = 0; i < n; ++i) {
+            if (auto* s = row_spin(pad_table_, i)) sum += s->value();
+        }
+        if (auto* fix = row_spin(pad_table_, 1)) {
+            fix->setValue(fix->value() - sum);
+        }
+    }
     updateSumLabel();
 }
 
