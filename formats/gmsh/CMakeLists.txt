@@ -23,7 +23,7 @@ circuitcore_warnings(circuitcore_formats_gmsh)
 add_executable(pcb2geo src/pcb2geo_main.cpp)
 target_link_libraries(pcb2geo PRIVATE
     circuitcore::formats::gmsh
-    circuitcore::formats::kicad
+    circuitcore::kicad
     circuitcore::board
 )
 circuitcore_warnings(pcb2geo)
