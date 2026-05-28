@@ -701,6 +701,44 @@ IrMesh IrMesher::build(const circuitcore::board::Board& board, const MeshConfig&
 
     prune_disconnected(mesh);
     if (mesh.nodes.empty()) mesh.primary_layer_used = -1;
+
+    // KCL safety net for explicit pad currents. The caller (GUI Pad-
+    // currents table) balances the assigned currents to ~0, but
+    // prune_disconnected can still drop a pad that injected into an
+    // isolated zone island -- e.g. a mounting pad whose copper is a
+    // separate pour with no source on it. That island fails the
+    // "has both a source and a sink" keep test, so its node (and the
+    // current parked there) is removed. The survivors then no longer
+    // sum to zero and the solver refuses with "currents do not sum to
+    // zero", even though the user's input was perfectly balanced.
+    //
+    // Physically the dropped pad sits on an open-circuit island and
+    // can't carry current, so the connected terminals must rebalance.
+    // If the intended set summed to ~0 but the survivors don't, fold
+    // the residual into the largest-magnitude surviving node (the
+    // dominant source/sink) -- charge is conserved and the solve runs.
+    // Gated on a balanced intended sum so a genuinely lopsided spec
+    // still gets the honest rejection.
+    if (!cfg.pad_currents.empty() && !mesh.node_currents.empty()) {
+        double intended = 0.0, max_in = 0.0;
+        for (const auto& [idx, c] : cfg.pad_currents) {
+            (void)idx;
+            intended += c;
+            max_in = std::max(max_in, std::abs(c));
+        }
+        double placed = 0.0;
+        std::size_t big = 0;
+        double big_mag = -1.0;
+        for (std::size_t k = 0; k < mesh.node_currents.size(); ++k) {
+            placed += mesh.node_currents[k].second;
+            const double m = std::abs(mesh.node_currents[k].second);
+            if (m > big_mag) { big_mag = m; big = k; }
+        }
+        const double in_tol = std::max(1.0e-9, 1.0e-6 * max_in);
+        if (std::abs(intended) <= in_tol && std::abs(placed) > in_tol) {
+            mesh.node_currents[big].second -= placed;
+        }
+    }
     return mesh;
 }
 
