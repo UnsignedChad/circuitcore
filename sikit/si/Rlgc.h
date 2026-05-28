@@ -56,7 +56,7 @@ struct CrosstalkCoefficients {
     // Near-end crosstalk coefficient: steady-state amplitude on the
     // victim's near terminal as a fraction of the aggressor's voltage,
     // assuming matched terminations. Standard textbook formula:
-    //     K_NE = (1/4) · (L_m / L_self − C_m / C_self)
+    //     K_NE = (1/4) · (L_m / L_self + C_m / C_self)
     double k_near_end = 0.0;
 
     // Modal mismatch κ = L_m / L_self − C_m / C_self. Drives FEXT;

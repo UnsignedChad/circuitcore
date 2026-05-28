@@ -95,8 +95,10 @@ CrosstalkCoefficients crosstalk_for_pair(const RlgcMatrices& rlgc,
 
     if (C_self <= 0.0 || L_self <= 0.0) return ct;
 
+    // Near-end (backward) coupling is the SUM of the normalized mutual
+    // L and C; the difference is the modal/FEXT term, kept separately.
     ct.modal_mismatch = L_m / L_self - C_m / C_self;
-    ct.k_near_end     = 0.25 * ct.modal_mismatch;
+    ct.k_near_end     = 0.25 * (L_m / L_self + C_m / C_self);
     return ct;
 }
 
