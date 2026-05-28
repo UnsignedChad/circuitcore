@@ -293,60 +293,81 @@ std::expected<void, GeoWriteError> write_board_geo(
                    };
                    return rank(a) < rank(b);
                });
-    std::unordered_map<int, double> ord_to_z;
+    // Where each copper layer's bottom face sits, and which direction it
+    // extrudes. Top layer (F.Cu, lowest priority rank) parks on the
+    // substrate top face and extrudes UPWARD; bottom layer (B.Cu) parks
+    // on the substrate bottom face and extrudes DOWNWARD; inner layers
+    // sit inside the substrate at evenly-spaced z and extrude up. This
+    // keeps the v0 geometry non-overlapping for two-layer boards so
+    // Physical Volume tags can stay on the original extrusion IDs --
+    // BooleanFragments rewrites those IDs and we don't track the
+    // mapping back yet.
+    struct LayerZ { double z_base; double dz; };
+    std::unordered_map<int, LayerZ> ord_to_zinfo;
     const int n_copper = static_cast<int>(copper_ordinals.size());
-    if (n_copper >= 1) {
-        for (int i = 0; i < n_copper; ++i) {
-            // i=0 (F.Cu) goes at z = sub_thick (top), i=n-1 (B.Cu) at z = 0.
-            const double t = (n_copper == 1) ? 1.0
-                : 1.0 - static_cast<double>(i) / (n_copper - 1);
-            ord_to_z[copper_ordinals[i]] = t * sub_thick;
+    const double t_cu  = opts.copper_thickness_m;
+    for (int i = 0; i < n_copper; ++i) {
+        const int ord = copper_ordinals[i];
+        if (i == 0) {
+            // F.Cu: above the substrate.
+            ord_to_zinfo[ord] = {sub_thick, +t_cu};
+        } else if (i == n_copper - 1) {
+            // B.Cu: below the substrate.
+            ord_to_zinfo[ord] = {0.0, -t_cu};
+        } else {
+            // Inner layers: inside the substrate, evenly spaced.
+            const double t = 1.0 - static_cast<double>(i) / (n_copper - 1);
+            ord_to_zinfo[ord] = {t * sub_thick - 0.5 * t_cu, +t_cu};
         }
     }
 
     std::unordered_map<int, std::vector<std::string>> copper_vars_by_layer;
     int zone_seq = 0;
     for (const auto& [ord, list] : per_layer) {
-        auto it = ord_to_z.find(ord);
-        const double z = (it != ord_to_z.end()) ? it->second : 0.0;
-        // Copper sits ON the substrate face (z above for top, z below
-        // for bottom). For simplicity centre the copper *on* the z plane.
-        const double z_lo = z - 0.5 * opts.copper_thickness_m;
+        auto it = ord_to_zinfo.find(ord);
+        const LayerZ zinfo = (it != ord_to_zinfo.end())
+            ? it->second : LayerZ{0.0, +t_cu};
         const auto* L = board.find_layer(ord);
         const std::string ln = L ? sanitise_layer_name(L->name)
                                   : ("ord" + std::to_string(ord));
         out << "// copper layer " << ln << " (" << list.size()
-            << " filled polygons, z = " << z * 1e3 << " mm)\n";
+            << " filled polygons, z = " << zinfo.z_base * 1e3
+            << " mm, dz = " << zinfo.dz * 1e6 << " um)\n";
         for (const auto& [zi, fi] : list) {
             const auto& poly = board.zones[zi].filled[fi];
             const int surf = emit_polygon_with_holes(
-                out, tags, poly, z_lo, opts.characteristic_length_m);
+                out, tags, poly, zinfo.z_base, opts.characteristic_length_m);
             const std::string var = "vcu_" + ln + "_" + std::to_string(zone_seq++);
-            out << var << "[] = Extrude {0, 0, "
-                << opts.copper_thickness_m << "} { Surface{" << surf
-                << "}; };\n";
+            out << var << "[] = Extrude {0, 0, " << zinfo.dz
+                << "} { Surface{" << surf << "}; };\n";
             copper_vars_by_layer[ord].push_back(var);
         }
         out << "\n";
     }
 
-    // -------- Boolean fragments -----------------------------------------
-    // Cuts overlapping volumes into a single coherent topology -- without
-    // this the mesher emits two tets at every spot where copper and
-    // substrate share a face, and the material assignment downstream
-    // gets ambiguous.
+    // BooleanFragments would split overlapping volumes into a coherent
+    // topology, but it also rewrites every volume tag -- which means
+    // the Physical Volume directives below would reference deleted
+    // entities. Until we capture the mapping back from old tags to new
+    // tags (Gmsh returns it via the array form, but the bookkeeping is
+    // ugly), the writer just places copper outside the substrate for
+    // top/bottom layers so they don't overlap. Inner layers do still
+    // overlap; turning boolean_fragments on for those drops the
+    // material tags but produces a clean mesh.
     if (opts.boolean_fragments) {
-        out << "// fragment everything so material boundaries are honoured\n";
-        out << "BooleanFragments{ Volume{" << sub_var << "[1]}; Delete; }{ ";
+        out << "// CAUTION: BooleanFragments invalidates the Physical\n"
+            << "// Volume tags below -- only enable when you don't need\n"
+            << "// per-material identification.\n";
+        out << "BooleanFragments{ Volume{" << sub_var << "[1]}; Delete; }{";
         bool first = true;
         for (const auto& [ord, vars] : copper_vars_by_layer) {
             for (const auto& v : vars) {
-                if (!first) out << ", ";
-                out << "Volume{" << v << "[1]}";
+                if (!first) out << ",";
+                out << " Volume{" << v << "[1]}";
                 first = false;
             }
         }
-        out << " Delete; };\n\n";
+        out << "; Delete; };\n\n";
     }
 
     // -------- Physical groups -------------------------------------------

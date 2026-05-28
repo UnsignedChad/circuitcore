@@ -68,11 +68,16 @@ struct GeoWriteOptions {
     // is zero / unset (metres). 1.6 mm = standard FR-4 PCB.
     double substrate_thickness_fallback_m = 1.6e-3;
 
-    // Emit BooleanFragments at the end so overlapping copper / sub-
-    // strate volumes get split into a single coherent topology. Off
-    // by default because it's expensive on large boards; turn on once
-    // you actually want the mesher to honour material boundaries.
-    bool boolean_fragments = true;
+    // Emit BooleanFragments at the end so overlapping copper /
+    // substrate volumes get split into a single coherent topology.
+    // Off by default because (a) it rewrites every Volume tag, which
+    // invalidates the Physical Volume directives the writer emits for
+    // material tagging, and (b) it's expensive on big boards.
+    // For two-layer designs the top/bottom copper sits *outside* the
+    // substrate so no fragments are needed; turn this on if inner
+    // layers (which overlap the substrate) need a clean topology and
+    // you don't mind losing per-region material names.
+    bool boolean_fragments = false;
 };
 
 // Write the board geometry as a Gmsh .geo script. On success returns
