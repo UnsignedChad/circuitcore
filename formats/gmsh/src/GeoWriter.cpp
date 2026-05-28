@@ -50,6 +50,23 @@ bool point_eq(const board::Point2& a, const board::Point2& b) {
     return std::abs(a.x - b.x) < kSnapTol && std::abs(a.y - b.y) < kSnapTol;
 }
 
+// KiCad's filled-zone polygons sometimes contain consecutive duplicate
+// vertices (artifacts of the clearance + thermal-relief boolean op).
+// Emitting them as-is gives OpenCASCADE zero-length lines and a chain
+// of "Could not create line" errors that silently invalidate every
+// dependent surface / volume / Physical group. Snap consecutive points
+// together with the same tolerance the rest of the writer uses.
+std::vector<board::Point2> dedupe_ring(const std::vector<board::Point2>& in) {
+    std::vector<board::Point2> out;
+    out.reserve(in.size());
+    for (const auto& p : in) {
+        if (out.empty() || !point_eq(out.back(), p)) out.push_back(p);
+    }
+    // Also drop a final duplicate-of-start (closed-loop closing vertex).
+    if (out.size() >= 2 && point_eq(out.front(), out.back())) out.pop_back();
+    return out;
+}
+
 double signed_area(const std::vector<board::Point2>& ring) {
     double a = 0.0;
     const std::size_t n = ring.size();
@@ -109,9 +126,11 @@ struct TagAllocator {
 // and we'd rather feed it manually than gamble on orientation.
 int emit_polygon_surface(std::ostream& out,
                           TagAllocator& tags,
-                          const std::vector<board::Point2>& pts,
+                          const std::vector<board::Point2>& pts_in,
                           double z,
                           double cl) {
+    const auto pts = dedupe_ring(pts_in);
+    if (pts.size() < 3) return 0;  // degenerate -- caller checks for 0
     const int p0 = tags.next;
     for (std::size_t i = 0; i < pts.size(); ++i) {
         const int pid = tags.alloc();
@@ -147,24 +166,25 @@ int emit_polygon_with_holes(std::ostream& out,
                              const board::Polygon& poly,
                              double z,
                              double cl) {
-    // Outer ring
+    const auto outer = dedupe_ring(poly.outline);
+    if (outer.size() < 3) return 0;
+
     const int outer_p0 = tags.next;
-    for (const auto& p : poly.outline) {
+    for (const auto& p : outer) {
         const int pid = tags.alloc();
         out << "Point(" << pid << ") = {"
             << p.x << ", " << p.y << ", " << z << ", " << cl << "};\n";
     }
     const int outer_l0 = tags.next;
-    for (std::size_t i = 0; i < poly.outline.size(); ++i) {
+    for (std::size_t i = 0; i < outer.size(); ++i) {
         const int lid  = tags.alloc();
         const int from = outer_p0 + static_cast<int>(i);
-        const int to   = outer_p0 + static_cast<int>(
-                            (i + 1) % poly.outline.size());
+        const int to   = outer_p0 + static_cast<int>((i + 1) % outer.size());
         out << "Line(" << lid << ") = {" << from << ", " << to << "};\n";
     }
     const int outer_loop = tags.alloc();
     out << "Curve Loop(" << outer_loop << ") = {";
-    for (std::size_t i = 0; i < poly.outline.size(); ++i) {
+    for (std::size_t i = 0; i < outer.size(); ++i) {
         if (i) out << ", ";
         out << (outer_l0 + static_cast<int>(i));
     }
@@ -173,7 +193,8 @@ int emit_polygon_with_holes(std::ostream& out,
     std::vector<int> loops;
     loops.push_back(outer_loop);
 
-    for (const auto& hole : poly.holes) {
+    for (const auto& hole_in : poly.holes) {
+        const auto hole = dedupe_ring(hole_in);
         if (hole.size() < 3) continue;
         const int hp0 = tags.next;
         for (const auto& p : hole) {
@@ -337,6 +358,7 @@ std::expected<void, GeoWriteError> write_board_geo(
             const auto& poly = board.zones[zi].filled[fi];
             const int surf = emit_polygon_with_holes(
                 out, tags, poly, zinfo.z_base, opts.characteristic_length_m);
+            if (surf == 0) continue;  // degenerate ring -- skipped silently
             const std::string var = "vcu_" + ln + "_" + std::to_string(zone_seq++);
             out << var << "[] = Extrude {0, 0, " << zinfo.dz
                 << "} { Surface{" << surf << "}; };\n";
