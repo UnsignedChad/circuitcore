@@ -733,6 +733,42 @@ private:
                 board_.pads.push_back(p);
             }
 
+            // fp_line / fp_arc on Edge.Cuts inside a footprint define a
+            // board cutout local to that footprint (USB / SD / castellated
+            // PMOD-style breakouts that need a slot in the PCB edge). The
+            // board-level outline pass only sees gr_*, so without this
+            // step the cutouts are dropped and the connector's pads appear
+            // to float "outside" the rendered board outline. Transform
+            // local points by fp_at + fp_rot and push as outline segments.
+            auto fp_on_edge_cuts = [&](const Node& n) {
+                return single_layer_name(n) == "Edge.Cuts";
+            };
+            for (const Node* ln : find_children(*fp, "fp_line")) {
+                if (!fp_on_edge_cuts(*ln)) continue;
+                const Node* st = find_child(*ln, "start");
+                const Node* en = find_child(*ln, "end");
+                if (!st || !en) continue;
+                circuitcore::board::OutlineSegment seg;
+                seg.start = xform_fp(read_xy_tail(*st), fp_at, fp_rot);
+                seg.end   = xform_fp(read_xy_tail(*en), fp_at, fp_rot);
+                board_.outline.push_back(seg);
+            }
+            for (const Node* arc : find_children(*fp, "fp_arc")) {
+                if (!fp_on_edge_cuts(*arc)) continue;
+                const Node* st  = find_child(*arc, "start");
+                const Node* mid = find_child(*arc, "mid");
+                const Node* en  = find_child(*arc, "end");
+                if (!st || !mid || !en) continue;
+                const auto P0 = xform_fp(read_xy_tail(*st),  fp_at, fp_rot);
+                const auto P1 = xform_fp(read_xy_tail(*mid), fp_at, fp_rot);
+                const auto P2 = xform_fp(read_xy_tail(*en),  fp_at, fp_rot);
+                std::vector<circuitcore::board::Point2> pts;
+                tessellate_arc(P0, P1, P2, pts);
+                for (std::size_t i = 1; i < pts.size(); ++i) {
+                    board_.outline.push_back({pts[i - 1], pts[i]});
+                }
+            }
+
             // Footprint-local graphic items (silk / mask / courtyard / fab).
             // Transform from footprint frame to board frame.
             auto push_fp = [&](circuitcore::board::GraphicItem g) {
