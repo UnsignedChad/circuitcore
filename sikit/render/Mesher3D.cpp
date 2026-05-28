@@ -438,6 +438,19 @@ BoardMesh3D build_board_mesh_3d(const circuitcore::board::Board& board,
         const auto rgba = circuitcore::ui::layer_color(s.layer_ordinal);
         const Color c{rgba[0], rgba[1], rgba[2], 1.0f};
         append_segment_box(out.copper, s, z_lo, z_hi, c);
+        // Round end-caps -> pill/capsule shape, matching the 2D canvas.
+        // A cylinder of radius = half-width at each endpoint fills the
+        // wedge gap where consecutive segments meet at an angle (and
+        // rounds the dead ends). Shared endpoints get overlapping caps,
+        // which is harmless -- same colour, same Z. 12 sides is plenty
+        // of roundness at trace scale without bloating the mesh.
+        if (s.width > 0.0) {
+            const double r = 0.5 * s.width;
+            append_cylinder(out.copper, s.start.x, s.start.y, r,
+                             z_lo, z_hi, c, 12);
+            append_cylinder(out.copper, s.end.x, s.end.y, r,
+                             z_lo, z_hi, c, 12);
+        }
     }
 
     // Vias: barrel spans from the highest copper Z in [from..to] down to
