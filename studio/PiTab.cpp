@@ -233,7 +233,14 @@ void PiTab::onAnalyzeStaticIrDrop() {
                                   "vs. zone size)."));
         return;
     }
-    if (mesh.source_node_ids.empty() || mesh.sink_node_ids.empty()) {
+    // The solver drives its RHS from explicit node_currents when present
+    // (that's what the Pad-currents table produces); the source/sink id
+    // lists are only the fallback when no explicit currents were given.
+    // So only demand source+sink when there are no node currents -- a
+    // track-meshed no-net board injects node_currents and legitimately
+    // leaves source/sink empty.
+    if (mesh.node_currents.empty() &&
+        (mesh.source_node_ids.empty() || mesh.sink_node_ids.empty())) {
         QMessageBox::warning(this, tr("Static IR drop"),
                               tr("Need at least two pads on the target net for "
                                   "source/sink. Auto-pick found insufficient pads."));
