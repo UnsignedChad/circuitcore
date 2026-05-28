@@ -103,4 +103,13 @@ std::vector<LayerMesh> build_all_meshes(const circuitcore::board::Board& board) 
     return result;
 }
 
+BoardMeshes build_board_meshes(const circuitcore::board::Board& board) {
+    BoardMeshes out;
+    out.zones  = ZoneMesher::build(board);
+    out.tracks = SegmentMesher::build(board);
+    merge_into(out.tracks, ViaMesher::build(board));
+    merge_into(out.tracks, PadMesher::build(board));
+    return out;
+}
+
 }  // namespace circuitcore::ui

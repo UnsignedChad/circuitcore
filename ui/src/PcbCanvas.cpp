@@ -73,7 +73,14 @@ void PcbCanvas::setBoard(const board::Board* board) {
     pending_meshes_.clear();
     layer_visible_.clear();
     if (board_) {
-        pending_meshes_ = build_all_meshes(*board_);
+        auto meshes = build_board_meshes(*board_);
+        pending_meshes_.clear();
+        pending_meshes_.reserve(meshes.zones.size() + meshes.tracks.size());
+        // Zones first so they sort before tracks within a layer at the
+        // same render_priority -- the paint loop draws zones with a
+        // reduced-alpha tint, then tracks opaque on top.
+        for (auto& m : meshes.zones)  pending_meshes_.push_back(std::move(m));
+        for (auto& m : meshes.tracks) pending_meshes_.push_back(std::move(m));
         meshes_dirty_ = true;
         graphics_dirty_ = true;
         if (isValid()) {
@@ -281,6 +288,7 @@ void PcbCanvas::uploadBoardMeshes() {
     for (const auto& m : pending_meshes_) {
         LayerRange r;
         r.ordinal = m.layer_ordinal;
+        r.is_zone = m.is_zone;
         r.index_start = ibase;
         r.index_count = static_cast<int>(m.indices.size());
         layer_ranges_.push_back(r);
@@ -371,20 +379,40 @@ void PcbCanvas::paintGL() {
     glDrawArrays(GL_LINES, 0, grid_vertex_count_);
     grid_vao_.release();
 
-    // Layer fills
+    // Layer fills: two passes so zones render translucent and tracks /
+    // pads / vias on the same layer stay readable on top of them. With
+    // a single opaque pass, a GND pour on F.Cu obscures every F.Cu trace
+    // running through it -- the board just reads as a solid red mass.
+    auto draw_range = [&](const LayerRange& r) {
+        glDrawElements(GL_TRIANGLES, r.index_count, GL_UNSIGNED_INT,
+                        reinterpret_cast<const void*>(
+                            static_cast<std::uintptr_t>(r.index_start *
+                                                          sizeof(std::uint32_t))));
+    };
     if (!layer_ranges_.empty()) {
         board_vao_.bind();
+        // Pass 1: zone fills, alpha * 0.45 -- mimics KiCad's hatched pour.
         for (const auto& r : layer_ranges_) {
+            if (!r.is_zone) continue;
+            auto vis_it = layer_visible_.find(r.ordinal);
+            const bool visible =
+                (vis_it == layer_visible_.end()) || vis_it->second;
+            if (!visible) continue;
+            auto c = layer_color(r.ordinal);
+            c[3] *= 0.45f;
+            flat_prog_.setUniformValue("u_color", toQVec(c));
+            draw_range(r);
+        }
+        // Pass 2: tracks / vias / pads at the layer's native alpha.
+        for (const auto& r : layer_ranges_) {
+            if (r.is_zone) continue;
             auto vis_it = layer_visible_.find(r.ordinal);
             const bool visible =
                 (vis_it == layer_visible_.end()) || vis_it->second;
             if (!visible) continue;
             flat_prog_.setUniformValue("u_color",
                                         toQVec(layer_color(r.ordinal)));
-            glDrawElements(GL_TRIANGLES, r.index_count, GL_UNSIGNED_INT,
-                            reinterpret_cast<const void*>(
-                                static_cast<std::uintptr_t>(r.index_start *
-                                                              sizeof(std::uint32_t))));
+            draw_range(r);
         }
         board_vao_.release();
     }

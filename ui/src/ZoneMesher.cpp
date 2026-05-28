@@ -33,7 +33,10 @@ std::vector<LayerMesh> ZoneMesher::build(const circuitcore::board::Board& board)
         auto it = layer_to_mesh.find(layer);
         if (it == layer_to_mesh.end()) {
             layer_to_mesh[layer] = meshes.size();
-            meshes.push_back(LayerMesh{layer, {}, {}});
+            LayerMesh m;
+            m.layer_ordinal = layer;
+            m.is_zone       = true;
+            meshes.push_back(std::move(m));
             return meshes.back();
         }
         return meshes[it->second];

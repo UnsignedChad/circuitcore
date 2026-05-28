@@ -133,6 +133,7 @@ private:
         int ordinal = 0;
         int index_start = 0;
         int index_count = 0;
+        bool is_zone = false;  // zones paint translucent, tracks opaque
     };
 
     Camera2D camera_;

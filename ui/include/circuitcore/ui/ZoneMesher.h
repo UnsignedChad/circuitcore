@@ -17,6 +17,11 @@ namespace circuitcore::ui {
 
 struct LayerMesh {
     int layer_ordinal = 0;
+    // Zones (copper pours / planes) render as translucent fills under
+    // tracks so signal traces remain readable even when they run through
+    // a poured plane on the same layer. Segments / pads / vias keep
+    // is_zone = false and render opaque on top.
+    bool is_zone = false;
     // Interleaved 2D positions: [x0, y0, x1, y1, ...]. Units: meters.
     std::vector<float> vertices;
     // Triangle list (3 indices per triangle).
