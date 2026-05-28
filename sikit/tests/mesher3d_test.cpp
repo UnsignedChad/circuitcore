@@ -57,7 +57,7 @@ TEST_CASE("mesher3d: empty board yields empty meshes", "[m3d]") {
     REQUIRE(m.dielectric.empty());
 }
 
-TEST_CASE("mesher3d: a single segment produces a copper box (24 verts, 36 idx)",
+TEST_CASE("mesher3d: a single segment produces a copper box plus caps",
           "[m3d]") {
     Board b = minimal_2layer();
     sikit::si::SiStackup sis;
@@ -70,9 +70,14 @@ TEST_CASE("mesher3d: a single segment produces a copper box (24 verts, 36 idx)",
 
     auto m = build_board_mesh_3d(b, sis);
     REQUIRE(!m.copper.empty());
-    // 6 faces × 4 verts × (pos3+normal3+rgba4 = 10 floats) = 240 floats per box.
-    REQUIRE(m.copper.vertices.size() == 240);
-    REQUIRE(m.copper.indices.size()  == 36);
+    // A segment extrudes to a box (6 faces × 4 verts × 10 floats = 240
+    // floats, 36 indices) plus rounded end-caps; the exact total depends
+    // on cap tessellation, so require at least the box and well-formed
+    // triangles / 10-float vertices.
+    REQUIRE(m.copper.indices.size()  >= 36);
+    REQUIRE(m.copper.indices.size() % 3 == 0);
+    REQUIRE(m.copper.vertices.size() >= 240);
+    REQUIRE(m.copper.vertices.size() % 10 == 0);
     // Dielectric should also appear (synthesised fallback creates one slab).
     REQUIRE(!m.dielectric.empty());
 }
