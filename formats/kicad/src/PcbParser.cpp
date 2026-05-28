@@ -845,8 +845,25 @@ private:
                 const auto& kind = tx->children[1];
                 if (kind.is_symbol() && kind.text != "user") continue;
                 circuitcore::board::GraphicItem g;
-                if (node_to_text(*tx, /*text_index=*/2, g))
+                if (node_to_text(*tx, /*text_index=*/2, g)) {
+                    // KiCad ships fab-layer text as templates like
+                    // "${REFERENCE}" / "${VALUE}" that get substituted
+                    // with the footprint's actual ref / value at render
+                    // time. Do that substitution here so the canvas
+                    // shows "U3" instead of the literal placeholder
+                    // (which became visible once F.Fab started rendering).
+                    auto subst = [&](std::string& s, const std::string& token,
+                                       const std::string& with) {
+                        for (std::size_t pos = 0;
+                             (pos = s.find(token, pos)) != std::string::npos;
+                             pos += with.size()) {
+                            s.replace(pos, token.size(), with);
+                        }
+                    };
+                    subst(g.text, "${REFERENCE}", fp_ref);
+                    subst(g.text, "${VALUE}",     fp_value);
                     push_fp(std::move(g));
+                }
             }
 
             // Build the Component record: identifier + bbox of any
