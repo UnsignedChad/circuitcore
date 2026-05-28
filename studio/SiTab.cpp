@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 #include <unordered_set>
 
 #include <QAction>
@@ -65,28 +66,56 @@ namespace circuitcore::studio {
 
 namespace {
 
-std::pair<double, double> net_geometry(const board::Board& board, int net_id) {
-    std::vector<double> widths;
-    double total_length = 0.0;
+// Aggregate so callers can grab named fields and structured-bind:
+//   auto [tw, tl, lo] = net_geometry(...);
+struct NetGeometry {
+    double trace_width = 0.0;   // median width on the dominant layer (m)
+    double length_m    = 0.0;   // sum of segment lengths on dominant layer
+    int    layer_ordinal = 0;   // copper layer carrying the most length
+};
+
+// Scan every copper-layer segment for net_id, group by layer ordinal, and
+// pick the layer with the most total routed length as "where this net
+// lives." Multi-layer routing is a simplification -- for a quick-look
+// impedance / channel check this matches what an engineer eyeballs: most
+// of the trace is on this layer, model it as if all of it were. Vias get
+// rolled into total length only via the segment endpoints; that under-
+// counts via parasitics but the via S-param tool covers them separately.
+NetGeometry net_geometry(const board::Board& board, int net_id) {
+    struct Bucket {
+        std::vector<double> widths;
+        double length = 0.0;
+    };
+    std::unordered_map<int, Bucket> per_layer;
     for (const auto& s : board.segments) {
         if (s.net_id != net_id) continue;
-        if (s.layer_ordinal != 0) continue;
-        widths.push_back(s.width);
+        const auto* L = board.find_layer(s.layer_ordinal);
+        if (!L || !L->is_copper()) continue;
         const double dx = s.end.x - s.start.x;
         const double dy = s.end.y - s.start.y;
-        total_length += std::sqrt(dx * dx + dy * dy);
+        auto& bucket = per_layer[s.layer_ordinal];
+        bucket.widths.push_back(s.width);
+        bucket.length += std::sqrt(dx * dx + dy * dy);
     }
-    if (widths.empty()) return {0.0, 0.0};
-    std::sort(widths.begin(), widths.end());
-    return {widths[widths.size() / 2], total_length};
+    if (per_layer.empty()) return {};
+    int dom = per_layer.begin()->first;
+    double dom_len = per_layer.begin()->second.length;
+    for (const auto& [ord, b] : per_layer) {
+        if (b.length > dom_len) { dom = ord; dom_len = b.length; }
+    }
+    auto& dom_bucket = per_layer[dom];
+    std::sort(dom_bucket.widths.begin(), dom_bucket.widths.end());
+    return { dom_bucket.widths[dom_bucket.widths.size() / 2],
+             dom_bucket.length, dom };
 }
 
 sikit::analysis::ChannelSpec build_spec(const board::Board& board,
                                          const sikit::si::SiStackup& stackup,
-                                         double trace_w, double length_m) {
+                                         double trace_w, double length_m,
+                                         int layer_ordinal) {
     sikit::analysis::ChannelSpec spec;
     spec.trace_width   = trace_w;
-    spec.layer_ordinal = 0;
+    spec.layer_ordinal = layer_ordinal;
     spec.length_m      = length_m;
     spec.stackup       =
         sikit::analysis::AnalysisStackup::from_board(board, stackup);
@@ -226,19 +255,27 @@ void SiTab::refreshNetList() {
     net_combo_->clear();
     if (!model_->board()) return;
     const auto* board = model_->board();
-    // List high-speed nets first so they stay easy to find on dense serdes /
-    // ddr boards, then every other named net. Listing only high-speed left
-    // the combo empty on slower boards (microcontroller, analog) where
-    // users still want impedance / skew checks per net.
-    const auto hs = sikit::highspeed::find_high_speed_nets(*board);
-    std::unordered_set<int> hs_set(hs.begin(), hs.end());
-    for (int nid : hs) {
-        if (const auto* n = board->find_net(nid)) {
-            net_combo_->addItem(QString::fromStdString(n->name), nid);
-        }
+    // Criterion: a net belongs here if it's realized as routed copper
+    // segments. Pure-zone nets (VCC / GND poured as plane fill) drop out
+    // -- those are PI concerns, the PI tab analyzes them as planes, not
+    // as transmission lines. High-speed-named nets are surfaced first as
+    // a UX nicety on dense serdes / ddr boards; they are not used as a
+    // filter (keyword lists are too brittle to gate functionality on).
+    std::unordered_set<int> routed;
+    for (const auto& s : board->segments) routed.insert(s.net_id);
+    std::unordered_set<int> hs_set;
+    for (int nid : sikit::highspeed::find_high_speed_nets(*board)) {
+        hs_set.insert(nid);
     }
     for (const auto& n : board->nets) {
         if (n.name.empty()) continue;
+        if (!routed.count(n.id)) continue;
+        if (!hs_set.count(n.id)) continue;
+        net_combo_->addItem(QString::fromStdString(n.name), n.id);
+    }
+    for (const auto& n : board->nets) {
+        if (n.name.empty()) continue;
+        if (!routed.count(n.id)) continue;
         if (hs_set.count(n.id)) continue;
         net_combo_->addItem(QString::fromStdString(n.name), n.id);
     }
@@ -260,15 +297,15 @@ void SiTab::onPlotNetSParam() {
         QMessageBox::information(this, "Plot S-parameters", "Pick a net first.");
         return;
     }
-    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    auto [tw, tl, lo] = net_geometry(*model_->board(), net_id);
     if (tw <= 0.0 || tl <= 0.0) {
         QMessageBox::warning(this, "Plot S-parameters",
-                              "Net has no F.Cu segments to model.");
+                              "Net has no routed copper segments to model.");
         return;
     }
     sikit::analysis::ChannelSpec spec;
     spec.trace_width   = tw;
-    spec.layer_ordinal = 0;
+    spec.layer_ordinal = lo;
     spec.length_m      = tl;
     spec.stackup       = sikit::analysis::AnalysisStackup::from_board(
         *model_->board(), model_->siStackup());
@@ -414,9 +451,9 @@ void SiTab::onSynthesizeEye() {
         QMessageBox::information(this, "Synth eye", "Pick a net first.");
         return;
     }
-    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    auto [tw, tl, lo] = net_geometry(*model_->board(), net_id);
     if (tw <= 0.0 || tl <= 0.0) {
-        QMessageBox::warning(this, "Synth eye", "Net has no F.Cu segments.");
+        QMessageBox::warning(this, "Synth eye", "Net has no routed copper.");
         return;
     }
     bool ok = false;
@@ -427,7 +464,7 @@ void SiTab::onSynthesizeEye() {
 
     sikit::analysis::ChannelSpec spec;
     spec.trace_width   = tw;
-    spec.layer_ordinal = 0;
+    spec.layer_ordinal = lo;
     spec.length_m      = tl;
     spec.stackup       = sikit::analysis::AnalysisStackup::from_board(
         *model_->board(), model_->siStackup());
@@ -530,9 +567,9 @@ void SiTab::onExportTouchstone() {
         QMessageBox::information(this, "Export .s2p", "Pick a net first.");
         return;
     }
-    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    auto [tw, tl, lo] = net_geometry(*model_->board(), net_id);
     if (tw <= 0.0) {
-        QMessageBox::warning(this, "Export .s2p", "Net has no F.Cu segments.");
+        QMessageBox::warning(this, "Export .s2p", "Net has no routed copper.");
         return;
     }
     const QString path = QFileDialog::getSaveFileName(
@@ -540,7 +577,7 @@ void SiTab::onExportTouchstone() {
         "Touchstone 2-port (*.s2p)");
     if (path.isEmpty()) return;
     sikit::analysis::ChannelSpec spec;
-    spec.trace_width = tw; spec.layer_ordinal = 0; spec.length_m = tl;
+    spec.trace_width = tw; spec.layer_ordinal = lo; spec.length_m = tl;
     spec.stackup = sikit::analysis::AnalysisStackup::from_board(
         *model_->board(), model_->siStackup());
     spec.engine  = useFdm() ? sikit::analysis::Engine::Fdm
@@ -566,13 +603,13 @@ void SiTab::onExportCsv() {
         QMessageBox::information(this, "Export .csv", "Pick a net first.");
         return;
     }
-    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    auto [tw, tl, lo] = net_geometry(*model_->board(), net_id);
     if (tw <= 0.0) return;
     const QString path = QFileDialog::getSaveFileName(
         this, "Save CSV", net_combo_->currentText() + ".csv", "CSV (*.csv)");
     if (path.isEmpty()) return;
     sikit::analysis::ChannelSpec spec;
-    spec.trace_width = tw; spec.layer_ordinal = 0; spec.length_m = tl;
+    spec.trace_width = tw; spec.layer_ordinal = lo; spec.length_m = tl;
     spec.stackup = sikit::analysis::AnalysisStackup::from_board(
         *model_->board(), model_->siStackup());
     std::vector<double> freqs;
@@ -947,10 +984,10 @@ void SiTab::onStatEyePda() {
                                   tr("Pick a net first."));
         return;
     }
-    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    auto [tw, tl, lo] = net_geometry(*model_->board(), net_id);
     if (tw <= 0.0) {
         QMessageBox::warning(this, tr("Statistical eye"),
-                              tr("Net has no F.Cu segments."));
+                              tr("Net has no routed copper."));
         return;
     }
     bool ok = false;
@@ -959,7 +996,7 @@ void SiTab::onStatEyePda() {
         10.0, 0.01, 100.0, 2, &ok);
     if (!ok) return;
     const double baud = baud_gbps * 1e9;
-    auto spec = build_spec(*model_->board(), model_->siStackup(), tw, tl);
+    auto spec = build_spec(*model_->board(), model_->siStackup(), tw, tl, lo);
     std::vector<double> freqs;
     constexpr int kSpu = 32;
     const double fs = baud * kSpu;
@@ -1007,17 +1044,17 @@ void SiTab::onCrosstalkVictim() {
     if (!ok) return;
     const int agg_id =
         model_->board()->find_net_by_name(agg_choice.toStdString())->id;
-    auto [vw, vl] = net_geometry(*model_->board(), victim_id);
-    auto [aw, al] = net_geometry(*model_->board(), agg_id);
+    auto [vw, vl, vlo] = net_geometry(*model_->board(), victim_id);
+    auto [aw, al, alo] = net_geometry(*model_->board(), agg_id);
     if (vw <= 0.0 || aw <= 0.0) {
         QMessageBox::warning(this, tr("Crosstalk eye"),
-                              tr("Both nets need F.Cu segments."));
+                              tr("Both nets need routed copper."));
         return;
     }
     const double baud = 10e9;
     constexpr int kSpu = 32;
-    auto vs = build_spec(*model_->board(), model_->siStackup(), vw, vl);
-    auto as = build_spec(*model_->board(), model_->siStackup(), aw, al);
+    auto vs = build_spec(*model_->board(), model_->siStackup(), vw, vl, vlo);
+    auto as = build_spec(*model_->board(), model_->siStackup(), aw, al, alo);
     std::vector<double> freqs;
     for (double f = baud / 50.0; f <= baud * kSpu / 2.0; f += baud / 50.0)
         freqs.push_back(f);
@@ -1057,13 +1094,13 @@ void SiTab::onSpiceExport() {
                                   tr("Pick a net first."));
         return;
     }
-    auto [tw, tl] = net_geometry(*model_->board(), net_id);
+    auto [tw, tl, lo] = net_geometry(*model_->board(), net_id);
     if (tw <= 0.0) return;
     const QString path = QFileDialog::getSaveFileName(
         this, tr("Save SPICE subcircuit"),
         net_combo_->currentText() + ".sp", tr("SPICE (*.sp *.cir)"));
     if (path.isEmpty()) return;
-    auto spec = build_spec(*model_->board(), model_->siStackup(), tw, tl);
+    auto spec = build_spec(*model_->board(), model_->siStackup(), tw, tl, lo);
     std::vector<double> freqs;
     for (int i = 0; i < 401; ++i) {
         const double t = static_cast<double>(i) / 400.0;
