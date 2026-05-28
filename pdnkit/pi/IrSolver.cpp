@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <numeric>
+#include <unordered_map>
+#include <vector>
 
 #include <Eigen/SparseCholesky>
 #include <Eigen/SparseCore>
@@ -93,17 +96,48 @@ Solution IrSolver::solve(const IrMesh& mesh, const SolveConfig& cfg) {
             }
         }
     } else {
-        // Pin the most-negative-current node (the deepest sink).
-        int pin_node = -1;
-        double pin_value = 0.0;
-        for (const auto& [nid, cur] : mesh.node_currents) {
-            if (cur < pin_value && nid >= 0 && nid < static_cast<int>(N)) {
-                pin_value = cur;
-                pin_node = nid;
+        // Pin ONE reference per connected component. A fragmented net --
+        // a zone split into islands that only rejoin through other
+        // layers/vias not in this mesh -- produces several disconnected
+        // blocks. Pinning just the global deepest sink grounds only its
+        // block; every other block stays floating and Cholesky reports a
+        // singular matrix. Union-find the resistor graph, then pin the
+        // most-negative-current node of each component (any node if the
+        // component carries no explicit current, so all-zero islands are
+        // grounded too).
+        std::vector<int> uf(N);
+        std::iota(uf.begin(), uf.end(), 0);
+        auto find = [&](int x) {
+            while (uf[x] != x) { uf[x] = uf[uf[x]]; x = uf[x]; }
+            return x;
+        };
+        auto unite = [&](int a, int b) { uf[find(a)] = find(b); };
+        for (const auto& r : mesh.resistors) {
+            if (r.from_node >= 0 && r.from_node < static_cast<int>(N) &&
+                r.to_node   >= 0 && r.to_node   < static_cast<int>(N)) {
+                unite(r.from_node, r.to_node);
             }
         }
-        if (pin_node >= 0) {
-            triplets.emplace_back(pin_node, pin_node, kPinStiffness);
+        // root -> (pin node id, its current). Prefer the deepest sink.
+        std::unordered_map<int, int>    comp_pin;
+        std::unordered_map<int, double> comp_cur;
+        for (const auto& [nid, cur] : mesh.node_currents) {
+            if (nid < 0 || nid >= static_cast<int>(N)) continue;
+            const int root = find(nid);
+            auto it = comp_cur.find(root);
+            if (it == comp_cur.end() || cur < it->second) {
+                comp_pin[root] = nid;
+                comp_cur[root] = cur;
+            }
+        }
+        // Ground every remaining component (no explicit current on it).
+        for (std::size_t i = 0; i < N; ++i) {
+            const int root = find(static_cast<int>(i));
+            if (!comp_pin.count(root)) comp_pin[root] = static_cast<int>(i);
+        }
+        for (const auto& [root, nid] : comp_pin) {
+            (void)root;
+            triplets.emplace_back(nid, nid, kPinStiffness);
         }
     }
 
