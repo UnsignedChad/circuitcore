@@ -81,7 +81,7 @@ else()
 
     FetchContent_Declare(VTK
         GIT_REPOSITORY https://gitlab.kitware.com/vtk/vtk.git
-        GIT_TAG        v9.3.1
+        GIT_TAG        v9.4.2
         GIT_SHALLOW    TRUE
         # VTK ships a vtk-m submodule whose deepest filenames break
         # past Windows 260-char MAX_PATH. core.longpaths lets the clone
