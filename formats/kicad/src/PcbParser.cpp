@@ -98,6 +98,7 @@ public:
         parse_stackup();
         parse_nets();
         parse_segments();
+        parse_arcs();
         parse_vias();
         parse_zones();
         parse_outline();
@@ -236,6 +237,49 @@ private:
             }
             if (const Node* netr  = find_child(*segn, "net"))   s.net_id = net_id_(*netr);
             board_.segments.push_back(s);
+        }
+    }
+
+    // Filleted / curved traces ship as (arc start mid end width layer net)
+    // instead of (segment ...). Tessellate each one into a polyline of
+    // straight Segments so the renderer, PadMesher's neighbours, and the
+    // PI/SI analyses all pick them up without needing a separate code
+    // path. Without this, boards routed with arc-tracks (StickHub,
+    // royalblue, vme-wren) silently lose those copper segments.
+    void parse_arcs() {
+        for (const Node* arcn : find_children(root_, "arc")) {
+            const Node* st  = find_child(*arcn, "start");
+            const Node* mid = find_child(*arcn, "mid");
+            const Node* en  = find_child(*arcn, "end");
+            if (!st || !mid || !en) continue;
+            const auto P0 = read_xy_tail(*st);
+            const auto P1 = read_xy_tail(*mid);
+            const auto P2 = read_xy_tail(*en);
+            double width_m = 0.0;
+            if (const Node* w = find_child(*arcn, "width")) {
+                if (w->children.size() >= 2 && w->children[1].is_number())
+                    width_m = w->children[1].number * kMmToM;
+            }
+            int layer_ord = 0;
+            if (const Node* lay = find_child(*arcn, "layer")) {
+                auto names = read_layer_names(*lay);
+                if (!names.empty()) layer_ord = layer_id_(names[0], *lay);
+            }
+            int net_id = 0;
+            if (const Node* netr = find_child(*arcn, "net"))
+                net_id = net_id_(*netr);
+
+            std::vector<circuitcore::board::Point2> pts;
+            tessellate_arc(P0, P1, P2, pts);
+            for (std::size_t i = 1; i < pts.size(); ++i) {
+                circuitcore::board::Segment s;
+                s.start         = pts[i - 1];
+                s.end           = pts[i];
+                s.width         = width_m;
+                s.layer_ordinal = layer_ord;
+                s.net_id        = net_id;
+                board_.segments.push_back(s);
+            }
         }
     }
 
