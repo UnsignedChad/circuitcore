@@ -38,7 +38,14 @@ Category classify(const board::Layer& L) {
     if (ends("SilkS")) return Category::Silk;
     if (ends("Mask"))  return Category::Mask;
     if (ends("CrtYd")) return Category::Courtyard;
-    // Fab, etc -- skip in v1.
+    // F.Fab / B.Fab carry the detailed component-body outlines that
+    // KiCad uses for the printed-on-board "Fab" view. Many connector
+    // footprints (DB9 / VGA / D-Sub family) put most of their body
+    // geometry there instead of on SilkS, so without this they read as
+    // bare pads with no shape around them. Route them through the silk
+    // pipeline so they render in the same opaque colour as silkscreen
+    // and respect the same silk-visible toggle.
+    if (ends(".Fab"))  return Category::Silk;
     return Category::Skip;
 }
 
