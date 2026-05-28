@@ -8,12 +8,15 @@
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QStatusBar>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 #include <QToolBar>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -108,6 +111,29 @@ MpTab::MpTab(BoardModel* model, QWidget* parent)
     dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
 
+    // --- Left dock: per-component heat sources ---------------------
+    // The Power [W] column is editable; everything else is informational.
+    // Edits get stored in component_power_w_ keyed by reference, and at
+    // Run time they're added to the IR-derived Joule source so the heat
+    // solve sees chip dissipation as well as trace I^2R losses.
+    components_table_ = new QTableWidget(this);
+    components_table_->setColumnCount(4);
+    components_table_->setHorizontalHeaderLabels(
+        {tr("Ref"), tr("Value"), tr("Footprint"), tr("Power [W]")});
+    components_table_->verticalHeader()->setVisible(false);
+    components_table_->horizontalHeader()->setStretchLastSection(false);
+    components_table_->horizontalHeader()->setSectionResizeMode(
+        1, QHeaderView::Stretch);
+    components_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    components_table_->setEditTriggers(QAbstractItemView::DoubleClicked |
+                                         QAbstractItemView::SelectedClicked);
+    connect(components_table_, &QTableWidget::cellChanged,
+            this, &MpTab::onComponentPowerEdited);
+    auto* comp_dock = new QDockWidget(tr("Components"), this);
+    comp_dock->setWidget(components_table_);
+    comp_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::LeftDockWidgetArea, comp_dock);
+
     // --- Status bar ------------------------------------------------
     status_ = new QLabel(tr("Load a board to run a study"), this);
     statusBar()->addWidget(status_);
@@ -135,9 +161,66 @@ void MpTab::onBoardLoaded() {
         }
     }
     status_->setText(msg);
+    refreshComponentsTable();
 #ifdef MPKIT_HAS_WIDGETS
     if (model_->board()) viewer_->setBoard(*model_->board());
 #endif
+}
+
+void MpTab::refreshComponentsTable() {
+    if (!components_table_) return;
+    components_table_->blockSignals(true);
+    components_table_->clearContents();
+    if (!model_->board()) {
+        components_table_->setRowCount(0);
+        components_table_->blockSignals(false);
+        return;
+    }
+    const auto& comps = model_->board()->components;
+    components_table_->setRowCount(static_cast<int>(comps.size()));
+    int row = 0;
+    for (const auto& c : comps) {
+        const QString ref = QString::fromStdString(c.reference);
+        auto* ref_item = new QTableWidgetItem(ref);
+        ref_item->setFlags(ref_item->flags() & ~Qt::ItemIsEditable);
+        auto* val_item = new QTableWidgetItem(QString::fromStdString(c.value));
+        val_item->setFlags(val_item->flags() & ~Qt::ItemIsEditable);
+        auto* fp_item  = new QTableWidgetItem(QString::fromStdString(c.name));
+        fp_item->setFlags(fp_item->flags() & ~Qt::ItemIsEditable);
+        // Honour any value the user already typed for this ref in a prior
+        // session of this run; otherwise show whatever the parser knew
+        // (currently always 0 -- no .kicad_pcb property carries it yet).
+        const double init_p =
+            component_power_w_.value(ref, c.dissipated_power_w);
+        auto* p_item = new QTableWidgetItem(QString::number(init_p, 'f', 3));
+        p_item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        components_table_->setItem(row, 0, ref_item);
+        components_table_->setItem(row, 1, val_item);
+        components_table_->setItem(row, 2, fp_item);
+        components_table_->setItem(row, 3, p_item);
+        ++row;
+    }
+    components_table_->resizeColumnToContents(0);
+    components_table_->resizeColumnToContents(3);
+    components_table_->blockSignals(false);
+}
+
+void MpTab::onComponentPowerEdited(int row, int col) {
+    if (col != 3 || !components_table_) return;
+    auto* ref_item = components_table_->item(row, 0);
+    auto* p_item   = components_table_->item(row, 3);
+    if (!ref_item || !p_item) return;
+    bool ok = false;
+    const double p = p_item->text().toDouble(&ok);
+    if (!ok || p < 0.0) {
+        // Reject -- restore the previously stored value (or 0).
+        components_table_->blockSignals(true);
+        p_item->setText(QString::number(
+            component_power_w_.value(ref_item->text(), 0.0), 'f', 3));
+        components_table_->blockSignals(false);
+        return;
+    }
+    component_power_w_[ref_item->text()] = p;
 }
 
 void MpTab::onLoadStudy() {
@@ -213,6 +296,31 @@ void MpTab::onRunPdnThermalDemo() {
         return;
     }
 
+    // 3b. Add per-component dissipation from the user's table on top of
+    //     the IR-derived Joule source. Without this the heat solve only
+    //     sees trace I^2R losses (usually milliwatts) and never the
+    //     chips (usually watts), so the temperature map ends up
+    //     dominated by hot traces near the regulator instead of the
+    //     parts that actually run hot.
+    double component_total_w = 0.0;
+    if (!component_power_w_.isEmpty()) {
+        auto board_copy = *model_->board();
+        for (auto& c : board_copy.components) {
+            auto it = component_power_w_.find(
+                QString::fromStdString(c.reference));
+            if (it != component_power_w_.end()) {
+                c.dissipated_power_w = it.value();
+            }
+        }
+        auto comp = mpkit::component_power_to_joule_source(board_copy, vf);
+        if (comp.ok && comp.source.size() == joule.source.size()) {
+            for (std::size_t i = 0; i < joule.source.size(); ++i) {
+                joule.source.data()[i] += comp.source.data()[i];
+            }
+            component_total_w = comp.total_power_w;
+        }
+    }
+
     // 4. Steady heat solve.
     mpkit::SteadyHeatConfig hc;
     hc.material_field    = vf;
@@ -257,10 +365,13 @@ void MpTab::onRunPdnThermalDemo() {
 #else
     (void)th;
 #endif
+    const double total_w = joule.total_power_w + component_total_w;
     status_->setText(
-        tr("Done -- %1 voxels, %2 W total dissipated.")
+        tr("Done -- %1 voxels, %2 W total (%3 W traces + %4 W components).")
             .arg(vf.grid.voxel_count())
-            .arg(joule.total_power_w, 0, 'f', 3));
+            .arg(total_w,             0, 'f', 3)
+            .arg(joule.total_power_w, 0, 'f', 3)
+            .arg(component_total_w,   0, 'f', 3));
 }
 
 void MpTab::onResetCamera() {

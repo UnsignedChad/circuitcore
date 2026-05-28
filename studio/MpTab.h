@@ -13,13 +13,16 @@
 
 #pragma once
 
+#include <QHash>
 #include <QMainWindow>
+#include <QString>
 
 class QAction;
 class QComboBox;
 class QLabel;
 class QListWidget;
 class QSpinBox;
+class QTableWidget;
 
 #ifdef MPKIT_HAS_WIDGETS
 namespace mpkit::widgets { class FieldViewer; }
@@ -53,16 +56,29 @@ private slots:
     void onSliceAxisChanged(int axis);
     void onSliceIndexChanged(int index);
 
+    // User edited the Power [W] cell for a component row.
+    void onComponentPowerEdited(int row, int col);
+
 private:
+    // Refill the components table from the current board. Honours the
+    // user's existing power_w entries (looked up by reference) so prior
+    // edits persist across board reloads of the same design.
+    void refreshComponentsTable();
+
     BoardModel* model_;
 
 #ifdef MPKIT_HAS_WIDGETS
     mpkit::widgets::FieldViewer* viewer_ = nullptr;
 #endif
-    QListWidget* study_tree_  = nullptr;
-    QLabel*      status_      = nullptr;
-    QComboBox*   slice_axis_  = nullptr;
-    QSpinBox*    slice_index_ = nullptr;
+    QListWidget*  study_tree_       = nullptr;
+    QLabel*       status_           = nullptr;
+    QComboBox*    slice_axis_       = nullptr;
+    QSpinBox*     slice_index_      = nullptr;
+    QTableWidget* components_table_ = nullptr;
+    // Per-component dissipation entered by the user, keyed by reference
+    // designator (e.g. "U1"). Survives board reloads in the same
+    // session; lost on studio quit.
+    QHash<QString, double> component_power_w_;
 };
 
 }  // namespace circuitcore::studio
