@@ -266,6 +266,12 @@ std::expected<void, GeoWriteError> write_board_geo(
         << "// units: metres. mesh with:  gmsh -3 <this>.geo -o <this>.msh\n\n"
         << "SetFactory(\"OpenCASCADE\");\n"
         << "Geometry.OCCTargetUnit = \"M\";\n"
+        // SaveAll ensures Gmsh writes the outer surface mesh too, not
+        // just the volume elements. ElmerGrid needs the surface tris
+        // to attach Boundary Conditions (convection / Dirichlet); with
+        // only volume elements the imported Elmer mesh.header reports
+        // 0 boundary elements and the .sif's BCs get silently dropped.
+        << "Mesh.SaveAll = 1;\n"
         << "cl = " << opts.characteristic_length_m << ";\n\n";
 
     // -------- substrate --------------------------------------------------
