@@ -45,6 +45,17 @@ jobs:
             artifact_glob: 'release/*.dmg'
 
     steps:
+      # Windows-only: VTKs vtk-m submodule has filenames past 260 chars.
+      # Without long-path support the submodule clone aborts before any
+      # cmake work starts. Registry key + git config together get past
+      # the file-system limit and the git limit respectively.
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem"             /v LongPathsEnabled /t REG_DWORD /d 1 /f
+          git config --system core.longpaths true
+
       - uses: actions/checkout@v4
 
       # -- Export GitHub Actions cache endpoints so vcpkg's x-gha
@@ -102,10 +113,19 @@ jobs:
       #    we want to ship; skipping tests keeps the release leg short
       #    (tests already ran on every PR via ci.yml).
       - name: Configure
+        # VCPKG_MANIFEST_MODE=OFF makes the toolchain ignore vcpkg.json
+        # and use whatever the classic-mode "vcpkg install" step above
+        # placed in C:\vcpkg. Linux + macOS legs are unaffected (they
+        # do not set the toolchain file). Without this flag, the
+        # presence of vcpkg.json at the project root flips vcpkg into
+        # manifest mode and triggers a 45-minute qtbase build inside
+        # the runner -- while jurplel/install-qt-action has already
+        # given us a perfectly good prebuilt Qt at QT_ROOT_DIR.
         run: |
           cmake -B build -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCIRCUITCORE_BUILD_TESTS=OFF
+            -DCIRCUITCORE_BUILD_TESTS=OFF `
+            -DVCPKG_MANIFEST_MODE=OFF
         shell: pwsh
 
       - name: Build
