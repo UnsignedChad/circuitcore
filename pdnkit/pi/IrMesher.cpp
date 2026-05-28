@@ -279,6 +279,28 @@ IrMesh build_track_mesh(const circuitcore::board::Board& board, const MeshConfig
         return std::pair<int, double>{best, best_d2};
     };
 
+    constexpr double kPadTol = 1.0e-3;     // 1 mm
+    constexpr double kPadTol2 = kPadTol * kPadTol;
+
+    // Explicit per-pad currents (from the GUI Pad-currents table) take
+    // precedence over the auto source/sink split. Inject each at its
+    // nearest track node, keyed by pad index. Mirrors the zone path so
+    // the same edits drive both mesh types -- otherwise a trace-only
+    // board (or a no-net board routed onto the track mesh) would ignore
+    // whatever the user typed and silently fall back to leftmost/rightmost.
+    if (!cfg.pad_currents.empty()) {
+        for (std::size_t pi = 0; pi < board.pads.size(); ++pi) {
+            const auto& pad = board.pads[pi];
+            if (pad.net_id != cfg.net_id) continue;
+            auto it = cfg.pad_currents.find(static_cast<int>(pi));
+            if (it == cfg.pad_currents.end()) continue;
+            auto [nid, d2] = nearest(pad.at.x, pad.at.y);
+            if (nid >= 0 && d2 <= kPadTol2)
+                mesh.node_currents.emplace_back(nid, it->second);
+        }
+        if (!mesh.node_currents.empty()) return mesh;
+    }
+
     const circuitcore::board::Pad* src = nullptr;
     const circuitcore::board::Pad* snk = nullptr;
     for (const auto& pad : board.pads) {
@@ -289,8 +311,6 @@ IrMesh build_track_mesh(const circuitcore::board::Board& board, const MeshConfig
         if (!src || pad.at.x < src->at.x) src = &pad;
         if (!snk || pad.at.x > snk->at.x) snk = &pad;
     }
-    constexpr double kPadTol = 1.0e-3;     // 1 mm
-    constexpr double kPadTol2 = kPadTol * kPadTol;
     if (src) {
         auto [nid, d2] = nearest(src->at.x, src->at.y);
         if (nid >= 0 && d2 <= kPadTol2) mesh.source_node_ids.push_back(nid);
@@ -442,6 +462,26 @@ IrMesh IrMesher::build(const circuitcore::board::Board& board, const MeshConfig&
     if (cfg.cell_size <= 0.0 || cfg.copper_thickness <= 0.0 ||
         cfg.copper_rho <= 0.0) {
         return mesh;
+    }
+
+    // No-net (net 0 / empty name) target: the copper zone on this "net"
+    // is poured with a clearance gap around every trace and pad, so it's
+    // an isolated island that doesn't actually connect the pads. Meshing
+    // it would flood a plane that physically isn't a conductor. Route
+    // straight to the track graph, which models the real pad->trace->pad
+    // path -- this is the only continuous copper between the pads.
+    {
+        const auto* tnet = board.find_net(cfg.net_id);
+        const bool is_no_net = (cfg.net_id == 0) ||
+                               (tnet && tnet->name.empty());
+        if (is_no_net) {
+            IrMesh tm = build_track_mesh(board, cfg, cfg.layer_ordinal);
+            if (!tm.nodes.empty()) {
+                tm.primary_layer_used = cfg.layer_ordinal;
+                prune_disconnected(tm);
+            }
+            return tm;
+        }
     }
 
     // Smart layer auto-pick: if the user-requested layer has no copper for
