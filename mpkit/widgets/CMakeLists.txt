@@ -89,7 +89,7 @@ else()
         # registry key on Windows 10 1607+ for the build itself to work.
         GIT_CONFIG     core.longpaths=true
     )
-    message(STATUS "Fetching VTK v9.3.1 source -- first build takes a while")
+    message(STATUS "Fetching VTK v9.4.2 source -- first build takes a while")
     FetchContent_MakeAvailable(VTK)
 
     # VTKs bundled fmt (inside ThirdParty/diy2) references
