@@ -309,12 +309,21 @@ void AnalysisPanel::onAutoBalance() {
 }
 
 void AnalysisPanel::updateSumLabel() {
-    double sum_mA = 0.0;
+    double sum_mA  = 0.0;
+    double max_abs = 0.0;
     for (int r = 0; r < pad_table_->rowCount(); ++r) {
         auto* s = row_spin(pad_table_, r);
-        if (s) sum_mA += s->value();
+        if (!s) continue;
+        const double v = s->value();
+        sum_mA += v;
+        if (std::abs(v) > max_abs) max_abs = std::abs(v);
     }
-    const bool balanced = std::abs(sum_mA) < 1e-6;
+    // Tolerance: 1 uA absolute (one LSB of the 3-decimal mA spinbox)
+    // plus 1 ppm relative for very large currents. Anything tighter
+    // rejects normal auto-balance rounding (eg 50 sinks of -20.408 mA
+    // summing back to -1000.008 mA) for no physical reason.
+    const double tol_mA = std::max(0.001, 1.0e-6 * max_abs);
+    const bool balanced = std::abs(sum_mA) <= tol_mA;
     sum_label_->setText(QString("Sum: %1 mA  %2")
         .arg(sum_mA, 0, 'f', 3)
         .arg(balanced ? "(balanced)" : "(unbalanced — solver will refuse)"));
