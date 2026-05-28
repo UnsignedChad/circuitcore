@@ -23,7 +23,10 @@ TEST_CASE("via: 2-layer through-via produces a disk on each copper layer", "[via
     b.vias.push_back(v);
 
     auto m = ViaMesher::build(b);
-    REQUIRE(m.size() == 3);  // 2 copper + 1 drill pseudo-layer
+    // 2 copper layers, each gets a pad disk. PTH vias no longer punch a
+    // drill hole in the canvas (the dark disk read as 'disconnected
+    // layers'), so there is no kDrillOrdinal mesh either.
+    REQUIRE(m.size() == 2);
     for (const auto& lm : m) {
         REQUIRE(lm.vertex_count() == 33);   // 1 center + 32 rim
         REQUIRE(lm.triangle_count() == 32); // 32-sided fan
