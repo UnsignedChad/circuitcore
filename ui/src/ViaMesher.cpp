@@ -36,8 +36,7 @@ std::vector<LayerMesh> ViaMesher::build(const circuitcore::board::Board& board) 
         if (v.outer_diameter <= 0.0) continue;
         const int lo = std::min(v.from_layer, v.to_layer);
         const int hi = std::max(v.from_layer, v.to_layer);
-        const double r_pad   = 0.5 * v.outer_diameter;
-        const double r_drill = (v.drill > 0.0) ? 0.5 * v.drill : 0.0;
+        const double r_pad = 0.5 * v.outer_diameter;
 
         // Annular pad disks on every copper layer in the span.
         for (const auto& L : board.stackup.layers) {
@@ -47,14 +46,13 @@ std::vector<LayerMesh> ViaMesher::build(const circuitcore::board::Board& board) 
                          v.at.x, v.at.y, r_pad);
         }
 
-        // Drill-hole punch in the canvas background color, drawn on the
-        // reserved kDrillOrdinal pseudo-layer. Has higher render priority
-        // than copper layers (see render_priority in PcbCanvas) so it
-        // lands on top, making the via visibly drilled-through.
-        if (r_drill > 0.0) {
-            append_disk(mesh_for(meshes, idx, kDrillOrdinal),
-                         v.at.x, v.at.y, r_drill);
-        }
+        // No drill-hole punch. PTH vias are plated through, so from the
+        // top view the barrel reads as copper -- the via should appear
+        // as a solid disk of the layer colour, not as a hole punched
+        // through to the canvas background. The earlier "punch a dark
+        // disk in the middle" rendering made vias visually look like
+        // disconnected NPT holes; users reported the layers seemed
+        // unconnected. Drill location is still available via hover.
     }
     return meshes;
 }
