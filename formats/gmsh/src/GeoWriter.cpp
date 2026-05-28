@@ -44,7 +44,8 @@ struct Ring {
     double area_signed = 0.0;
 };
 
-constexpr double kSnapTol = 1.0e-6;  // 1 µm: KiCad rounds to 0.001 mm
+constexpr double kSnapTol = 5.0e-6;  // 5 µm -- KiCad's filled-zone clip
+                                       // can emit slivers shorter than 1 µm
 
 bool point_eq(const board::Point2& a, const board::Point2& b) {
     return std::abs(a.x - b.x) < kSnapTol && std::abs(a.y - b.y) < kSnapTol;
