@@ -39,5 +39,10 @@ private:
     QDoubleSpinBox*  current_spin_;
     QDoubleSpinBox*  temp_rise_spin_;
     QPushButton*     run_btn_;
+    // Status line above the results table. When the run produces zero
+    // violations the table is empty, which used to read as "Run did
+    // nothing." This label always says what happened (PASS / FAIL /
+    // no segments on net).
+    class QLabel*    status_label_ = nullptr;
     QTableWidget*    results_;
 };
