@@ -166,6 +166,31 @@ TEST_CASE("solver: explicit node_currents (multi-source/sink balance)", "[solver
     REQUIRE(s.voltages[0] > 0.0);
 }
 
+TEST_CASE("solver: two disconnected components both solve", "[solver]") {
+    // A fragmented net: nodes 0-1-2 are one island, 3-4-5 another, with
+    // NO resistor bridging them. Each island carries its own balanced
+    // source/sink pair. Pinning only one global reference would leave
+    // the other island floating and Cholesky would report a singular
+    // matrix; per-component pinning must ground both so the solve runs.
+    IrMesh m;
+    for (int i = 0; i < 6; ++i) m.nodes.push_back({i, double(i), 0, i, 0});
+    const double G = 1000.0;
+    m.resistors.push_back({0, 1, G});
+    m.resistors.push_back({1, 2, G});
+    m.resistors.push_back({3, 4, G});
+    m.resistors.push_back({4, 5, G});
+    // Island A: +1A at 0, -1A at 2. Island B: +1A at 3, -1A at 5.
+    m.node_currents = {{0, 1.0}, {2, -1.0}, {3, 1.0}, {5, -1.0}};
+
+    auto s = IrSolver::solve(m, {});
+    REQUIRE(s.ok);
+    // Each island's pinned sink sits at ~0 V, its source above it.
+    REQUIRE(s.voltages[2] == Approx(0.0).margin(1e-9));
+    REQUIRE(s.voltages[5] == Approx(0.0).margin(1e-9));
+    REQUIRE(s.voltages[0] > 0.0);
+    REQUIRE(s.voltages[3] > 0.0);
+}
+
 TEST_CASE("solver: explicit currents must sum to zero", "[solver]") {
     IrMesh m;
     for (int i = 0; i < 3; ++i) m.nodes.push_back({i, double(i), 0, i, 0});
