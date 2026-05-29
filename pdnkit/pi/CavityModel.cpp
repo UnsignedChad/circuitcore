@@ -95,6 +95,14 @@ std::complex<double> cavity_impedance_with_decaps(
     }
 
     Eigen::MatrixXcd Y = Z.inverse();
+    // .inverse() yields NaN/Inf (not an error) when Z is singular -- which
+    // happens if a decap port coincides with the observation port (duplicate
+    // rows). The coupled model is undefined then; fall back to the bare
+    // cavity impedance at the observation port rather than emit NaN.
+    if (!Y.allFinite()) {
+        return cavity_impedance(cfg, port_x(0), port_y(0),
+                                port_x(0), port_y(0), omega);
+    }
 
     const cd j(0.0, 1.0);
     for (int k = 0; k < N; ++k) {

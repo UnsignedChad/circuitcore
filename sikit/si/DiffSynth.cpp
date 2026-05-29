@@ -141,10 +141,15 @@ sikit::touchstone::TouchstoneFile synthesize_diff_channel(
     // Modal characteristic impedances and phase velocities.
     // Even mode (both traces at +1 V): L↑, C↓.
     // Odd  mode (one at +V, other at −V): L↓, C↑.
-    const double Z_even = std::sqrt((L_self + L_mut) / std::max(1e-30, C_self - C_mut));
-    const double Z_odd  = std::sqrt((L_self - L_mut) / (C_self + C_mut));
-    const double v_even = 1.0 / std::sqrt((L_self + L_mut) * (C_self - C_mut));
-    const double v_odd  = 1.0 / std::sqrt((L_self - L_mut) * (C_self + C_mut));
+    // Clamp the difference terms: strong coupling or discretization noise
+    // can push L_mut≥L_self or C_mut≥C_self, which would otherwise take a
+    // sqrt of a non-positive radicand → NaN propagating into every S-param.
+    const double c_diff = std::max(1e-30, C_self - C_mut);
+    const double l_diff = std::max(1e-30, L_self - L_mut);
+    const double Z_even = std::sqrt((L_self + L_mut) / c_diff);
+    const double Z_odd  = std::sqrt(l_diff / (C_self + C_mut));
+    const double v_even = 1.0 / std::sqrt((L_self + L_mut) * c_diff);
+    const double v_odd  = 1.0 / std::sqrt(l_diff * (C_self + C_mut));
 
     sikit::touchstone::TouchstoneFile out;
     out.num_ports = 4;

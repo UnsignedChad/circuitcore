@@ -75,6 +75,13 @@ RlgcMatrices compute_rlgc(const CrossSection& cs,
     // a general inverse for robustness against tiny asymmetry from
     // discretisation noise.
     const Eigen::MatrixXd C_air_inv = r.C_air.inverse();
+    // .inverse() does not throw on a singular matrix -- it yields NaN/Inf.
+    // Degenerate geometry (coincident conductors) must fail loudly, not
+    // hand back a garbage L flagged ok.
+    if (!C_air_inv.allFinite()) {
+        r.ok = false;
+        return r;
+    }
     r.L = (1.0 / (kC0 * kC0)) * C_air_inv;
     r.ok = true;
     return r;

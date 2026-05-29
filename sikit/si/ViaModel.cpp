@@ -144,8 +144,14 @@ sikit::touchstone::TouchstoneFile compute_via_s2p(
         // first-order model that captures the resonance position correctly
         // this is good enough.
         if (spec.stub_length > 0.0) {
-            const double alpha = std::numbers::pi * f * spec.tan_delta *
-                                 std::sqrt(eps_r) / kC0;
+            // Floor the loss to a tiny positive value: a perfectly lossless
+            // stub (tan_delta=0) drives sinh(gamma*l) / cosh(gamma*l) to an
+            // exact zero at the half/quarter-wave resonances, which would
+            // divide by zero and yield NaN S-parameters. Real stubs always
+            // dissipate; this only bites the degenerate tan_delta≈0 input.
+            const double alpha = std::max(1.0e-4,
+                                 std::numbers::pi * f * spec.tan_delta *
+                                 std::sqrt(eps_r) / kC0);
             const double beta  = w / v_p;
             const Complex gamma(alpha, beta);
             const Complex gl   = gamma * spec.stub_length;
