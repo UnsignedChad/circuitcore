@@ -240,7 +240,7 @@ VectorFitResult vector_fit(
 
         if (iter > 0 &&
             std::abs(c_norm - last_c_norm) <
-                opts.convergence_tol * std::abs(last_c_norm)) {
+                opts.convergence_tol * std::max(std::abs(last_c_norm), 1e-30)) {
             converged = true;
             ++iter;
             break;
