@@ -39,8 +39,9 @@
 //       now; this becomes a sweep when the topology editor UI gets
 //       a "what-if" panel.
 //
-// Reference: the cascade math is the standard T-parameter chain from
-// Pozar, Microwave Engineering, Ch. 4. sparam::s_to_t / t_to_s already
+// Reference: cascade-by-matrix-multiply is in Pozar §4.4 (ABCD). The
+// specific S->T conversion sparam::s_to_t implements comes from
+// Frickey 1994, IEEE Trans MTT 42(2). sparam::s_to_t / t_to_s already
 // implement the 2-port conversions; this module just walks the block
 // list.
 

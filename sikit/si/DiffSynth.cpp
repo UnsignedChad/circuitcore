@@ -161,7 +161,8 @@ sikit::touchstone::TouchstoneFile synthesize_diff_channel(
         const auto o = abcd_to_s(line_abcd(Z_odd,  v_odd,  spec.length_m, f), Zr);
 
         // Recombine. Port order: 1=P_near, 2=P_far, 3=N_near, 4=N_far.
-        // Textbook formulas (Pozar §7.2):
+        // Coupled-line even/odd recombination (Pozar §7.6 Coupled
+        // Line Theory, eqns following Z_0e / Z_0o definitions):
         //   S11 = ½(e.S11 + o.S11)       reflection on positive near end
         //   S33 = ½(e.S11 + o.S11)       symmetric
         //   S13 = ½(e.S11 − o.S11)       near-end coupling between traces

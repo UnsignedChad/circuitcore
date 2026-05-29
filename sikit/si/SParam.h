@@ -4,7 +4,10 @@
 // insertion/return loss helpers and mixed-mode (differential) extraction
 // from a 4-port single-ended block.
 //
-// Reference: Pozar, Microwave Engineering, Ch. 4. T-parameter cascade is
+// Reference: Pozar, Microwave Engineering, 4th ed., §4.4 covers the
+// ABCD-matrix cascade idea; the specific S->T conversion this module
+// uses is in Frickey 1994 (IEEE Trans MTT vol 42 no 2, pp 205-211).
+// T-parameter cascade is
 // the textbook trick: convert each S-matrix to its T (transmission) form,
 // multiply T_A · T_B, convert back to S.
 
@@ -42,7 +45,7 @@ touchstone::TouchstoneFile cascade(const touchstone::TouchstoneFile& a,
 
 // Port-ordering convention used by mixed-mode conversion. Convention
 // names match the way Touchstone files in the wild are organised:
-//   PNPN: [P1, N1, P2, N2]   most VNA exports + Pozar §7.2
+//   PNPN: [P1, N1, P2, N2]   most VNA exports (Keysight/Anritsu convention)
 //   PPNN: [P1, P2, N1, N2]   the order DiffSynth.cpp emits
 enum class PortOrder {
     PNPN,
@@ -128,7 +131,8 @@ TdrResult tdt_step_response(const std::vector<double>& freqs,
 // frequency grid (within a 1e-9 tolerance), and have the same reference
 // impedance -- the cascade math assumes a consistent Z_ref throughout.
 //
-// Reference: Pozar, Microwave Engineering, Ch. 4 (T-parameter cascade
+// Reference: Pozar §4.4 covers the ABCD cascade; the S->T variant used
+// here is in Frickey 1994 IEEE Trans MTT 42(2). (T-parameter cascade
 // + inversion); Agilent Application Note AN 1364-1 "De-embedding and
 // Embedding S-parameter Networks Using a Vector Network Analyzer".
 //
