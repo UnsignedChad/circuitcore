@@ -16,6 +16,13 @@ std::complex<double> interpolate_s21(
     if (channel.num_ports != 2) {
         throw std::invalid_argument("interpolate_s21 requires a 2-port file");
     }
+    // Every freq-index below is also used to index s_matrices; a truncated /
+    // malformed Touchstone with fewer matrices than frequencies would read
+    // out of bounds.
+    if (channel.s_matrices.size() != channel.frequencies.size()) {
+        throw std::invalid_argument(
+            "interpolate_s21: frequency / s-matrix count mismatch");
+    }
     const auto& freqs = channel.frequencies;
     if (freqs.empty()) return Complex(1.0, 0.0);
 

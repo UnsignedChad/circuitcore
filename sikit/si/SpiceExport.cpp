@@ -45,6 +45,12 @@ std::string spice_subckt_from_fit(
             "SpiceExport: subckt_name must be a SPICE identifier "
             "(letters, digits, underscore; no leading digit)");
     }
+    // residues are indexed by the pole loop below; a caller-built fit with
+    // fewer residues than poles would read out of bounds.
+    if (fit.residues.size() < fit.poles.size()) {
+        throw std::runtime_error(
+            "SpiceExport: fit has fewer residues than poles");
+    }
     std::ostringstream os;
 
     if (opts.include_header) {
