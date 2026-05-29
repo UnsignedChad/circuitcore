@@ -140,6 +140,12 @@ namespace {
 // [Number of Ports], [Reference], [Two-Port Order], and [Matrix Format]
 // keywords; second pass extracts the # option line and numeric body
 // (same data layout the v1 parser produces).
+// Upper bound on port count. per_record grows as 2*N*N, so an absurd
+// port count (from a malformed [Number of Ports] or a bogus .sNNNp
+// filename) would otherwise drive a multi-GB allocation. Real Touchstone
+// files top out well under this.
+constexpr int kMaxPorts = 1024;
+
 TouchstoneFile parse_v2(std::string_view src, int default_num_ports) {
     TouchstoneFile out;
     out.version = 2;
@@ -271,6 +277,11 @@ TouchstoneFile parse_v2(std::string_view src, int default_num_ports) {
         throw TouchstoneParseError("v2: [Number of Ports] not set and no "
                                      "filename hint available");
     }
+    if (out.num_ports > kMaxPorts) {
+        throw TouchstoneParseError(std::format(
+            "v2: [Number of Ports] {} exceeds the supported maximum {}",
+            out.num_ports, kMaxPorts));
+    }
 
     // Chunk the value stream into records.
     const std::size_t N = static_cast<std::size_t>(out.num_ports);
@@ -312,9 +323,10 @@ TouchstoneFile TouchstoneReader::read_string(std::string_view src, int num_ports
     if (is_touchstone_v2(src)) {
         return parse_v2(src, num_ports);
     }
-    if (num_ports < 1) {
+    if (num_ports < 1 || num_ports > kMaxPorts) {
         throw TouchstoneParseError(
-            std::format("num_ports must be >= 1, got {}", num_ports));
+            std::format("num_ports must be in [1, {}], got {}",
+                        kMaxPorts, num_ports));
     }
 
     TouchstoneFile out;

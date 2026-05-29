@@ -192,9 +192,20 @@ private:
     std::size_t col_ = 1;
 };
 
-Node parse_node(Lexer& lex, Lexer::Token first);
+// Bound on list nesting. Recursive descent costs one stack frame per
+// level, so a malformed file of all '(' would overflow the stack and
+// crash uncatchably. KiCad / AMI files never nest more than a few dozen
+// deep; 1000 is generous headroom that still keeps the frame count well
+// under any real stack limit.
+constexpr int kMaxParseDepth = 1000;
 
-Node parse_list(Lexer& lex, std::size_t open_line, std::size_t open_col) {
+Node parse_node(Lexer& lex, Lexer::Token first, int depth);
+
+Node parse_list(Lexer& lex, std::size_t open_line, std::size_t open_col,
+                int depth) {
+    if (depth > kMaxParseDepth) {
+        throw ParseError("s-expression nesting too deep", open_line, open_col);
+    }
     Node list;
     list.kind = Node::Kind::List;
     list.line = open_line;
@@ -205,17 +216,17 @@ Node parse_list(Lexer& lex, std::size_t open_line, std::size_t open_col) {
         if (tok.kind == Lexer::Tok::End) {
             throw ParseError("unterminated list (missing ')')", open_line, open_col);
         }
-        list.children.push_back(parse_node(lex, std::move(tok)));
+        list.children.push_back(parse_node(lex, std::move(tok), depth));
     }
 }
 
-Node parse_node(Lexer& lex, Lexer::Token first) {
+Node parse_node(Lexer& lex, Lexer::Token first, int depth) {
     Node n;
     n.line = first.line;
     n.col = first.col;
     switch (first.kind) {
         case Lexer::Tok::LParen:
-            return parse_list(lex, first.line, first.col);
+            return parse_list(lex, first.line, first.col, depth + 1);
         case Lexer::Tok::Symbol:
             n.kind = Node::Kind::Symbol;
             n.text = std::move(first.text);
@@ -245,7 +256,7 @@ Node parse(std::string_view src) {
     if (first.kind == Lexer::Tok::End) {
         throw ParseError("empty input", 1, 1);
     }
-    Node root = parse_node(lex, std::move(first));
+    Node root = parse_node(lex, std::move(first), 0);
     // Once the main form has been parsed successfully, anything past it is
     // best-effort: real-world KiCad output sometimes contains sibling
     // top-level forms (embedded_fonts, 3D model entries) AND occasional
@@ -255,7 +266,7 @@ Node parse(std::string_view src) {
         auto next = lex.next();
         while (next.kind != Lexer::Tok::End) {
             if (next.kind == Lexer::Tok::RParen) break;
-            (void)parse_node(lex, std::move(next));
+            (void)parse_node(lex, std::move(next), 0);
             next = lex.next();
         }
     } catch (const ParseError&) {
