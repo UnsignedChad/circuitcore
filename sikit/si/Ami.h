@@ -68,9 +68,10 @@ public:
 // Dynamic-library loader for vendor AMI executables. RAII: constructor
 // dlopens, destructor dlcloses (and calls AMI_Close if a handle is live).
 //
-// Compiles unconditionally on POSIX; on Windows the dlopen calls would
-// need to be swapped for LoadLibrary. We keep the surface portable by
-// hiding the actual mechanism behind opaque void* handles.
+// Cross-platform: POSIX uses dlopen/dlsym, Windows uses
+// LoadLibraryW/GetProcAddress (see the _WIN32 split in Ami.cpp). The
+// surface stays portable by hiding the mechanism behind opaque void*
+// handles.
 class AmiModel {
 public:
     explicit AmiModel(const std::filesystem::path& library_path);
