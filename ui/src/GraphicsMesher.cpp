@@ -141,9 +141,10 @@ GraphicsBundle GraphicsMesher::build(const board::Board& board) {
                 break;
             case K::Circle:
                 // Tessellated as a closed 48-gon by the parser. Stroke
-                // for silk/courtyard, fill for mask.
+                // for silk/courtyard, fill for mask. closed=true so the
+                // last→first edge is drawn (otherwise a wedge is missing).
                 if (fill_only) fill_polygon(*target, g.points);
-                else           stroke_polyline(*target, g.points, w, /*closed=*/false);
+                else           stroke_polyline(*target, g.points, w, /*closed=*/true);
                 break;
             case K::Polygon:
                 // Filled. Stroke too for silk (KiCad outlines polygons

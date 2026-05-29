@@ -29,6 +29,10 @@ void Camera2D::zoom_at(double anchor_sx, double anchor_sy, double factor,
     if (factor <= 0.0) return;
     Point2 world_anchor = screen_to_world(anchor_sx, anchor_sy, w, h);
     pixels_per_meter *= factor;
+    // Floor it: repeated zoom-out must never reach 0/denormal, or the
+    // 1/pixels_per_meter in screen_to_world / ortho_matrix becomes Inf/NaN
+    // and the whole frame blanks out.
+    pixels_per_meter = std::max(pixels_per_meter, 1.0e-6);
     Point2 new_world = screen_to_world(anchor_sx, anchor_sy, w, h);
     center.x += world_anchor.x - new_world.x;
     center.y += world_anchor.y - new_world.y;
