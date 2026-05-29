@@ -42,10 +42,10 @@ struct ThermalConfig {
 struct ThermalResult {
     IrMesh   mesh;
     Solution solution;
-    double   final_rho;
-    double   final_delta_t_c;   // steady-state rise above ambient
-    double   final_power_w;     // dissipated by the net at convergence
-    int      iterations;
+    double   final_rho = 0.0;
+    double   final_delta_t_c = 0.0;   // steady-state rise above ambient
+    double   final_power_w = 0.0;     // dissipated by the net at convergence
+    int      iterations = 0;
     bool     converged = false;
 };
 

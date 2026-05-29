@@ -14,6 +14,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <stdexcept>
 #include <vector>
@@ -53,6 +54,12 @@ public:
 
 private:
     std::size_t idx(int i, int j, int k) const {
+        // Bounds checking is the caller's contract (hot path), but a
+        // negative or oversized index silently casts to a huge size_t and
+        // corrupts the heap. Catch that in debug builds; compiles to
+        // nothing under NDEBUG so the release inner loop is unchanged.
+        assert(i >= 0 && i < nx_ && j >= 0 && j < ny_ && k >= 0 && k < nz_ &&
+               "Field3D index out of bounds");
         return static_cast<std::size_t>(i)
              + static_cast<std::size_t>(j) * nx_
              + static_cast<std::size_t>(k) * nx_ * ny_;
