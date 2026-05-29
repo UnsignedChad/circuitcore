@@ -234,11 +234,15 @@ void MpTab::onSaveStudyAs() {
 }
 
 void MpTab::onRunPdnThermalDemo() {
+    if (running_) return;  // re-entrant Run during processEvents -- ignore
     if (!model_->board()) {
         QMessageBox::information(this, tr("Run demo"),
                                   tr("Load a .kicad_pcb first."));
         return;
     }
+    running_ = true;
+    // Reset the guard on every exit path (the body has many early returns).
+    struct RunGuard { bool& f; ~RunGuard() { f = false; } } run_guard{running_};
     status_->setText(tr("Voxelising board..."));
     QApplication::processEvents();
 

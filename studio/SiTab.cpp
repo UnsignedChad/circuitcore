@@ -1049,8 +1049,10 @@ void SiTab::onCrosstalkVictim() {
         this, tr("Crosstalk eye"), tr("Pick the aggressor net:"),
         agg_items, 0, false, &ok);
     if (!ok) return;
-    const int agg_id =
-        model_->board()->find_net_by_name(agg_choice.toStdString())->id;
+    const auto* agg_net =
+        model_->board()->find_net_by_name(agg_choice.toStdString());
+    if (!agg_net) return;  // combo text not found (renamed/empty) -- bail
+    const int agg_id = agg_net->id;
     auto [vw, vl, vlo] = net_geometry(*model_->board(), victim_id);
     auto [aw, al, alo] = net_geometry(*model_->board(), agg_id);
     if (vw <= 0.0 || aw <= 0.0) {

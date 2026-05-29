@@ -79,6 +79,11 @@ private:
     // designator (e.g. "U1"). Survives board reloads in the same
     // session; lost on studio quit.
     QHash<QString, double> component_power_w_;
+
+    // Reentrancy guard: onRunPdnThermalDemo pumps the event loop via
+    // processEvents() mid-solve, so a second Run click (or any re-entry)
+    // would operate on half-built state. Set while a solve is in flight.
+    bool running_ = false;
 };
 
 }  // namespace circuitcore::studio

@@ -25,7 +25,6 @@ int main(int argc, char** argv) {
 
     QApplication app(argc, argv);
     QApplication::setOrganizationName("circuitcore");
-    QApplication::setOrganizationName("circuitcore");
     QApplication::setApplicationName("circuitcore-studio");
     QApplication::setApplicationVersion("0.0.1");
 
